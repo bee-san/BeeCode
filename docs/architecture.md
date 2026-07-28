@@ -154,7 +154,7 @@ sequenceDiagram
     DB-->>App: Authoritative previous state
     App->>FSRS: Previous state + elapsed days + rating
     FSRS-->>App: Next state + interval
-    App->>DB: CAS review + schedule + events + outbox
+    App->>DB: CAS review + schedule + events (+ outbox if social enabled)
     DB-->>UI: Existing or new finalized outcome
 ```
 
@@ -272,7 +272,7 @@ immutable/idempotent.
 
 ## Leaderboard architecture
 
-Private custom Leaderboards are the complete v1 social model. The service owns
+Private custom Leaderboards are the planned social model. The service owns
 accounts, membership/invites, accepted social activity, aggregate ranks, and
 server-accepted awards.
 

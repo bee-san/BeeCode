@@ -162,14 +162,17 @@ that impossible combinations are rejected, not merely hidden by the UI.
   projection version/CAS backstop, retry response, concurrency control, and
   recovery behavior.
 - **Acceptance:**
-  - Double tap, process restart, database retry, and outbox retry cannot create
-    a second review.
+  - Double tap, process restart, and database retry cannot create a second
+    review; once social is enabled, outbox retry cannot either.
   - Two distinct sessions cannot both apply a transition to the same prior
     Problem schedule version; a stale session receives an explicit conflict and
     is never silently rebased.
-  - The transaction reads authoritative schedule state, performs the fast pure
-    FSRS calculation, then commits review history, current memory state,
-    canonical domain events, and social outbox row atomically.
+  - The local transaction reads authoritative schedule state, performs the fast
+    pure FSRS calculation, then commits review history, current memory state,
+    and canonical domain events atomically.
+  - If the conditional social scope is activated, the same transaction also
+    inserts the minimal social outbox row for an already-linked account; local
+    finalization does not require social schema or configuration.
   - Achievement projections/notifications catch up idempotently after this core
     transaction and cannot block review finalization.
   - If commit outcome is uncertain, retry returns the existing final result.

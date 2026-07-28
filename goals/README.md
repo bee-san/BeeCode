@@ -113,7 +113,7 @@ flowchart TD
     ACH -. "equipped title later" .-> LDB
     DSK --> QLT["Cross-platform quality"]
     AND --> QLT
-    LDB --> SEC["Security review"]
+    LDB -. "conditional social review" .-> SEC["Security review"]
     DATA --> SEC
     RUN --> SEC
     QLT --> OPS["Release + operations"]
@@ -125,7 +125,9 @@ flowchart TD
 This is a dependency graph, not a mandate to finish whole layers in sequence.
 Development should use thin vertical slices: one bundled Problem, one local
 run, one finalized review, one FSRS transition, and one visible next-due date
-before broadening any layer.
+before broadening any layer. For delivery, the complete local desktop and
+Android product is gated before feature implementation of `LDB` or any
+server-only part of another target begins.
 
 ## Hands-on test milestones
 
@@ -151,29 +153,29 @@ This milestone does not wait for achievements, Leaderboards, analytics, broad
 content, visual polish, or release packaging. Android evidence includes an
 emulator/reachable device and physical phone; a desktop-only demo does not pass.
 
-### Test 2 — Test the social loop
+### Test 2 — Complete the local product
 
 **Target:** M4 exit, end of week 34, conditional on Test 1 passing.
 
-Run the documented self-host stack and use a friend or second test account to:
+Use the installed desktop package and Android APK to verify the complete
+accountless local product:
 
-1. register two accounts;
-2. create a private Leaderboard and join through an invitation;
-3. complete a Problem and see the Problems count/streak appear;
-4. complete once while offline, reconnect, and see one social effect;
-5. retry/refresh without creating duplicate credit;
-6. leave/rejoin and observe the documented membership-episode behavior.
+1. solve and finalize reviews from the reviewed 12–20 Problem launch pack;
+2. inspect FSRS due state, history, local statistics, and settings;
+3. earn and replay local achievements, including 5am Club;
+4. export and restore source, reviews, schedules, statistics, and achievements;
+5. complete the supported journey with the network unavailable;
+6. exercise the accessibility basics on both clients.
 
-Captured requests, rows, and logs must demonstrate that source, test output,
-and FSRS state were not uploaded. Achievement titles, including 5am Club, are
-added after this checkpoint and are not allowed to block the basic social test.
+This checkpoint needs no account, server, or Leaderboard. The conditional
+Leaderboard owner test follows in M5 only after this local-product gate passes.
 
 ## Year-one delivery cut
 
 The first year aims for a strong private beta, with stable 1.0 conditional on
 the written release gates. It reserves weeks 45–52 instead of prescheduling
-them and makes the private Leaderboard conditional on Android local alpha
-passing by week 27.
+them and makes the private Leaderboard conditional on the complete local
+desktop and Android product passing by the end of week 34.
 
 | Period | Milestone | Exit result |
 |---|---|---|
@@ -181,8 +183,8 @@ passing by week 27.
 | Weeks 5–11 | M1: thin desktop slice | One-folder Problem authoring and a durable bounded local Python run. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 scheduling, due queue, replay, and restore baseline. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Owner installs both clients and completes the answer–run–retry–finalize–restart journey. |
-| Weeks 28–34 | **M4 / Test 2: social alpha** | Owner tests a private Leaderboard with two accounts, offline upload, stable counts, and no source transfer. |
-| Weeks 35–38 | M5: achievements/content | Exact 5am Club, restrained initial achievements, reviewed seed pack, and optional social titles. |
+| Weeks 28–34 | **M4 / Test 2: complete local product** | Achievements, reviewed content, local daily-driver features, recovery, accessibility, and offline acceptance pass on both clients. |
+| Weeks 35–38 | M5: conditional Leaderboard beta | Only after Test 2 passes, owner tests a private Leaderboard with two accounts, offline upload, stable counts, and no source transfer. |
 | Weeks 39–44 | M6: feature freeze/private beta | Migration, recovery, security, accessibility, performance, documentation, and beta fixes. |
 | Weeks 45–52 | M7: contingency/release reserve | Stable release only if all gates pass; otherwise an honest private beta and reforecast. |
 
@@ -203,9 +205,10 @@ collection of screenshots.
 | First-review proof | A passing solution becomes one finalized review and due date. |
 | Daily-driver proof | Due queue, drafts, history, settings, backup, and recovery work. |
 | **Hands-on Test 1** | Owner completes one full Problem journey on installed desktop and Android builds. |
-| **Hands-on Test 2** | Owner tests a private Leaderboard with a friend or second account. |
-| Motivation proof | Events rebuild progress, unlock 5am Club, and add its optional social title correctly. |
-| Release proof | Signed clients and a documented server survive migration rehearsal. |
+| **Hands-on Test 2** | Owner verifies the complete local product on desktop and Android without an account or network. |
+| Motivation proof | Events rebuild progress and unlock 5am Club correctly. |
+| Conditional social proof | After Test 2, two accounts test a private Leaderboard with stable ranks and an optional title. |
+| Release proof | Signed clients—and the server if included—survive migration rehearsal. |
 
 ## Cross-cutting definition of done
 

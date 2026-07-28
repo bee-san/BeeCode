@@ -298,8 +298,8 @@ never motivate artificial churn.
 | M1: Thin desktop slice | Weeks 5–11 | 30–50 | One-folder Problem flow and bounded recoverable desktop run. |
 | M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS 7 due queue, replay, and restore baseline. |
 | **M3 / Test 1: playable desktop + Android alpha** | Weeks 19–27 | 70–105 | Owner installs both clients and completes the full offline Problem journey. |
-| **M4 / Test 2: conditional social alpha** | Weeks 28–34 | 95–135 | Owner tests a private self-hosted Leaderboard with two accounts and offline upload. |
-| M5: Achievements/content | Weeks 35–38 | 105–145 | Replayable achievements, verified 5am Club, optional social title, and reviewed seed pack. |
+| **M4 / Test 2: complete local product** | Weeks 28–34 | 95–135 | Replayable achievements, reviewed content, daily-driver local features, recovery, accessibility, and offline acceptance on both clients. |
+| M5: Conditional Leaderboard beta | Weeks 35–38 | 105–145 | Only after Test 2 passes, owner tests a private self-hosted Leaderboard with two accounts and offline upload. |
 | M6: Feature freeze/private beta | Weeks 39–44 | 125–165 | Signed test artifacts and restore/security/accessibility evidence. |
 | M7: Contingency/release reserve | Weeks 45–52 | No target | Stable only if gates pass; otherwise publish private-beta status and reforecast. |
 
@@ -309,7 +309,8 @@ policy.
 
 ## Delivery/operations exit gate
 
-Stable BeeCode requires signed verifiable clients, tested upgrades, a clean-host
-self-host deployment, a timed backup restore, privacy-safe diagnostics, legal/
-user/operator documentation, and a milestone evidence bundle with no
-nonwaivable blocker.
+Stable local BeeCode requires signed verifiable clients, tested upgrades, a
+timed client backup restore, privacy-safe diagnostics, legal and user
+documentation, and a milestone evidence bundle with no nonwaivable blocker.
+If the conditional Leaderboard ships, it additionally requires a clean-host
+self-host deployment, timed server restore, and operator documentation.

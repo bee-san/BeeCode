@@ -21,6 +21,8 @@ The product is intentionally built around **Problems**, not generic cards:
   shared, while each platform owns the runtime and security details it needs.
 - **Offline comes first.** Studying, scheduling, achievements, and local
   statistics do not require a server.
+- **The local product ships first.** The complete desktop and Android study
+  experience is gated before any Leaderboard implementation begins.
 - **Problem authoring is repository-native.** A contributor adds one
   self-contained directory; validation and indexing are automated.
 - **Execution has an honest capability contract.** Python code receives bounded
@@ -52,13 +54,15 @@ implementation can proceed in verified vertical slices.
    correct a failure, finalize the review, and confirm the draft/history/due
    date survive restart. This works offline and needs no account, achievements,
    or Leaderboard.
-2. **Test 2 — Test the social loop:** at the end of M4, run the self-hosted
-   server, create two accounts, invite one into a private Leaderboard, complete
-   a Problem, reconnect after an offline completion, and see the Problems count
-   and streak update exactly once. Source code must never leave the client.
+2. **Test 2 — Complete the local product:** at the end of M4, use both clients
+   offline with the reviewed LeetCode-style Problem pack, reviews and FSRS,
+   history and local statistics, achievements including 5am Club, settings,
+   export/restore, and accessibility basics. No account, server, or Leaderboard
+   is required.
 
 M0–M2 are engineering gates that make Test 1 trustworthy; they are not being
-presented as finished user-test milestones.
+presented as finished user-test milestones. Conditional Leaderboard work
+follows in M5 only after Test 2 passes.
 
 - i want it to be able to swap in more language support like rust / js in the future
 - social features are big

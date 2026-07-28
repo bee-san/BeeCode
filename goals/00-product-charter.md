@@ -139,9 +139,10 @@ different product.
 - **Outcome:** the first public release is coherent and supportable.
 - **Deliverables:** v1 capability list, explicit deferred list, and release gate.
 - **Acceptance:**
-  - v1 includes local Problem packs, Python execution, reviews, FSRS, local
-    achievements, desktop and Android clients, and optional private
-    Leaderboards.
+  - Local v1 includes Problem packs, Python execution, reviews, FSRS, local
+    achievements, and desktop and Android clients.
+  - Private Leaderboards are a conditional follow-on only after the complete
+    local-product gate; they are not a prerequisite for local v1.
   - Cross-device study sync, public rankings, chat, AI tutoring, third-party
     packages, and multiple languages remain deferred.
   - Every included capability has an owner and test strategy.

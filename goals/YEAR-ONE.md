@@ -5,10 +5,11 @@ developer can verify all 164 in 52 weeks. Completing the entire plan to its
 written release gates is more plausibly an 18–30 month programme.
 
 Year one targets a strong private beta containing the complete local study loop
-on desktop and Android, FSRS 7, a small high-quality Problem pack, 5am Club, and
-a minimal private Leaderboard. Stable 1.0 at week 52 is conditional on the
-release gates; slipping to a well-tested private beta is preferable to waiving
-data-loss, runner, privacy, or restore requirements.
+on desktop and Android, FSRS 7, a small high-quality Problem pack, and 5am Club.
+A minimal private Leaderboard is a conditional follow-on that starts only after
+the complete local-product gate passes. Stable 1.0 at week 52 is conditional on
+the release gates; slipping to a well-tested private beta is preferable to
+waiving data-loss, runner, privacy, or restore requirements.
 
 Local Python execution on Android is a core product requirement, not an
 optional scope lever. If every Android runtime fallback fails its honest
@@ -49,17 +50,17 @@ deliberately numbered separately and made prominent:
 | Hands-on milestone | Engineering exit | Target | What the owner can test |
 |---|---|---:|---|
 | **Test 1: Answer a Problem** | M3 | End week 27 | Install desktop and Android builds; read a Problem, write Python, fail/pass tests, finalize, restart, and retain source/history/due state offline. |
-| **Test 2: Social loop** | M4 | End week 34 | Run the self-host server; create/invite two accounts; complete a Problem online/offline; observe one Problems-count/streak effect and correct leave/rejoin behavior. |
+| **Test 2: Complete local product** | M4 | End week 34 | Use both clients offline with the reviewed LeetCode-style Problem pack, reviews/FSRS, history and local statistics, achievements, settings, export/restore, and accessibility basics. |
 
 Test 1 is the first product checkpoint and therefore excludes achievements,
 Leaderboards, analytics, broad content, visual polish, and release machinery.
 It requires both platforms: the earlier desktop slice is useful evidence but
 does not pass Test 1 by itself.
 
-Test 2 immediately prioritizes the requested social experiment. Its basic
-Leaderboard does not depend on achievement titles. 5am Club and other
-motivational features follow in M5, after the core and social journeys have
-been tested by the owner.
+Test 2 is the first feature-complete product checkpoint. It covers the committed
+local desktop and Android product—including achievements and content—without an
+account, server, or Leaderboard. The conditional social experiment follows in
+M5 only after this local gate passes; it cannot displace unfinished local work.
 
 ## Year-one product cut
 
@@ -79,11 +80,13 @@ been tested by the owner.
   scheduling, queue/history basics, and verified export/restore.
 - Local achievement projection, 5am Club, and two or three additional restrained
   achievements.
+- Basic local statistics and settings on both clients.
 - Accountless and offline study throughout.
 
 ### Conditional social beta
 
-If the Android local-alpha gate passes by week 27:
+If the complete local-product gate passes by the end of week 34 and the
+remaining beta/reserve forecast is healthy:
 
 - one Ktor/PostgreSQL/Caddy/Docker Compose server;
 - opaque-token account flow;
@@ -92,14 +95,15 @@ If the Android local-alpha gate passes by week 27:
 - account-global idempotent activity ingestion;
 - no pre-join or pre-account-link backfill;
 - Today/week/all-time Problems counts and streak;
-- generated/local avatar and display name for Test 2;
+- generated/local avatar and display name for the Leaderboard owner test;
 - offline outbox and one documented backup/restore path.
 
 The server-accepted 5am Club title is integrated in M5 after the local
 achievement rule passes its boundary suite.
 
-If Android slips beyond week 27, the Leaderboard remains an integration preview
-or moves after year one rather than compressing security/beta time.
+If the local product slips beyond week 34, the Leaderboard remains an
+integration preview or moves after year one rather than compressing local
+quality, security, beta, or reserve time.
 
 ### Stretch
 
@@ -132,8 +136,8 @@ or moves after year one rather than compressing security/beta time.
 | Weeks 5–11 | M1: thin desktop slice | One compiled Problem loads, source persists, Python runs, typed result displays; then generalize minimum content tooling. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 transition, due queue, replay/audit, backup baseline, desktop dogfooding. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Install both clients and complete the same offline answer–run–retry–finalize–restart journey. |
-| Weeks 28–34 | **M4 / Test 2: conditional social alpha** | Test a minimal private Leaderboard, outbox, server deployment, auth, period ranks, and restore with two accounts. |
-| Weeks 35–38 | M5: achievements/content | Deterministic projection, exact 5am Club, two or three other awards, optional social titles, and seed-pack quality pass. |
+| Weeks 28–34 | **M4 / Test 2: complete local product** | Finish achievements, content, daily-driver local features, recovery, accessibility, and offline acceptance on desktop and Android. |
+| Weeks 35–38 | M5: conditional Leaderboard beta | Only after Test 2 passes, test a minimal private Leaderboard, outbox, server deployment, auth, period ranks, and restore with two accounts. |
 | Weeks 39–44 | M6: feature freeze/private beta | No new features; migrations, recovery, security, accessibility, performance, documentation, and beta fixes. |
 | Weeks 45–52 | M7: contingency/release reserve | Unallocated reserve. Release stable only if gates pass; otherwise publish the honest private-beta status and next plan. |
 
@@ -149,7 +153,7 @@ architecture.
 
 | Spike | Decision deadline | Success threshold | Fallback | Work displaced |
 |---|---:|---|---|---|
-| Android Python boundary | End week 3 | Embedded Python starts on emulator/device, GIL-bound loop is killable, UI/source survive, claimed UID/network/storage/Logcat boundary is tested | Separate no-permission runner APK; then trusted-code-only label; if all fail, block and reforecast the committed product | Social beta first, then advanced content tooling; all downstream work stops if no fallback is acceptable |
+| Android Python boundary | End week 3 | Embedded Python starts on emulator/device, GIL-bound loop is killable, UI/source survive, claimed UID/network/storage/Logcat boundary is tested | Separate no-permission runner APK; then trusted-code-only label; if all fail, block and reforecast the committed product | Drop Leaderboard work before any committed local work, then drop advanced local stretch work; all downstream work stops if no fallback is acceptable |
 | Desktop worker | End week 3 | Supervisor/child topology, separate control channel, process-tree kill, timeout, output cap on first stable OS | Support one desktop OS; label weaker capability honestly | Additional desktop OSes |
 | Editor/IME | End week 3 | Problem-sized source remains responsive; indentation/selection/undo work on desktop and Android IME | Platform-specific editor behind `CodeEditorSurface` | Syntax polish |
 | Persistence packaging | End week 3 | One migration/transaction works on both targets; process-kill recovery understood | Platform drivers behind same repository contract | Nonessential settings/history UI |
@@ -211,7 +215,8 @@ Build:
 ### Gate
 
 - Two different sessions cannot transition one prior schedule silently.
-- Restart/retry cannot duplicate review/events/outbox.
+- Restart/retry cannot duplicate reviews or events; once M5 begins, the same
+  rule also covers the outbox.
 - Recorded transition folding rebuilds operational state without an old engine
   binary; exact historical engine can optionally recheck math.
 - Desktop can be dogfooded for two weeks without manual database repair.
@@ -246,10 +251,48 @@ Build only after the M0 runtime decision:
 - Android and desktop agree on review and FSRS semantics.
 - No account, achievement, Leaderboard, or network is required for this gate.
 
-If this gate completes after week 27, reduce or move social work; do not steal
-time from beta/reserve.
+If this gate completes after week 27, protect the M4 local-product work and move
+social work as needed; do not steal time from local quality, beta, or reserve.
 
-## M4 / Test 2 — weeks 28–34: conditional social alpha
+## M4 / Test 2 — weeks 28–34: complete local product
+
+- Project achievements from canonical events after the review commit.
+- Implement the exact 5am Club epoch/timezone algorithm and full boundary suite.
+- Add two or three other ethically reviewed achievements.
+- Complete the 12–20 original/licensed LeetCode-style Problem launch pack and
+  human review.
+- Finish the committed local daily-driver surfaces on both clients: due queue,
+  history, local statistics, settings, import/export, restore, and recovery.
+- Complete the local accessibility, offline, and release-shaped packaging
+  acceptance paths; M6 hardens them rather than adding missing local features.
+- Keep broad curriculum and achievement catalogue as stretch.
+
+### Owner test journey
+
+1. install the desktop package and Android APK;
+2. solve and finalize reviews from the launch pack on both clients;
+3. inspect due state, history, local statistics, settings, and achievements;
+4. verify 5am Club and another achievement from deterministic fixtures;
+5. export the profile, restore it into a clean install, and retain the expected
+   source, review, schedule, statistics, and achievement state;
+6. repeat the supported daily journey offline with no account or server.
+
+### Gate
+
+- Both installed clients expose every committed local year-one capability.
+- Full achievement replay equals incremental projection, and a broken/unknown
+  reducer cannot block study.
+- 5am Club passes 05:59:59/06:00, seven-day, gap, DST, travel, late event,
+  duplicate, reveal, failure, and restore tests.
+- The launch pack has zero validator/reference/leakage failures.
+- Export/restore and the offline acceptance journey pass on desktop and Android.
+- No account, server, or Leaderboard is required for any local capability or
+  for this gate.
+
+## M5 — weeks 35–38: conditional Leaderboard beta
+
+Enter this milestone only if the M4 gate passes and the remaining beta/reserve
+forecast is healthy. Otherwise retain the work in the plan and move it later.
 
 - Build the modular monolith, opaque-token auth, membership episodes, and
   durable ingestion ledger.
@@ -257,7 +300,8 @@ time from beta/reserve.
 - Do not backfill pre-account-link or pre-membership activity.
 - Derive periods server-side from UTC and immutable board timezone/week start.
 - Ship a documented self-host configuration suitable for owner testing.
-- Defer achievement-title integration until M5.
+- Add the optional server-accepted 5am Club title without changing local award
+  ownership or Leaderboard counts.
 
 ### Owner test journey
 
@@ -276,25 +320,9 @@ time from beta/reserve.
 - Captured requests, rows, and logs contain no source, test output, or FSRS
   state.
 - Clean-host deploy, restart, PostgreSQL backup, and restore pass.
-- Failure of optional titles or achievements cannot block the social journey.
-
-## M5 — weeks 35–38: achievements and content
-
-- Project achievements from canonical events after the review commit.
-- Implement the exact 5am Club epoch/timezone algorithm and full boundary suite.
-- Add two or three other ethically reviewed achievements.
-- Complete the 12–20 Problem launch pack and human review.
-- Add the optional server-accepted 5am Club title to Leaderboard profiles.
-- Keep broad curriculum and achievement catalogue as stretch.
-
-### Gate
-
-- Full replay equals incremental projection.
-- Broken/unknown reducer cannot block study.
-- 5am Club passes 05:59:59/06:00, seven-day, gap, DST, travel, late event,
-  duplicate, reveal, failure, and restore tests.
+- Failure of optional title integration cannot block the basic social journey.
 - An earned 5am Club title may be equipped socially without changing counts.
-- Launch pack has zero validator/reference/leakage failures.
+- Leaderboard or title failure cannot block or undo the complete local product.
 
 ## M6 — weeks 39–44: feature freeze and private beta
 
@@ -305,7 +333,7 @@ Concentrate on:
 - migration fixtures and interrupted upgrades;
 - corruption/full-disk/process-death recovery;
 - runner containment/adversarial regression;
-- authorization/auth token/invite tests;
+- authorization/auth token/invite tests if the M5 beta was entered;
 - accessibility/manual assistive-technology scripts;
 - performance calibration on named hardware;
 - signed test packages;
@@ -325,9 +353,12 @@ Stable 1.0 is allowed only if:
 - FSRS 7 provenance/vectors/migrations are archived;
 - 5am Club semantics are stable;
 - Android/desktop install and upgrade paths pass;
-- private Leaderboard authorization/idempotency/privacy pass;
-- client and server restore drills pass;
+- client restore drills pass;
 - accessibility and security blockers are clear.
+
+If the conditional Leaderboard is included in the release, its authorization,
+idempotency, privacy, clean-host deployment, and server restore gates must also
+pass. Deferring it does not block a complete local release.
 
 Otherwise, the correct outcome is a documented private beta and a reforecasted
 second-year plan.
@@ -337,14 +368,15 @@ second-year plan.
 - No acceptable Android Python boundary by week 4: do not commit to a false
   isolation claim; choose an acceptable fallback or block the committed
   product outcome and reforecast the entire plan.
-- No Android alpha by week 27: make the Leaderboard an integration preview or
-  move it after year one.
+- No complete local-product gate by week 34: make the Leaderboard an integration
+  preview or move it after year one.
 - Unreliable exactly-once finalization or restore: stop feature work.
 - No new features after week 38.
 - Missing KVM is not an emulator pass; secure a host emulator/ADB device or
   physical evidence.
-- Never waive data-loss, duplicate-review, runner-hang, auth/authorization,
-  source/privacy leak, restore, or signing blockers for the date.
+- Never waive data-loss, duplicate-review, runner-hang, source/privacy leak,
+  restore, or signing blockers for the date. If the Leaderboard is included,
+  its auth/authorization blockers are equally nonwaivable.
 
 ## Goal activation template
 
