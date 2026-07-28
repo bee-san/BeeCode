@@ -1,9 +1,10 @@
 # BeeCode
 
-BeeCode is an offline-first spaced-repetition app for practising coding
-Problems. It targets Android phones and desktop computers, schedules reviews
-with FSRS, and lets a learner write and run Python solutions inside each
-review.
+BeeCode is an offline-first spaced-repetition app for practising
+LeetCode-style algorithm Problems. It targets Android phones and desktop
+computers, schedules reviews with the user's FSRS 7 engine from
+[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki), and lets a
+learner write and run Python solutions inside each review.
 
 The product is intentionally built around **Problems**, not generic cards:
 
@@ -22,9 +23,9 @@ The product is intentionally built around **Problems**, not generic cards:
   statistics do not require a server.
 - **Problem authoring is repository-native.** A contributor adds one
   self-contained directory; validation and indexing are automated.
-- **Execution is treated as untrusted.** Python code runs behind explicit time,
-  memory, process, filesystem, and network boundaries appropriate to each
-  platform.
+- **Execution has an honest capability contract.** Python code receives bounded
+  time/output and is kept outside the UI process where the platform design
+  permits, but v1 is not claimed to be a hardened hostile-code sandbox.
 - **Social is optional and small.** Private custom Leaderboards synchronize
   activity metadata, never source code or FSRS state.
 
@@ -35,6 +36,7 @@ contain an application scaffold or claim that any feature has been built.
 
 - [High-level architecture](docs/architecture.md)
 - [Ultra-deep year roadmap and all targets](goals/README.md)
+- [Realistic year-one execution plan](goals/YEAR-ONE.md)
 - [Architecture decisions](docs/adr/README.md)
 
 The plan contains 164 stable goals across product, architecture, Problem

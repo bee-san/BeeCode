@@ -287,17 +287,25 @@ quality of boundaries matters more than count.
 
 ## Milestone/commit forecast
 
-These ranges are descriptive, not quotas.
+The first-year outcome is a strong private beta. Stable 1.0 is conditional on
+the release gates, and the full 164-goal north-star programme is expected to
+continue beyond year one. Commit ranges are descriptive, not quotas; they must
+never motivate artificial churn.
 
 | Milestone | Approximate period | Cumulative meaningful commits | Exit result |
 |---|---:|---:|---|
-| M0: Decisions and shells | Weeks 1–4 | 12–20 | Reproducible Android/desktop shell and accepted critical ADRs. |
-| M1: Problem + desktop run | Weeks 5–12 | 35–55 | One-folder Problem flow and bounded desktop runner. |
-| M2: Review truth + FSRS | Weeks 13–20 | 55–80 | Exactly-once reviews and trusted due queue. |
-| M3: Android parity | Weeks 21–30 | 75–110 | Offline mobile run/review on emulator and physical device. |
-| M4: Achievements | Weeks 31–36 | 90–125 | Replayable achievements and verified 5am Club. |
-| M5: Leaderboards | Weeks 37–44 | 115–150 | Private self-hosted boards and offline sync. |
-| M6: Hardening/beta/1.0 | Weeks 45–52 | 140–180 | Signed releases, restore/security/accessibility gates. |
+| M0: Feasibility/contracts | Weeks 1–4 | 12–20 | Critical runtime, FSRS provenance, editor, persistence, device, rights, and boundary decisions. |
+| M1: Thin desktop slice | Weeks 5–11 | 30–50 | One-folder Problem flow and bounded recoverable desktop run. |
+| M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS 7 due queue, replay, and restore baseline. |
+| M3: Android local alpha | Weeks 19–27 | 70–105 | Offline mobile solve/review on emulator/reachable device and physical phone. |
+| M4: Achievements/content | Weeks 28–31 | 85–120 | Replayable achievements, verified 5am Club, and reviewed seed pack. |
+| M5: Conditional social beta | Weeks 32–38 | 105–145 | Minimal private self-hosted Leaderboards if the Android gate passed. |
+| M6: Feature freeze/private beta | Weeks 39–44 | 125–165 | Signed test artifacts and restore/security/accessibility evidence. |
+| M7: Contingency/release reserve | Weeks 45–52 | No target | Stable only if gates pass; otherwise publish private-beta status and reforecast. |
+
+See [YEAR-ONE.md](YEAR-ONE.md) for commitment classes, gates, fallback
+decisions, scope-displacement rules, and the no-new-features-after-week-38
+policy.
 
 ## Delivery/operations exit gate
 

@@ -6,8 +6,13 @@ spaced-repetition reviews, runs Python solutions locally, awards meaningful
 achievements, and optionally compares activity inside private Leaderboards.
 
 The plan is deliberately deeper than an MVP backlog. It describes the smallest
-useful release, the architecture that can survive a year of development, and
-the evidence required before each target can be called complete.
+useful release, the architecture that can survive a long-lived product, and the
+evidence required before each target can be called complete. The 164 goals are
+a north-star programme, not a one-year promise; completing all of them is
+expected to take roughly 18–30 months for one primary developer.
+
+Use [YEAR-ONE.md](YEAR-ONE.md) for the committed/conditional delivery cut,
+calendar, feasibility gates, reserve, and slip rules for the first 52 weeks.
 
 ## North-star outcome
 
@@ -15,11 +20,14 @@ A learner opens BeeCode, sees the Problems due today, writes a Python solution,
 runs deterministic tests without leaving the app, and finalizes the review.
 BeeCode records the attempt, schedules the next review with the user's FSRS
 engine, updates local achievements, and—only if the learner opted in—uploads a
-small idempotent activity receipt to one or more private Leaderboards.
+small account-global idempotent activity receipt to the optional Leaderboard
+service. Current private-board memberships project that activity using their
+written membership-episode rules.
 
-The same study history and Problem semantics should feel coherent on Android
-and desktop even though code execution is implemented differently on each
-platform.
+Problem/review semantics should feel coherent on Android and desktop even
+though code execution is implemented differently on each platform. v1 uses
+independent local profiles plus deliberate backup transfer; it does not promise
+live cross-device study-history synchronization.
 
 ## Product rules that do not drift
 
@@ -28,16 +36,18 @@ platform.
    work without an account or network.
 3. A Problem is repository-native content, not a row hand-authored in a central
    registry.
-4. Learner source code, test output, and FSRS memory state stay local.
-5. A passing test run is evidence, not automatically a finalized review.
-6. Every finalized review is idempotent and traceable to one review session.
-7. The server is optional and deliberately boring: a small API, PostgreSQL, and
+4. Scheduling uses the user's FSRS 7 implementation from
+   `bee-san/kanji_anki`, pinned and tested independently from BeeCode policy.
+5. Learner source code, test output, and FSRS memory state stay local.
+6. A passing test run is evidence, not automatically a finalized review.
+7. Every finalized review is idempotent and traceable to one review session.
+8. The server is optional and deliberately boring: a small API, PostgreSQL, and
    straightforward self-hosting.
-8. “5am Club” means a qualifying successful Problem review before 06:00 on
+9. “5am Club” means a qualifying successful Problem review before 06:00 on
    seven consecutive local calendar days; the boundary is exact and tested.
-9. Desktop and Android share domain behavior but do not pretend their Python
+10. Desktop and Android share domain behavior but do not pretend their Python
    sandboxes are identical.
-10. No goal is complete because a screen exists. It is complete when its
+11. No goal is complete because a screen exists. It is complete when its
     acceptance criteria and evidence are satisfied.
 
 ## How to read the plan
@@ -52,6 +62,7 @@ reused even if a goal is retired.
 | `active` | Implementation work is in progress. |
 | `blocked` | A named dependency or decision prevents useful progress. |
 | `verified` | All acceptance criteria have linked evidence. |
+| `operational` | Initial acceptance passed; a recurring control has an owner and next review date. |
 | `retired` | Deliberately removed or superseded; rationale is retained. |
 
 Each goal uses this contract:
@@ -115,145 +126,26 @@ Development should use thin vertical slices: one bundled Problem, one local
 run, one finalized review, one FSRS transition, and one visible next-due date
 before broadening any layer.
 
-## One-year roadmap
+## Year-one delivery cut
 
-The schedule assumes one primary developer working consistently and allows
-research, iteration, and recovery time. It is a planning baseline, not a
-promise. Each phase ends with a gate: if the evidence is weak, the next phase
-does not paper over it.
+The first year aims for a strong private beta, with stable 1.0 conditional on
+the written release gates. It reserves weeks 45–52 instead of prescheduling
+them and makes the private Leaderboard conditional on Android local alpha
+passing by week 27.
 
-### Phase 0 — Decisions and walking skeleton (weeks 1–4)
+| Period | Milestone | Exit result |
+|---|---|---|
+| Weeks 1–4 | M0: feasibility and contracts | Android Python, desktop worker, editor/IME, persistence, FSRS provenance, device access, rights, and threat-boundary decisions. |
+| Weeks 5–11 | M1: thin desktop slice | One-folder Problem authoring and a durable bounded local Python run. |
+| Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 scheduling, due queue, replay, and restore baseline. |
+| Weeks 19–27 | M3: Android local alpha | Offline mobile solving/review with lifecycle and physical-device evidence. |
+| Weeks 28–31 | M4: achievements/content | Exact 5am Club, restrained initial achievements, and a reviewed seed pack. |
+| Weeks 32–38 | M5: conditional social beta | Minimal private Leaderboards and self-host restore, only if M3 is healthy. |
+| Weeks 39–44 | M6: feature freeze/private beta | Migration, recovery, security, accessibility, performance, documentation, and beta fixes. |
+| Weeks 45–52 | M7: contingency/release reserve | Stable release only if all gates pass; otherwise an honest private beta and reforecast. |
 
-**Purpose:** remove expensive ambiguity and prove the chosen build can launch.
-
-- Ratify the product vocabulary, supported platforms, minimum Android version,
-  and Python language level.
-- Record architecture decisions for shared code, persistence, Problem
-  packaging, runner contracts, and server boundaries.
-- Create a reproducible developer setup and CI smoke build.
-- Demonstrate a hard-coded Problem in a desktop and Android shell without
-  claiming the content or runner systems are finished.
-
-**Exit gate**
-
-- Product and architecture goals marked ready.
-- Clean-machine setup instructions exercised by someone other than the author.
-- Both applications can be built from one revision.
-- No server is required to launch or study.
-
-### Phase 1 — Problem authoring and desktop execution (weeks 5–12)
-
-**Purpose:** make adding and solving Problems real before building broad UI.
-
-- Finalize Problem source schema, codecs, comparators, revision rules, and
-  generated pack format.
-- Provide `new`, `validate`, `test`, `build`, and `inspect` authoring commands.
-- Ship a small reference pack spanning scalar, collection, linked-list, tree,
-  and graph data.
-- Implement the desktop Python worker protocol, deterministic test harness,
-  cancellation, timeouts, output limits, and failure taxonomy.
-- Deliver the first end-to-end desktop solving session.
-
-**Exit gate**
-
-- A contributor adds a valid Problem without editing a central registry.
-- Invalid content fails with file, field, and remediation.
-- Reference solutions pass in CI; deliberately broken solutions fail for the
-  expected reason.
-- Hanging and output-flooding programs are terminated and surfaced cleanly.
-
-### Phase 2 — Review truth and FSRS (weeks 13–20)
-
-**Purpose:** make BeeCode trustworthy as a daily study tool.
-
-- Define review-session states and event invariants.
-- Integrate the generic FSRS engine from `bee-san/kanji_anki` through a
-  BeeCode-owned scheduler boundary.
-- Persist review history, memory state, due dates, preferences, and clocks with
-  migration coverage.
-- Separate “tests passed” from “review finalized”.
-- Build due queues, new-Problem limits, lapse handling, and review summaries.
-
-**Exit gate**
-
-- Golden FSRS transition tests match the source engine.
-- Replaying or double-tapping finalization cannot duplicate a review.
-- Clock, timezone, restart, and migration tests preserve schedule truth.
-- A learner can use the desktop app for two weeks without data repair.
-
-### Phase 3 — Android parity and mobile resilience (weeks 21–30)
-
-**Purpose:** make the phone experience genuinely useful, not a shrunken desktop.
-
-- Embed a supported Python runtime behind the shared runner contract.
-- Design a touch-first editor, test controls, keyboard behavior, result
-  inspection, and review finalization.
-- Handle process death, rotation, backgrounding, low storage, and offline use.
-- Profile startup, editor latency, test latency, memory, and battery.
-- Exercise a device/API matrix including at least one physical device.
-
-**Exit gate**
-
-- The reference Problem pack behaves equivalently on desktop and Android.
-- Draft source survives expected Android lifecycle events.
-- Resource-limit failures do not crash or freeze the application.
-- Accessibility checks and phone usability sessions have no release blockers.
-
-### Phase 4 — Achievements and motivation (weeks 31–36)
-
-**Purpose:** add motivation without corrupting study truth.
-
-- Create append-only domain events and deterministic achievement projections.
-- Add achievement definitions, progress, unlocks, title rewards, and replay.
-- Implement 5am Club with explicit timezone and consecutive-date semantics.
-- Add a small initial set of achievements that rewards consistency and breadth,
-  not meaningless volume.
-
-**Exit gate**
-
-- Achievement state can be rebuilt entirely from canonical local events.
-- Boundary tests cover 05:59:59, 06:00:00, DST, timezone changes, retries, and
-  multiple qualifying reviews on one date.
-- Reinstall/import does not spuriously re-award notifications.
-
-### Phase 5 — Private Leaderboards (weeks 37–44)
-
-**Purpose:** add simple opt-in social accountability without turning BeeCode
-into a social network.
-
-- Implement accounts, private Leaderboard creation/joining, invite rotation,
-  membership removal, activity upload, and period rankings.
-- Deploy a single self-hostable API and PostgreSQL stack.
-- Implement an offline outbox and idempotent batch upload.
-- Show Today, This week, and All time ranks with Problems solved and streak.
-- Document backup, upgrade, reverse-proxy, and abuse-response operations.
-
-**Exit gate**
-
-- A new operator can deploy from documentation on a small server.
-- Duplicate, delayed, and out-of-order uploads do not change totals.
-- No request or database column contains solution source, test output, or FSRS
-  state.
-- Revoked refresh tokens and rotated invites behave as documented.
-
-### Phase 6 — Hardening, beta, and release (weeks 45–52)
-
-**Purpose:** turn a working system into one that can be trusted and maintained.
-
-- Run threat modeling and targeted security review of both runners and server.
-- Fuzz Problem decoders, worker protocol, API inputs, and import files.
-- Complete backup/restore and migration rehearsals.
-- Establish crash reporting that is opt-in and redacts learner content.
-- Run a staged beta, triage usability evidence, and publish signed releases.
-- Freeze v1 scope and move deferred ideas into explicit post-v1 goals.
-
-**Exit gate**
-
-- No critical security, data-loss, or accessibility defect remains open.
-- Desktop and Android release artifacts are reproducible from a signed tag.
-- Server backup can be restored into a clean environment.
-- Release notes, privacy statement, operator guide, and support boundaries are
-  complete.
+The detailed calendar, commitment classes, per-milestone gates, fallback ladder,
+and stop/slip rules are in [YEAR-ONE.md](YEAR-ONE.md).
 
 ## Milestone slices
 
@@ -342,4 +234,3 @@ critical path.
 
 The plan is a control surface, not a monument. Details may change; the product
 rules and evidence standard should change only through an explicit decision.
-
