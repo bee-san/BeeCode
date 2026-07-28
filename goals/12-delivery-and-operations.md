@@ -297,9 +297,9 @@ never motivate artificial churn.
 | M0: Feasibility/contracts | Weeks 1–4 | 12–20 | Critical runtime, FSRS provenance, editor, persistence, device, rights, and boundary decisions. |
 | M1: Thin desktop slice | Weeks 5–11 | 30–50 | One-folder Problem flow and bounded recoverable desktop run. |
 | M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS 7 due queue, replay, and restore baseline. |
-| M3: Android local alpha | Weeks 19–27 | 70–105 | Offline mobile solve/review on emulator/reachable device and physical phone. |
-| M4: Achievements/content | Weeks 28–31 | 85–120 | Replayable achievements, verified 5am Club, and reviewed seed pack. |
-| M5: Conditional social beta | Weeks 32–38 | 105–145 | Minimal private self-hosted Leaderboards if the Android gate passed. |
+| **M3 / Test 1: playable desktop + Android alpha** | Weeks 19–27 | 70–105 | Owner installs both clients and completes the full offline Problem journey. |
+| **M4 / Test 2: conditional social alpha** | Weeks 28–34 | 95–135 | Owner tests a private self-hosted Leaderboard with two accounts and offline upload. |
+| M5: Achievements/content | Weeks 35–38 | 105–145 | Replayable achievements, verified 5am Club, optional social title, and reviewed seed pack. |
 | M6: Feature freeze/private beta | Weeks 39–44 | 125–165 | Signed test artifacts and restore/security/accessibility evidence. |
 | M7: Contingency/release reserve | Weeks 45–52 | No target | Stable only if gates pass; otherwise publish private-beta status and reforecast. |
 

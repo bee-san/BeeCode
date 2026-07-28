@@ -109,7 +109,8 @@ flowchart TD
     SRS --> DSK["Desktop"]
     SRS --> AND["Android"]
     SRS --> ACH["Achievements"]
-    ACH --> LDB["Leaderboards"]
+    SRS --> LDB["Leaderboards"]
+    ACH -. "equipped title later" .-> LDB
     DSK --> QLT["Cross-platform quality"]
     AND --> QLT
     LDB --> SEC["Security review"]
@@ -126,6 +127,47 @@ Development should use thin vertical slices: one bundled Problem, one local
 run, one finalized review, one FSRS transition, and one visible next-due date
 before broadening any layer.
 
+## Hands-on test milestones
+
+These are the first two milestones at which the owner should install BeeCode
+and test it as a product. M0–M2 remain necessary engineering gates, but they do
+not count as the requested hands-on milestones.
+
+### Test 1 — Answer a Problem on both clients
+
+**Target:** M3 exit, end of week 27.
+
+Install a desktop tester package and Android tester APK, then perform the same
+accountless, offline journey on each:
+
+1. open a bundled Problem and read its prompt/examples;
+2. edit the Python starter into an answer;
+3. run the official tests and inspect a deliberate failure;
+4. correct the answer, rerun, and pass;
+5. finalize the review and see its next due date;
+6. close/relaunch and confirm source, history, and schedule survived.
+
+This milestone does not wait for achievements, Leaderboards, analytics, broad
+content, visual polish, or release packaging. Android evidence includes an
+emulator/reachable device and physical phone; a desktop-only demo does not pass.
+
+### Test 2 — Test the social loop
+
+**Target:** M4 exit, end of week 34, conditional on Test 1 passing.
+
+Run the documented self-host stack and use a friend or second test account to:
+
+1. register two accounts;
+2. create a private Leaderboard and join through an invitation;
+3. complete a Problem and see the Problems count/streak appear;
+4. complete once while offline, reconnect, and see one social effect;
+5. retry/refresh without creating duplicate credit;
+6. leave/rejoin and observe the documented membership-episode behavior.
+
+Captured requests, rows, and logs must demonstrate that source, test output,
+and FSRS state were not uploaded. Achievement titles, including 5am Club, are
+added after this checkpoint and are not allowed to block the basic social test.
+
 ## Year-one delivery cut
 
 The first year aims for a strong private beta, with stable 1.0 conditional on
@@ -138,9 +180,9 @@ passing by week 27.
 | Weeks 1–4 | M0: feasibility and contracts | Android Python, desktop worker, editor/IME, persistence, FSRS provenance, device access, rights, and threat-boundary decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One-folder Problem authoring and a durable bounded local Python run. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 scheduling, due queue, replay, and restore baseline. |
-| Weeks 19–27 | M3: Android local alpha | Offline mobile solving/review with lifecycle and physical-device evidence. |
-| Weeks 28–31 | M4: achievements/content | Exact 5am Club, restrained initial achievements, and a reviewed seed pack. |
-| Weeks 32–38 | M5: conditional social beta | Minimal private Leaderboards and self-host restore, only if M3 is healthy. |
+| Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Owner installs both clients and completes the answer–run–retry–finalize–restart journey. |
+| Weeks 28–34 | **M4 / Test 2: social alpha** | Owner tests a private Leaderboard with two accounts, offline upload, stable counts, and no source transfer. |
+| Weeks 35–38 | M5: achievements/content | Exact 5am Club, restrained initial achievements, reviewed seed pack, and optional social titles. |
 | Weeks 39–44 | M6: feature freeze/private beta | Migration, recovery, security, accessibility, performance, documentation, and beta fixes. |
 | Weeks 45–52 | M7: contingency/release reserve | Stable release only if all gates pass; otherwise an honest private beta and reforecast. |
 
@@ -160,9 +202,9 @@ collection of screenshots.
 | First-run proof | Two Sum loads from a pack and executes locally on desktop. |
 | First-review proof | A passing solution becomes one finalized review and due date. |
 | Daily-driver proof | Due queue, drafts, history, settings, backup, and recovery work. |
-| Mobile proof | The same Problem and tests execute safely on Android. |
-| Motivation proof | Events rebuild progress and can unlock 5am Club correctly. |
-| Friends proof | Two accounts join a private Leaderboard and see stable ranks. |
+| **Hands-on Test 1** | Owner completes one full Problem journey on installed desktop and Android builds. |
+| **Hands-on Test 2** | Owner tests a private Leaderboard with a friend or second account. |
+| Motivation proof | Events rebuild progress, unlock 5am Club, and add its optional social title correctly. |
 | Release proof | Signed clients and a documented server survive migration rehearsal. |
 
 ## Cross-cutting definition of done

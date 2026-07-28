@@ -41,6 +41,26 @@ this plan.
 The class belongs in the active milestone board, not permanently in a goal
 heading. Evidence may reclassify work at monthly forecasting.
 
+## The first two hands-on milestones
+
+The engineering roadmap starts at M0, but the owner-facing test milestones are
+deliberately numbered separately and made prominent:
+
+| Hands-on milestone | Engineering exit | Target | What the owner can test |
+|---|---|---:|---|
+| **Test 1: Answer a Problem** | M3 | End week 27 | Install desktop and Android builds; read a Problem, write Python, fail/pass tests, finalize, restart, and retain source/history/due state offline. |
+| **Test 2: Social loop** | M4 | End week 34 | Run the self-host server; create/invite two accounts; complete a Problem online/offline; observe one Problems-count/streak effect and correct leave/rejoin behavior. |
+
+Test 1 is the first product checkpoint and therefore excludes achievements,
+Leaderboards, analytics, broad content, visual polish, and release machinery.
+It requires both platforms: the earlier desktop slice is useful evidence but
+does not pass Test 1 by itself.
+
+Test 2 immediately prioritizes the requested social experiment. Its basic
+Leaderboard does not depend on achievement titles. 5am Club and other
+motivational features follow in M5, after the core and social journeys have
+been tested by the owner.
+
 ## Year-one product cut
 
 ### Committed local product
@@ -72,8 +92,11 @@ If the Android local-alpha gate passes by week 27:
 - account-global idempotent activity ingestion;
 - no pre-join or pre-account-link backfill;
 - Today/week/all-time Problems counts and streak;
-- generated/local avatar, display name, and server-accepted 5am Club title;
+- generated/local avatar and display name for Test 2;
 - offline outbox and one documented backup/restore path.
+
+The server-accepted 5am Club title is integrated in M5 after the local
+achievement rule passes its boundary suite.
 
 If Android slips beyond week 27, the Leaderboard remains an integration preview
 or moves after year one rather than compressing security/beta time.
@@ -108,9 +131,9 @@ or moves after year one rather than compressing security/beta time.
 | Weeks 1–4 | M0: feasibility and contracts | Toolchain shells plus Android Python, desktop worker, editor/IME, persistence, FSRS provenance, KVM/device, and threat-model decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One compiled Problem loads, source persists, Python runs, typed result displays; then generalize minimum content tooling. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 transition, due queue, replay/audit, backup baseline, desktop dogfooding. |
-| Weeks 19–27 | M3: Android local alpha | Mobile editor modes, isolated worker decision, lifecycle recovery, offline solve/review, physical-device evidence. |
-| Weeks 28–31 | M4: achievements/content | Deterministic projection, exact 5am Club, two or three other awards, seed-pack quality pass. |
-| Weeks 32–38 | M5: conditional social beta | Minimal private Leaderboard, outbox, server deployment, auth, period ranks, restore. |
+| Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Install both clients and complete the same offline answer–run–retry–finalize–restart journey. |
+| Weeks 28–34 | **M4 / Test 2: conditional social alpha** | Test a minimal private Leaderboard, outbox, server deployment, auth, period ranks, and restore with two accounts. |
+| Weeks 35–38 | M5: achievements/content | Deterministic projection, exact 5am Club, two or three other awards, optional social titles, and seed-pack quality pass. |
 | Weeks 39–44 | M6: feature freeze/private beta | No new features; migrations, recovery, security, accessibility, performance, documentation, and beta fixes. |
 | Weeks 45–52 | M7: contingency/release reserve | Unallocated reserve. Release stable only if gates pass; otherwise publish the honest private-beta status and next plan. |
 
@@ -196,10 +219,11 @@ Build:
 
 If exactly-once finalization or restore remains unreliable, stop feature work.
 
-## M3 — weeks 19–27: Android local alpha
+## M3 / Test 1 — weeks 19–27: playable desktop + Android alpha
 
 Build only after the M0 runtime decision:
 
+- installable desktop tester package and Android tester APK;
 - phone recall/code/results/finalize modes;
 - symbol row/indentation and external keyboard basics;
 - the accepted Android worker topology;
@@ -210,21 +234,57 @@ Build only after the M0 runtime decision:
 
 ### Gate
 
+- On both installed clients, the owner can open a bundled Problem, enter a
+  Python answer, see one intentional failure, correct it, pass, finalize, and
+  see the next due date.
+- Closing and relaunching each client preserves the source, finalized history,
+  and due state.
 - Representative Problems run offline on accelerated emulator/reachable device
   and physical phone.
 - Infinite code stops without killing the UI or losing source.
 - Process death during edit/run/finalize produces the specified durable state.
 - Android and desktop agree on review and FSRS semantics.
+- No account, achievement, Leaderboard, or network is required for this gate.
 
 If this gate completes after week 27, reduce or move social work; do not steal
 time from beta/reserve.
 
-## M4 — weeks 28–31: achievements and content
+## M4 / Test 2 — weeks 28–34: conditional social alpha
+
+- Build the modular monolith, opaque-token auth, membership episodes, and
+  durable ingestion ledger.
+- Upload account-global events once.
+- Do not backfill pre-account-link or pre-membership activity.
+- Derive periods server-side from UTC and immutable board timezone/week start.
+- Ship a documented self-host configuration suitable for owner testing.
+- Defer achievement-title integration until M5.
+
+### Owner test journey
+
+1. deploy the server on one clean host;
+2. register two test accounts;
+3. create a private Leaderboard and join by invitation;
+4. complete a Problem and observe the Problems count and streak;
+5. complete while offline, reconnect, and observe exactly one effect;
+6. retry uploads/refreshes and confirm no duplicate credit;
+7. leave/rejoin and confirm the documented membership-episode reset.
+
+### Gate
+
+- The complete owner test journey passes with a friend or second account.
+- Duplicate, reordered, and offline batches have one effect.
+- Captured requests, rows, and logs contain no source, test output, or FSRS
+  state.
+- Clean-host deploy, restart, PostgreSQL backup, and restore pass.
+- Failure of optional titles or achievements cannot block the social journey.
+
+## M5 — weeks 35–38: achievements and content
 
 - Project achievements from canonical events after the review commit.
 - Implement the exact 5am Club epoch/timezone algorithm and full boundary suite.
 - Add two or three other ethically reviewed achievements.
 - Complete the 12–20 Problem launch pack and human review.
+- Add the optional server-accepted 5am Club title to Leaderboard profiles.
 - Keep broad curriculum and achievement catalogue as stretch.
 
 ### Gate
@@ -233,26 +293,8 @@ time from beta/reserve.
 - Broken/unknown reducer cannot block study.
 - 5am Club passes 05:59:59/06:00, seven-day, gap, DST, travel, late event,
   duplicate, reveal, failure, and restore tests.
+- An earned 5am Club title may be equipped socially without changing counts.
 - Launch pack has zero validator/reference/leakage failures.
-
-## M5 — weeks 32–38: conditional Leaderboard beta
-
-- Build the modular monolith, opaque-token auth, membership episodes, and
-  durable ingestion ledger.
-- Upload account-global events once.
-- Do not backfill pre-account-link or pre-membership activity.
-- Derive periods server-side from UTC and immutable board timezone/week start.
-- Use friendly-trust “server accepted”, never “server verified”.
-- Deploy on one clean host and restore PostgreSQL.
-
-### Gate
-
-- Two accounts join a private board and see the correct Problems count.
-- Duplicate/reordered/offline batches have one effect.
-- Leave/rejoin membership episodes follow the written score/privacy rules.
-- Captured requests, rows, and logs contain no source, test output, or FSRS
-  state.
-- Clean-host deploy, restart, backup, and restore pass.
 
 ## M6 — weeks 39–44: feature freeze and private beta
 

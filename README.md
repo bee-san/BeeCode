@@ -45,6 +45,21 @@ Leaderboards, data recovery, security, testing, release operations, and
 accessibility. Each goal defines acceptance evidence and non-goals so later
 implementation can proceed in verified vertical slices.
 
+## First hands-on milestones
+
+1. **Test 1 — Answer a Problem on desktop and Android:** at the end of M3,
+   install both tester builds, open a bundled Problem, write Python, run tests,
+   correct a failure, finalize the review, and confirm the draft/history/due
+   date survive restart. This works offline and needs no account, achievements,
+   or Leaderboard.
+2. **Test 2 — Test the social loop:** at the end of M4, run the self-hosted
+   server, create two accounts, invite one into a private Leaderboard, complete
+   a Problem, reconnect after an offline completion, and see the Problems count
+   and streak update exactly once. Source code must never leave the client.
+
+M0–M2 are engineering gates that make Test 1 trustworthy; they are not being
+presented as finished user-test milestones.
+
 ## Naming
 
 - **BeeCode** — the application.
