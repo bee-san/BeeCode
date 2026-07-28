@@ -60,6 +60,9 @@ implementation can proceed in verified vertical slices.
 M0–M2 are engineering gates that make Test 1 trustworthy; they are not being
 presented as finished user-test milestones.
 
+- i want it to be able to swap in more language support like rust / js in the future
+- social features are big
+
 ## Naming
 
 - **BeeCode** — the application.
