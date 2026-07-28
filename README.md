@@ -30,9 +30,18 @@ The product is intentionally built around **Problems**, not generic cards:
 
 ## Status
 
-BeeCode is at the beginning of a year-scale build. The repository will grow in
-verified vertical slices, with the complete roadmap tracked under
-[`goals/`](goals/README.md).
+This repository currently contains the **planning baseline only**. It does not
+contain an application scaffold or claim that any feature has been built.
+
+- [High-level architecture](docs/architecture.md)
+- [Ultra-deep year roadmap and all targets](goals/README.md)
+- [Architecture decisions](docs/adr/README.md)
+
+The plan contains 164 stable goals across product, architecture, Problem
+authoring, Python execution, FSRS reviews, desktop, Android, achievements,
+Leaderboards, data recovery, security, testing, release operations, and
+accessibility. Each goal defines acceptance evidence and non-goals so later
+implementation can proceed in verified vertical slices.
 
 ## Naming
 
@@ -43,4 +52,3 @@ verified vertical slices, with the complete roadmap tracked under
 
 Avoid calling individual Problems “BeeCodes”; that term belongs to the product
 name only.
-
