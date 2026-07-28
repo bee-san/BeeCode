@@ -17,6 +17,7 @@ content/
                 ├── statement.md
                 ├── starter.py
                 ├── tests.yaml
+                ├── explanation.md
                 ├── reference.py
                 └── assets/
 ```
@@ -24,12 +25,19 @@ content/
 `reference.py` exists only to validate content during development and CI. It is
 never distributed inside the application or a `.beecodepack`.
 
+`explanation.md` is distributable, revealable pedagogy. It may describe the
+pattern, complexity, and canonical source snippets, but clients treat it as
+rendered data and never execute it. Revealing it—or a previous successful
+learner solution—marks the current review session assisted. This gives the UI a
+real reveal action without shipping the executable CI reference.
+
 ## Proposed Problem contract
 
 | Concern | Required representation |
 |---|---|
 | Identity | Stable namespaced `problemId` plus monotonic content revision. |
 | Prompt | Original/licensed Markdown statement and examples. |
+| Explanation | Revealable approach/solution text that is never executed. |
 | Entry point | Function/class signature with named input/output codecs. |
 | Starter | Syntactically valid editable Python source. |
 | Tests | Structured values, limits, comparator ID, and human-safe labels. |
@@ -52,6 +60,7 @@ YAML interpreter.
   - Stable ID and revision are mandatory.
   - Function signature, codecs, runtime, limits, tests, and provenance are
     explicit.
+  - Revealable explanation/solution content is distinct from the CI reference.
   - Unknown mandatory schema versions fail with remediation.
   - Optional extensions cannot change execution semantics invisibly.
 - **Evidence:** valid, minimal, maximal, and malformed fixtures.
@@ -171,8 +180,8 @@ YAML interpreter.
 - **Acceptance:**
   - Repeated builds on supported hosts have the same logical manifest and
     checksum target.
-  - Pack includes statements, starter source, tests, assets, and compatibility
-    metadata.
+  - Pack includes statements, starter source, revealable explanations, tests,
+    assets, and compatibility metadata.
   - Pack excludes references, temporary files, caches, credentials, and author
     notes.
   - A corrupt or incompatible pack fails before import.
@@ -196,7 +205,7 @@ YAML interpreter.
     a deliberate migration/reset path.
   - Removed Problems remain understandable in history.
 - **Evidence:** fixtures for every change class.
-- **Dependencies:** DATA-008, SRS-009.
+- **Dependencies:** PROB-001, ARCH-006.
 - **Risks:** mutating old tests changing historical meaning.
 - **Non-goals:** magically rewriting arbitrary learner solutions.
 
@@ -257,4 +266,3 @@ YAML interpreter.
 A contributor must be able to generate a folder, author a Problem, validate and
 preview it, run its reference, produce a deterministic pack, and prove the pack
 contains no reference source—all without editing a central registry.
-

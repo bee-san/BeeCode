@@ -80,11 +80,16 @@ Internal failures must not masquerade as learner wrong answers.
 - **State:** proposed
 - **Outcome:** learner code runs outside the UI process in a disposable,
   controllable worker.
-- **Deliverables:** process topology, worker launcher, temporary workspace,
-  protocol framing, environment allowlist, lifecycle state, and cleanup policy.
+- **Deliverables:** `UI → supervisor control channel → disposable learner
+  CPython child` topology, worker launcher, temporary workspace, protocol
+  framing, stdout/stderr drains, environment allowlist, lifecycle state,
+  per-OS containment capability, and cleanup policy.
 - **Acceptance:**
   - A worker crash cannot terminate the desktop UI.
   - Requests use length-framed structured messages, not ambiguous line parsing.
+  - The control protocol never shares learner-accessible stdout/stderr.
+  - The supervisor owns deadlines, output caps, result framing, and complete
+    process-tree cleanup.
   - Source and test values are delivered without shell interpolation.
   - Working directories are unique and cleaned after bounded retention.
   - Parent exit and stale-worker cleanup are defined.
@@ -99,17 +104,24 @@ Internal failures must not masquerade as learner wrong answers.
 - **State:** proposed
 - **Outcome:** the selected embedded Python provider can be controlled strongly
   enough for BeeCode's declared behavior.
-- **Deliverables:** isolated service/process prototype, ABI matrix, runtime size,
-  startup measurements, termination experiment, module inventory, and ADR.
+- **Deliverables:** ordinary remote-process versus `isolatedProcess` prototype,
+  ABI matrix, runtime size, startup/import/extraction measurements, termination
+  experiment, Binder pipe/file-descriptor transport, module/Java API inventory,
+  Logcat audit, fallback ladder, and ADR.
 - **Acceptance:**
   - CPU-bound infinite code can be stopped without killing the app UI.
+  - Chaquopy/provider startup, native extraction, imports, and Python home work
+    under the claimed UID boundary.
+  - Tests cover socket/filesystem/main-app files, environment, Java API,
+    keystore, Binder-size, and stdout/stderr-to-Logcat access.
   - Process death preserves durable source and cannot finalize a review.
   - Supported `arm64-v8a` and emulator `x86_64` ABIs are demonstrated.
   - Runtime and package size are measured.
-  - If the provider cannot meet termination/recovery requirements, the ADR
-    rejects it and evaluates another architecture.
+  - Fallback order is explicit: isolated service → separate signature-bound
+    no-permission runner APK → same-UID crash isolation labelled “trusted code
+    only” → reject Android execution until an acceptable boundary exists.
 - **Evidence:** emulator and physical-device spike report.
-- **Dependencies:** ARCH-002, RUN-001, AND-001.
+- **Dependencies:** ARCH-002, RUN-001.
 - **Risks:** an in-process interpreter cannot be interrupted safely; Android
   process isolation and provider APIs may not align.
 - **Non-goals:** declaring Chaquopy final before the spike.
@@ -118,7 +130,8 @@ Internal failures must not masquerade as learner wrong answers.
 
 - **State:** proposed
 - **Outcome:** trusted harness logic invokes the declared entry point, applies
-  codecs/comparators, and reports every test consistently.
+  codecs/comparators, and reports every test consistently. “Deterministic”
+  describes the harness and fixtures, not arbitrary learner programs.
 - **Deliverables:** harness specification, invocation rules, per-test isolation,
   result construction, and conformance fixtures.
 - **Acceptance:**
@@ -126,6 +139,8 @@ Internal failures must not masquerade as learner wrong answers.
   - Missing or incorrectly shaped entry points become `ContractError`.
   - Expected and actual values are compared by trusted comparator ID/version.
   - Test order and stop/continue policy are explicit.
+  - Python minor version, locale, timezone, hash seed, and harness randomness
+    are pinned where the platform permits.
   - Global state cannot contaminate later tests beyond the documented isolation
     model.
 - **Evidence:** identical semantic outcomes on desktop and Android fixtures.
@@ -143,6 +158,8 @@ Internal failures must not masquerade as learner wrong answers.
   - Infinite loop finishes as `TimedOut` within budget plus bounded grace.
   - Cancellation never appears as failure or successful review evidence.
   - Hard termination kills worker descendants where supported.
+  - An unexplained Android OOM/process death maps to `WorkerFailed` unless the
+    platform can prove a declared resource limit caused it.
   - A new run starts successfully after timeout/cancellation.
   - Timeout values are visible in Problem/runtime diagnostics.
 - **Evidence:** loops, deep recursion, sleeping, child-process, repeated-cancel,

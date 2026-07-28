@@ -29,7 +29,7 @@ state and focus semantics.
   - At least one low/mid-range physical phone is in the release matrix.
   - Unsupported ABI/runtime state fails before a review is started.
 - **Evidence:** published device matrix.
-- **Dependencies:** PROD-005, ARCH-002.
+- **Dependencies:** PROD-005, ARCH-002, RUN-003.
 - **Risks:** emulator-only confidence; large ABI packaging.
 - **Non-goals:** every OEM/API combination.
 

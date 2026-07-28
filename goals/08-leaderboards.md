@@ -14,7 +14,7 @@ Included:
 - owner invite rotation and member removal;
 - member leave;
 - Today, This week, and All time periods;
-- rank, avatar, display name, equipped confirmed title, Problems solved, and
+- rank, avatar, display name, equipped server-accepted title, Problems, and
   current streak;
 - eventual offline synchronization;
 - self-hosting on one small server.
@@ -52,13 +52,35 @@ measured load proves otherwise.
 - Reviewing the same Problem in a later legitimate session can count again.
 - Only Problem revisions/hashes from a server-trusted manifest count socially.
 - Today/week boundaries use the Leaderboard's configured IANA timezone.
-- Week start is fixed at board creation or changed prospectively by explicit
-  owner action.
+- Board timezone and week start are immutable in v1.
+- Rank periods derive board-local dates server-side from `occurredAtUtc`; a
+  client-claimed local date is audit metadata only.
 - Current streak means consecutive board-local dates containing at least one
-  accepted completion.
+  accepted completion. Yesterday's streak remains current until the present
+  board-local day ends.
 - Rank sorts count descending. Equal counts receive equal dense rank; display
   ordering then uses a documented deterministic tie-breaker.
-- “Problems solved” is activity, not mastery, and the UI says so.
+- The UI column is **Problems** and means successful finalized Problem
+  completions, including later scheduled reviews of the same Problem. It is
+  activity, not mastery; a distinct-Problem metric is deferred.
+
+## Activity and membership scope
+
+Activity events are account-global and uploaded once; they do not contain a
+Leaderboard ID. Ranking queries project the same accepted event into each board
+where the account has an active membership episode.
+
+- Joining never backfills activity from before `joinedAt`.
+- Only events whose `occurredAtUtc` falls within the current membership episode
+  count for that board.
+- Leaving/removal hides the account from current rankings.
+- Rejoining creates a new membership episode and starts that board score from
+  zero; prior episodes remain only as privacy-safe audit history.
+- Reviews finalized before account linking are not uploaded/backfilled in v1.
+  Previously earned local titles remain local until the server accepts a new
+  post-link qualifying achievement sequence.
+- v1 does not promise immutable historical standings; current membership
+  changes can remove a row from current views.
 
 ## Minimal API plan
 
@@ -89,15 +111,22 @@ Endpoints beyond this list require a recorded user need.
 
 ## Server-visible activity fields
 
-Allowed:
+Allowed account-global fields:
 
 - event/schema version;
-- account/device IDs;
+- authenticated device identity (account is derived from the access token, not
+  trusted from the request body);
 - client event ID and review session ID;
-- Problem ID, revision, content hash, and suite hash;
-- completion instant and claimed timezone/local date;
+- request-only Problem ID/revision/content/suite hashes for manifest validation;
+- completion UTC instant and profile-zone/local-date audit metadata;
 - trusted-manifest eligibility/acceptance state;
 - received-at instant.
+
+After validation, the default durable accepted row keeps the manifest version
+and eligibility result but discards the specific Problem identity unless a
+separately approved social metric demonstrably needs it. Final-rejection rows
+retain only the stable decision/reason and the minimum fingerprint needed to
+return that decision on retry.
 
 Forbidden:
 
@@ -116,8 +145,11 @@ Forbidden:
 - **Deliverables:** Ktor service, PostgreSQL schema/migrations, Docker Compose,
   Caddy example, health/readiness, configuration validation, and non-root image.
 - **Acceptance:**
-  - Fresh deployment starts from empty storage with one documented command.
+  - After documented prerequisites—domain/DNS, reachable ports, container
+    runtime, persistent storage, and generated secrets—fresh deployment starts
+    from empty storage with one documented command.
   - Restart preserves data and schema migration locks prevent races.
+  - PostgreSQL uses a non-superuser application role; Caddy ACME state persists.
   - Unsafe default production secrets/public URLs fail startup.
   - Health and readiness distinguish process from database/migration status.
   - Resource limits and persistent volumes are documented.
@@ -132,12 +164,15 @@ Forbidden:
 - **Outcome:** self-hosted accounts are secure without forcing an email
   provider.
 - **Deliverables:** registration mode, login, Argon2id password storage,
-  short-lived access tokens, hashed rotating device refresh tokens, logout,
-  recovery codes, and admin recovery CLI.
+  short-lived opaque high-entropy access tokens, atomic rotating device refresh
+  tokens, logout/revocation, recovery codes, and admin recovery CLI.
 - **Acceptance:**
   - Passwords are never stored/logged plaintext.
+  - Access/refresh/invite tokens are stored using a fast cryptographic
+    hash/HMAC; Argon2id is reserved for low-entropy passwords.
   - Refresh token replay revokes or isolates the affected token family.
-  - Tokens validate issuer/audience/expiry and are device-scoped.
+  - Opaque tokens validate hash, account/device scope, expiry, and revocation
+    with immediate server-side effect.
   - Open, invite-only, and closed registration modes are explicit.
   - Recovery does not require email in the initial self-hosted design.
 - **Evidence:** attack-case integration suite.
@@ -150,14 +185,17 @@ Forbidden:
 - **State:** proposed
 - **Outcome:** users can create, join, list, leave, and moderate private custom
   Leaderboards.
-- **Deliverables:** board entity, owner/member roles, invite entity, opaque
-  token/hash, expiry, rotate/revoke, removal, leave, owner succession/deletion
-  policy, and authorization matrix.
+- **Deliverables:** board entity, membership episodes with `joinedAt`/`leftAt`,
+  owner/member roles, invite entity, opaque token/hash, expiry, rotate/revoke,
+  removal, leave/rejoin, owner succession/deletion policy, and authorization
+  matrix.
 - **Acceptance:**
   - Boards are undiscoverable without membership/invite.
   - Invite rotation invalidates old codes.
   - Only owner can remove another member or rotate invite.
   - Removed/left members lose ranking access promptly.
+  - Joining does not reveal/count pre-join activity; rejoining starts a new
+    current membership episode.
   - Every board has a valid owner or follows explicit deletion/succession.
 - **Evidence:** authorization/state-machine tests.
 - **Dependencies:** LDB-002.
@@ -167,15 +205,21 @@ Forbidden:
 ## LDB-004 — Ingest activity idempotently
 
 - **State:** proposed
-- **Outcome:** offline/retried batches produce exactly one social effect per
+- **Outcome:** offline/retried batches produce one social effect per
   canonical completion.
-- **Deliverables:** versioned batch request, item-level result, uniqueness
-  constraints, partial acceptance, retry codes, validation, and quotas.
+- **Deliverables:** versioned batch request, durable ingestion ledger,
+  item-level result, uniqueness constraints, partial acceptance, retry codes,
+  validation, and quotas.
 - **Acceptance:**
   - Unique `(accountId, clientEventId)` and
     `(accountId, reviewSessionId, eventType)` prevent duplication.
+  - `accountId` and device scope come from the authenticated principal, never a
+    trusted body field.
   - Batch response separates accepted, duplicate, retryable, and final rejected
     IDs.
+  - Accepted and final-rejected outcomes are retained so later retries return
+    the original decision even after manifest/config changes.
+  - Ranking/award reducers consume accepted ledger rows only.
   - One bad item does not ambiguously fail accepted peers.
   - Reordered batches yield identical totals.
   - Payload/request sizes are bounded.
@@ -211,7 +255,8 @@ Forbidden:
 - **Acceptance:**
   - Midnight, week rollover, DST gap/overlap, leap day, and year boundary
     fixtures pass.
-  - Changing board timezone/week start is prospective and auditable.
+  - Board timezone/week start are immutable in v1.
+  - Board-local dates are recomputed from UTC on the server.
   - Equal counts receive documented equal rank.
   - Query meets expected small-community performance without preoptimization.
   - A fresh aggregation matches any materialized summary.
@@ -229,6 +274,7 @@ Forbidden:
   manual retry, and visible status.
 - **Acceptance:**
   - Review finalization never waits for network.
+  - Reviews completed before account linking are not silently backfilled.
   - App restart preserves pending events.
   - Timeout after server commit safely retries as duplicate.
   - Rejection cannot undo local review, FSRS, or local achievement.
@@ -245,10 +291,12 @@ Forbidden:
 - **Outcome:** board rows are recognizable without exposing unnecessary
   personal data.
 - **Deliverables:** display name, optional avatar reference/upload decision,
-  equipped confirmed title, membership, visibility, and moderation constraints.
+  equipped server-accepted title, membership, visibility, and moderation
+  constraints.
 - **Acceptance:**
   - Nonmembers cannot enumerate profiles/boards.
-  - An equipped title references a confirmed award.
+  - An equipped title references a server-accepted award; this is friendly-trust
+    compatibility checking, not proof of honest execution.
   - Display names have length/Unicode/safety policy.
   - Avatar storage is omitted until an actual storage/abuse need is solved; an
     initial generated/local avatar is acceptable.
@@ -266,8 +314,8 @@ Forbidden:
 - **Deliverables:** board list, create/join, invite share/rotate, member
   management, Today/week/all tabs, ranking rows, stale/offline state, and leave.
 - **Acceptance:**
-  - Row shows rank, avatar, name/title, Problems solved, and current streak.
-  - Pending local activity is not shown as server-confirmed rank.
+  - Row shows rank, avatar, name/title, Problems, and current streak.
+  - Pending local activity is not shown as server-accepted rank.
   - Offline uses last snapshot with freshness label.
   - Owner-only actions are hidden and domain/API-authorized.
   - Empty/error/removed-member states are clear.
@@ -339,12 +387,12 @@ Forbidden:
 |---|---|
 | Account | Unique normalized login identity; password hash only. |
 | Device/refresh token | Token hash, rotation family, expiry/revocation. |
-| Leaderboard | One owner; named timezone and week start. |
-| Membership | Unique `(leaderboardId, accountId)`. |
+| Leaderboard | One owner; immutable v1 timezone and week start. |
+| Membership | At most one active episode per `(leaderboardId, accountId)`. |
 | Invite | Hashed token, expiry, revocation/version. |
 | Activity | Unique client event and review-session keys per account. |
-| Award | Unique achievement semantic award key per account. |
-| Equipped title | Must reference confirmed award. |
+| Award | Unique server-accepted achievement semantic award key per account. |
+| Equipped title | Must reference a server-accepted award. |
 
 ## Leaderboard exit gate
 

@@ -17,21 +17,25 @@ Opening Problems, editing source, running tests, finalizing reviews, scheduling
 with FSRS, earning local achievements, inspecting history, and exporting data
 must work without an account or network.
 
+Android and desktop implement the same semantics, but v1 keeps independent
+local profiles. Moving a profile is a deliberate backup/export-import operation;
+the Leaderboard is not live study-history or source-code sync.
+
 ## System topology
 
 ```mermaid
 flowchart TD
     subgraph Client["BeeCode client"]
         App["Shared UI + use cases"]
-        Domain["Domain + events"]
-        Local["SQLite"]
+        Domain["Domain ports + events"]
+        Local["SQLite adapter"]
         Platform["Platform adapters"]
     end
     Social["Optional Leaderboard API"]
     App --> Domain
-    Domain --> Local
-    Domain --> Platform
-    Domain -. "minimal activity outbox" .-> Social
+    Local -. "implements" .-> Domain
+    Platform -. "implements" .-> Domain
+    Platform -. "minimal activity outbox" .-> Social
 ```
 
 Platform adapters include:
@@ -53,7 +57,7 @@ BeeCode/
 ├── shared/           KMP shared UI and application services
 ├── domain/           Pure models, commands, events, and state machines
 ├── persistence/      Local schema, repositories, transactions, migrations
-├── fsrs-core/        Generic dev.bee.fsrs engine from kanji_anki
+├── fsrs-core/        User's FSRS 7 dev.bee.fsrs engine from kanji_anki
 ├── fsrs-adapter/     BeeCode schedule policy and model mapping
 ├── python-api/       Platform-neutral execution contracts
 ├── protocol/         Versioned Leaderboard DTOs
@@ -73,7 +77,7 @@ skeleton. The dependency rules are more important than the physical split.
 - A shared KMP domain/application layer with platform adapter interfaces.
 - SQLite as local authority, with SQLDelight as the leading shared schema/
   migration candidate.
-- Generic Kotlin FSRS engine vendored or extracted from
+- User's Kotlin FSRS 7 engine vendored or extracted from
   [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki), pinned to source
   commit and wrapped by a BeeCode-owned scheduler adapter.
 - Platform-neutral `PythonRunner`; out-of-process worker on desktop and an
@@ -95,6 +99,7 @@ content/packs/core/problems/two-sum/
 ├── statement.md
 ├── starter.py
 ├── tests.yaml
+├── explanation.md
 ├── reference.py
 └── assets/
 ```
@@ -110,7 +115,8 @@ Build-time tooling:
 3. runs the trusted reference against all declared tests;
 4. generates one canonical runtime representation and index;
 5. produces a deterministic `.beecodepack`;
-6. proves `reference.py` and tooling-only files are absent.
+6. includes revealable `explanation.md` as non-executable content;
+7. proves `reference.py` and tooling-only files are absent.
 
 Client packs contain data only. They select trusted built-in codecs/comparators
 by versioned ID and cannot introduce arbitrary executable judge logic.
@@ -123,9 +129,9 @@ by versioned ID and cannot introduce arbitrary executable judge logic.
 | `SolutionDraft` | Local source, starter base, edit revision, and reveal state. |
 | `ExecutionRun` | Bounded local attempt and finite typed result. |
 | `ReviewSession` | Explicit started/working/passed/revealed/finalized lifecycle. |
-| `ReviewEvent` | Immutable scheduler input and audit record. |
+| `ProblemReviewFinalized` | Every finalized outcome, selected run/source, rating, and schedule audit. |
 | `ProblemSchedule` | Materialized FSRS state and next due decision. |
-| `ProblemSolved` | Derived once from an eligible finalized session. |
+| `ProblemSolved` | Derived once only from an eligible unaided passing session. |
 | `AchievementAward` | Immutable, idempotent local accomplishment. |
 | `SocialOutboxEvent` | Minimal eventually delivered activity metadata. |
 
@@ -143,29 +149,35 @@ sequenceDiagram
     participant DB as Local database
     UI->>Run: Execute immutable source snapshot
     Run-->>UI: Typed test result
-    UI->>App: Finalize session + rating
+    UI->>App: Finalize selected run/source + rating
+    App->>DB: Begin write; read schedule + version
+    DB-->>App: Authoritative previous state
     App->>FSRS: Previous state + elapsed days + rating
     FSRS-->>App: Next state + interval
-    App->>DB: Atomic review, schedule, awards, outbox
+    App->>DB: CAS review + schedule + events + outbox
     DB-->>UI: Existing or new finalized outcome
 ```
 
 The final database transaction:
 
 1. checks the `reviewSessionId` has not finalized;
-2. appends the immutable review event;
-3. persists the FSRS transition/current schedule;
-4. emits `ProblemSolved` when the suite passed without reveal;
-5. updates achievement projections and appends awards;
-6. inserts a minimal social event into the outbox;
+2. verifies the selected run/source snapshot and authoritative Problem schedule
+   projection version;
+3. calculates the fast pure FSRS transition inside the write transaction;
+4. appends `ProblemReviewFinalized` and `ProblemSolved` when eligible;
+5. persists the full recorded FSRS transition/current schedule;
+6. inserts a minimal social event into the outbox when already account-linked;
 7. marks the session finalized.
 
-It commits all effects or none. A retry returns the existing result. A test run
+It commits all core effects or none. A retry returns the existing result; a
+different stale session receives a schedule-version conflict. Achievement
+projection runs immediately after commit in a separate idempotent transaction
+and catches up after restart, so reducer failure cannot block study. A test run
 alone never mutates FSRS, achievements, or Leaderboards.
 
 ## FSRS boundary
 
-The generic `dev.bee.fsrs` engine owns memory mathematics:
+The user's FSRS 7 `dev.bee.fsrs` engine owns memory mathematics:
 
 - initial state;
 - retrievability;
@@ -181,8 +193,13 @@ BeeCode owns:
 - parameter/version migration;
 - persistence, clocks, explanation, and history.
 
-Every schedule transition records engine/parameter versions. Golden vectors run
-through both platform compositions before an upgrade can change schedules.
+Every schedule transition records the FSRS algorithm ID, Bee implementation/
+source commit, previous-state hash, elapsed/rating inputs, immutable 21-value
+parameter set/hash, resulting memory state, interval, and due decision.
+Operational rebuild folds those recorded outputs; historical recomputation is
+an integrity check only while the exact old implementation remains available.
+Golden vectors run through both platform compositions before an upgrade can
+change schedules. v1 has no separate minute-based learning ladder.
 
 ## Python execution boundary
 
@@ -205,22 +222,29 @@ RunResult
 
 Desktop direction:
 
-- a disposable out-of-UI-process CPython worker;
-- framed structured protocol without shell interpolation;
+- `UI → supervisor control channel → disposable learner CPython child`;
+- framed structured control protocol separate from learner stdout/stderr and
+  without shell interpolation;
 - fresh constrained temporary workspace;
 - clean environment, deadline, output/resource caps, process-tree cleanup;
 - OS-specific containment with a visible capability level.
 
 Android direction:
 
-- a pinned embedded runtime behind a bound worker service/process;
-- no network permission or access to main-process credentials/storage;
+- test a pinned embedded runtime in ordinary remote and isolated processes;
+- target no network permission or access to main-process credentials/storage,
+  but treat both as unproven until the isolation spike passes;
 - UI-enforced deadline and worker termination/recreation;
 - `arm64-v8a` physical device and `x86_64` emulator evidence.
 
 The Android spike is a go/no-go gate: if the provider cannot operate behind an
-honest isolation boundary, evaluate a separate signature-bound runner APK or
-change the declared capability. Do not call same-process execution a sandbox.
+honest isolation boundary, follow the explicit fallback ladder: isolated
+service, separate signature-bound no-permission runner APK, same-UID crash
+isolation labelled “trusted code only”, or reject Android execution until an
+acceptable boundary exists. It must test provider extraction/import behavior,
+Binder pipes/limits, GIL-bound termination, filesystem/socket/Java/keystore/
+environment access, and Logcat leakage. Do not call same-process execution a
+sandbox.
 
 ## Achievement architecture
 
@@ -231,26 +255,38 @@ immutable/idempotent.
 5am Club is normative:
 
 - source: eligible finalized `ProblemSolved`;
-- official suite passed; no solution/reference reveal;
+- official suite passed; no packaged explanation/solution or prior-source
+  reveal;
 - local window `[00:00, 06:00)`;
 - seven distinct consecutive local dates;
 - one qualifying contribution per date;
-- active streak uses a locked IANA timezone policy;
-- UTC instant, timezone, local date, and local time remain auditable;
-- immediate local award; independent server confirmation for public title.
+- first qualifying event starts an epoch with locked `streakZoneId`;
+- every event in that epoch is converted from canonical UTC using the locked
+  zone; after a missing locked-zone date, a new qualifying event starts an epoch
+  with the then-current profile zone;
+- progress is recomputed from ordered qualifying UTC events, so late events do
+  not corrupt an increment-only counter;
+- UTC instant, profile zone, and derived local audit values remain auditable;
+- immediate local award; independent friendly-trust server acceptance for a
+  public title.
 
 ## Leaderboard architecture
 
 Private custom Leaderboards are the complete v1 social model. The service owns
 accounts, membership/invites, accepted social activity, aggregate ranks, and
-server-confirmed awards.
+server-accepted awards.
 
-The client uploads only idempotent activity metadata. Network delivery is
-at-least-once; server unique constraints make social effects exactly once.
+The client uploads each account-global idempotent activity event once, without a
+board ID. Network delivery is at-least-once; a durable ingestion ledger and
+server unique constraints produce one social effect. Board queries include only
+events in the current membership episode: no pre-join backfill, leaving hides
+the row, and rejoining starts a new board-local score. Reviews from before
+account linking are not backfilled in v1.
 
-Rank periods use the board's timezone and week start. Rows show:
+Rank periods derive dates server-side from UTC using the board's immutable v1
+timezone/week start. Rows show:
 
-`rank · avatar · display name + equipped title · Problems solved · streak`
+`rank · avatar · display name + equipped title · Problems · streak`
 
 The server is a modular monolith:
 
@@ -292,6 +328,6 @@ as sensitive. Logs and support bundles are allowlisted/redacted and previewed.
 8. Duplicate offline social uploads count once and contain no sensitive fields.
 9. Self-host deployment restores from backup on a clean environment.
 
-The full acceptance criteria, dependencies, risks, tests, and one-year
-sequencing are in [`goals/`](../goals/README.md).
-
+The full acceptance criteria, dependencies, risks, and tests are in
+[`goals/`](../goals/README.md); the realistic first-year cut and sequencing are
+in [the year-one execution plan](../goals/YEAR-ONE.md).

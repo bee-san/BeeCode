@@ -13,10 +13,10 @@ genuinely needs a server.
 | Execution output | Local, bounded retention | Never |
 | Review history | Local append-only log | Derived successful activity only |
 | FSRS memory/schedule | Local projection | Never |
-| Achievement progress/awards | Local projection/award log | Confirmed award metadata only |
+| Achievement progress/awards | Local projection/award log | Server-accepted award metadata only |
 | Account and board membership | Server | Server authority |
 | Social activity acceptance/ranks | Server | Minimal activity metadata |
-| Equipped social title | Server, limited to confirmed award | Board members |
+| Equipped social title | Server, limited to server-accepted award | Board members |
 
 The Leaderboard server cannot repair, delete, reschedule, or veto a local
 review.
@@ -40,26 +40,32 @@ candidate, subject to an early Android/desktop packaging spike.
 One local transaction must:
 
 1. prove the review session is not already finalized;
-2. append the review event;
-3. calculate and persist the FSRS transition;
-4. update the current Problem schedule;
-5. append `ProblemSolved` if eligible;
-6. project achievement progress and append new awards;
-7. insert the minimal social activity into the outbox if an account is linked;
-8. mark the session finalized.
+2. read the authoritative Problem schedule and verify its projection version;
+3. calculate the fast pure FSRS transition inside that write transaction;
+4. append `ProblemReviewFinalized` and `ProblemSolved` if eligible;
+5. persist the recorded FSRS transition and current Problem schedule;
+6. insert the minimal social activity into the outbox if an account is already
+   linked at finalization;
+7. mark the session finalized.
 
-The transaction produces all effects or none.
+The transaction produces all core study effects or none. Achievement projection
+runs immediately after commit in a separate idempotent cursor transaction and
+catches up after restart; an unknown/broken achievement reducer can never block
+a review.
 
 ## DATA-001 — Version the local schema before alpha data
 
 - **State:** proposed
 - **Outcome:** every durable entity and index has an explicit migration path.
 - **Deliverables:** schema, foreign/unique constraints, indexes, metadata table,
-  migration numbering, and reference ER diagram.
+  migration numbering, SQLite WAL/foreign-key/synchronous/busy-timeout policy,
+  and reference ER diagram.
 - **Acceptance:**
   - Problem/revision, run, review session, event, schedule, achievement, and
     outbox identities are constrained at the database.
   - `reviewSessionId` cannot finalize twice.
+  - Problem schedules have a projection version/CAS constraint and finalized
+    reviews reference the exact selected run/source snapshot.
   - Derived/projected tables can name their source/cursor/version.
   - Foreign-key behavior on pack/account removal is deliberate.
   - Database bootstrap and integrity checks are deterministic.
@@ -79,6 +85,8 @@ The transaction produces all effects or none.
   - Forced failure after each review-finalization write yields all or none.
   - Retried finalization returns the existing outcome.
   - Domain events and projections cannot commit with mismatched cursors.
+  - A failing achievement projection leaves the canonical review committed and
+    resumes from its last safe cursor later.
   - Long runner/network work never holds a database transaction open.
 - **Evidence:** failure injection with actual database.
 - **Dependencies:** DATA-001, ARCH-003.
@@ -91,8 +99,8 @@ The transaction produces all effects or none.
 - **Outcome:** the learner can move or recover all local study data without a
   server.
 - **Deliverables:** versioned `.beecodebackup` manifest, database/data export,
-  source inclusion choices, checksums, optional encryption, preview, import
-  transaction, and conflict policy.
+  SQLite online-backup/snapshot procedure, source inclusion choices, checksums,
+  optional encryption, preview, import transaction, and conflict policy.
 - **Acceptance:**
   - Full round trip preserves Problems/revisions, drafts, review history,
     schedule, achievements, and settings as documented.
@@ -116,6 +124,7 @@ The transaction produces all effects or none.
   reasons, and pruning.
 - **Acceptance:**
   - Pending events are inserted atomically with review finalization.
+  - Reviews completed before account linking are not silently backfilled.
   - Process death in any upload state is recoverable.
   - Timeout after server commit retries safely.
   - Final rejection remains inspectable and cannot affect local truth.
@@ -196,7 +205,7 @@ The transaction produces all effects or none.
   - App downgrade limitations are explicit.
   - Pack/FSRS/achievement version migrations are represented separately.
 - **Evidence:** upgrade matrix and forced-interruption drills.
-- **Dependencies:** DATA-001, ARCH-006.
+- **Dependencies:** DATA-001, ARCH-006, PROB-009.
 - **Risks:** fixtures not representing real long-lived data.
 - **Non-goals:** bidirectional migration between arbitrary versions.
 

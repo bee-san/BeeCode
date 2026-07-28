@@ -30,9 +30,19 @@ A definition describes:
 
 The evaluator code—not YAML—defines legal predicates and state transitions.
 
-## Canonical local event
+## Canonical local events
 
-An eligible `ProblemSolved` event records:
+`ProblemReviewFinalized` is emitted for every finalized session. It records the
+run outcome, whether the official suite passed, reveal/assistance state, rating,
+selected run/source-snapshot IDs, UTC instant, profile timezone at finalization,
+derived local date/time, Problem revision, and stable event/session IDs. It
+drives non-qualification explanations and achievements that legitimately
+include failures or recovery.
+
+`ProblemSolved` is derived in the same core transaction only when the official
+suite passed and no explanation, solution, or prior successful source was
+revealed. Those conditions are invariants, not optional booleans on the event.
+`ProblemSolved` records:
 
 | Field | Purpose |
 |---|---|
@@ -40,13 +50,13 @@ An eligible `ProblemSolved` event records:
 | `reviewSessionId` | Ensures retries in one session count once. |
 | `problemId` / revision / content hash | Connects activity to trusted content. |
 | `occurredAtUtc` | Immutable chronological evidence. |
-| `timezoneId` | IANA zone used at completion. |
-| `localDate` / `localTime` | Auditable calendar/window semantics. |
-| `officialSuitePassed` | Required success evidence. |
-| `solutionRevealed` | Excludes assisted sessions where defined. |
+| `profileZoneAtFinalization` | IANA zone captured as audit metadata. |
+| `observedLocalDate` / `observedLocalTime` | Derived audit values, validated from UTC and zone. |
 | `eventSchemaVersion` | Safe replay and migration. |
 
-The event is emitted only from the atomic finalized-review transaction.
+Both events are emitted only from the atomic finalized-review transaction.
+5am Club and social completion counts consume `ProblemSolved`; failure/reveal
+reason UI consumes `ProblemReviewFinalized`.
 
 ## ACH-001 — Define ethical achievement principles
 
@@ -90,11 +100,14 @@ The event is emitted only from the atomic finalized-review transaction.
 - **State:** proposed
 - **Outcome:** progress and awards can always be rebuilt from canonical events.
 - **Deliverables:** reducer interface, progress state, cursor/checkpoint,
-  transactional update, replay command, and invariant checks.
+  separate idempotent projection transaction, immediate post-commit catch-up,
+  replay command, and invariant checks.
 - **Acceptance:**
   - Duplicate event IDs and review-session IDs do not advance progress twice.
   - Processing order is deterministic; out-of-order handling is defined.
   - Projection crash rolls back or resumes without lost/duplicate progress.
+  - Unknown or broken reducer versions cannot prevent the core review/schedule
+    transaction from committing.
   - Full replay produces the same progress and awards as incremental operation.
   - Unknown event/definition versions are quarantined visibly.
 - **Evidence:** duplicate, reorder, crash, checkpoint, and randomized replay
@@ -114,11 +127,19 @@ The event is emitted only from the atomic finalized-review transaction.
   - Window is exactly `[00:00:00, 06:00:00)`.
   - Seven distinct consecutive local calendar dates are required.
   - At most one date counts per day.
-  - Full official suite passed, review finalized, and no solution/reference
-    reveal are required.
+  - Full official suite passed, review finalized, and no packaged explanation/
+    solution or prior successful source reveal are required.
   - Same Problem may count on a later date through a legitimate review.
-  - Active streak timezone is locked; changing profile timezone applies to a
-    newly started streak according to the documented reset policy.
+  - The first qualifying event starts an epoch and locks `streakZoneId`.
+  - Every later event in that epoch is converted from `occurredAtUtc` using the
+    locked zone, regardless of device/profile changes.
+  - After a missing locked-zone calendar date, the next qualifying event starts
+    a new epoch using the then-current profile zone.
+  - Progress is recomputed from the ordered set of qualifying UTC events
+    (`occurredAtUtc`, then `eventId`), so late/backdated events cannot corrupt an
+    increment-only counter.
+  - Stored local audit values must validate against UTC plus their recorded
+    zone; they are not trusted instead of recomputation.
   - Award is idempotent and grants equippable title `5am Club`.
 - **Evidence:** normative test matrix below.
 - **Dependencies:** ACH-003, SRS-007.
@@ -134,12 +155,12 @@ The event is emitted only from the atomic finalized-review transaction.
 | Three qualifying Problems on one date | One qualifying date. |
 | Same Problem reviewed successfully on two qualifying dates | Both dates may qualify. |
 | Successful tests but session never finalized | Does not qualify. |
-| Reference/explanation revealed before finalization | Does not qualify. |
+| Packaged explanation/solution or prior successful source revealed | Does not qualify. |
 | Duplicate event or upload | Counts once. |
 | Dates 1–6 and 8 | Streak resets; no award. |
 | Seven consecutive dates across month/year boundary | Qualifies. |
 | DST transition | Uses zoned calendar dates, not seven 24-hour intervals. |
-| Timezone change during active streak | Existing locked zone/reset policy applies; no double date. |
+| Timezone change during active streak | Existing epoch keeps its locked zone; a post-gap epoch uses the new profile zone. |
 
 Required automated cases:
 
@@ -203,30 +224,31 @@ Required automated cases:
   - At most one title is equipped.
   - An unearned title cannot be equipped locally or socially.
   - Signing out/offline does not remove local selection.
-  - Server-visible title must reference a server-confirmed award.
+  - Server-visible title must reference a server-accepted award.
   - Revoked/incompatible title falls back safely without erasing local award.
 - **Evidence:** state, authorization, and offline reconciliation tests.
 - **Dependencies:** ACH-005.
-- **Risks:** local/server confirmation confusion.
+- **Risks:** local/server acceptance confusion.
 - **Non-goals:** free-form title text.
 
 ## ACH-008 — Reconcile local and social awards
 
 - **State:** proposed
 - **Outcome:** local feedback is immediate while socially visible awards remain
-  independently confirmed from accepted social events.
-- **Deliverables:** confirmation state, upload linkage, server reducer version,
+  independently accepted from friendly-trust social events.
+- **Deliverables:** acceptance state, upload linkage, server reducer version,
   disagreement reason, retry behavior, and privacy boundary.
 - **Acceptance:**
   - Local award works without account/network.
   - Accepted duplicate events do not duplicate award.
   - Server rejection never deletes local review or award.
-  - Social title remains unavailable until confirmation where required.
+  - Social title remains unavailable until server acceptance where required.
   - The client can explain pending/rejected confirmation without accusing the
     learner of cheating.
 - **Evidence:** offline, partial batch, duplicate, and version mismatch tests.
 - **Dependencies:** DATA-004, LDB-004.
-- **Risks:** two implementations drifting.
+- **Risks:** two implementations drifting; “server accepted” being mistaken for
+  cryptographic proof of an honest client.
 - **Non-goals:** sending detailed source/test evidence to prove an award.
 
 ## ACH-009 — Govern definition migrations
@@ -276,8 +298,9 @@ Required automated cases:
 - **Deliverables:** trusted reason codes, localized copy, progress ledger, time
   display, and support export.
 - **Acceptance:**
-  - Reasons include not finalized, tests failed, revealed, duplicate date,
-    outside window, untrusted content, and unsupported version.
+  - `ProblemReviewFinalized` supplies tests-failed/revealed/outside-window/
+    untrusted-content/version reasons; an unfinalized session is explained from
+    session state rather than a fabricated event.
   - Explanations do not expose hidden test details.
   - Advanced evidence uses stable IDs/times but excludes source.
   - Screen-reader order communicates reason before recovery.

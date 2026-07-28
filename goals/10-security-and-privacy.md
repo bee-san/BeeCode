@@ -112,15 +112,22 @@ behavior on supported targets, and refuse to disguise gaps.
 - **State:** proposed
 - **Outcome:** passwords/tokens support small self-hosted communities without
   easy replay or accidental exposure.
-- **Deliverables:** Argon2id parameters, password policy, rotating hashed
-  refresh tokens, short access tokens, device sessions, logout/revoke, recovery,
-  brute-force limits, and clock policy.
+- **Deliverables:** Argon2id password parameters, password policy, opaque
+  high-entropy access tokens, atomically rotating hashed/HMAC device refresh
+  tokens, device sessions, logout/revoke, recovery, brute-force limits, trusted
+  proxy/TLS policy, and clock policy.
 - **Acceptance:**
-  - Passwords and raw refresh tokens never appear in database/logs.
-  - Token replay/expiry/issuer/audience/signature cases fail.
+  - Passwords and raw access/refresh tokens never appear in database/logs.
+  - Argon2id is used for passwords; fast cryptographic hash/HMAC is used for
+    high-entropy access, refresh, invite, and recovery tokens as appropriate.
+  - Refresh rotation is an atomic compare-and-swap with explicit concurrent
+    refresh and replay-family behavior.
+  - Token hash/scope/expiry/revocation cases fail and revocation is immediate.
   - User can view and revoke device sessions.
   - Recovery codes are one-time and stored safely.
   - Credential storage uses platform facilities where available.
+  - Caddy proxy headers are trusted only from configured proxies; production
+    clients cannot enable “accept any TLS certificate”.
 - **Evidence:** authentication attack-case suite and parameter review.
 - **Dependencies:** SEC-001, ARCH-007.
 - **Risks:** password recovery and operator powers being unclear.

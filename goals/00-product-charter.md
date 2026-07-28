@@ -35,7 +35,8 @@ different product.
 - **Acceptance:**
   - “Tests passed” and “Review finalized” are separate states.
   - A learner can save a draft and leave without corrupting schedule state.
-  - Revealing a reference solution changes the permitted review outcome.
+  - Revealing the packaged explanation/solution or prior successful learner
+    source changes the permitted review outcome.
   - Retry behavior is explicit and cannot create duplicate reviews.
   - Offline behavior is complete.
 - **Evidence:** clickable prototype review and executable domain-state tests
@@ -73,7 +74,8 @@ different product.
 - **Acceptance:**
   - Primary metrics include due-review completion, delayed recall success, lapse
     recovery, and learner-reported usefulness.
-  - Problems solved is treated as an activity count, not proof of mastery.
+  - The Leaderboard **Problems** count is treated as successful-review activity,
+    not proof of mastery.
   - Metrics can be calculated locally.
   - No metric requires uploading solution source.
 - **Evidence:** metric review at M2, M4, and beta.
@@ -144,7 +146,7 @@ different product.
     packages, and multiple languages remain deferred.
   - Every included capability has an owner and test strategy.
 - **Evidence:** scope review at the end of each phase.
-- **Dependencies:** all target leads.
+- **Dependencies:** PROD-002, PROD-005, PROD-006.
 - **Risks:** a year of development without a shippable slice.
 - **Non-goals:** freezing post-v1 research.
 

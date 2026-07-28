@@ -28,7 +28,7 @@ The Leaderboard service owns:
 - accounts and authentication;
 - private Leaderboard membership and invitations;
 - idempotent activity receipts;
-- aggregate ranks and server-confirmed social achievements.
+- aggregate ranks and server-accepted friendly-trust social achievements.
 
 The server never needs a learner's solution source, test output, or FSRS state.
 
@@ -47,4 +47,3 @@ The server never needs a learner's solution source, test output, or FSRS state.
 Revisit this boundary only if BeeCode adds cross-device study-state sync. That
 feature requires its own encryption, conflict-resolution, and migration design;
 it must not be smuggled through the Leaderboard protocol.
-

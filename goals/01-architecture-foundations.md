@@ -14,10 +14,10 @@ flowchart TD
         Shared["Shared UI + application"]
     end
     subgraph LocalCore["Offline local core"]
-        Domain["Domain + events"]
-        Store["Local database"]
-        FSRS["Bee FSRS"]
-        Runner["Python runner contract"]
+        Domain["Domain ports + events"]
+        Store["Local database adapter"]
+        FSRS["Bee FSRS 7 adapter"]
+        Runner["Python runner adapters"]
     end
     subgraph OptionalSocial["Optional social"]
         Outbox["Activity outbox"]
@@ -27,10 +27,10 @@ flowchart TD
     Android --> Shared
     Desktop --> Shared
     Shared --> Domain
-    Domain --> Store
-    Domain --> FSRS
-    Domain --> Runner
-    Domain --> Outbox
+    Store -. "implements port" .-> Domain
+    FSRS -. "implements port" .-> Domain
+    Runner -. "implements port" .-> Domain
+    Outbox -. "implements port" .-> Domain
     Outbox -. "metadata only" .-> API
     API --> Postgres
 ```
@@ -84,6 +84,21 @@ AGP 9 imposes an important shape: the Android application entry point remains a
 standalone `com.android.application` module, while shared Android/JVM code uses
 the Android-KMP library plugin. Chaquopy belongs only in the application module
 behind `PythonRunner`; it must never become a domain dependency.
+
+| Module | Planned plugins/targets | Constraint to verify |
+|---|---|---|
+| `androidApp` | `com.android.application`, AGP built-in Kotlin, Compose compiler, Chaquopy | No `org.jetbrains.kotlin.android`; Python provider applied only here. |
+| `shared` | Kotlin Multiplatform, `com.android.kotlin.multiplatform.library`, Compose Multiplatform/compiler; Android + desktop JVM targets | Android-KMP plugin is single-variant; resources/tests/Java are explicitly opted in. |
+| `desktopApp` | Kotlin/JVM + Compose Desktop/compiler | Standalone entry avoids KMP/application-plugin coupling. |
+| `domain` / `python-api` / `protocol` | KMP common plus Android/JVM targets as needed | No platform/provider framework imports. |
+| `fsrs-core` | JVM library consumed by both JVM-based targets, or genuine KMP port only after provenance/vector review | Moving Java/Kotlin APIs to `commonMain` is a recorded source diff. |
+| `persistence` | Shared SQL/schema with explicit Android and desktop SQLite drivers | Driver, migration, WAL, and backup behavior tested on both. |
+| `server` | Kotlin/JVM + Ktor | No Android, KMP UI, or Compose plugin. |
+
+The Gradle daemon JDK, desktop/server bytecode target, and Android Java/Kotlin
+bytecode target are separate decisions. The current wizard's JVM 11 bytecode on
+JDK 21 is a candidate baseline, not something to infer automatically from the
+build JDK.
 
 Primary planning sources:
 
