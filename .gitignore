@@ -1,0 +1,48 @@
+# Gradle and Kotlin
+.gradle/
+**/build/
+build/
+kotlin-js-store/
+
+# Android
+local.properties
+captures/
+.cxx/
+*.apk
+*.aab
+
+# Desktop packaging
+*.dmg
+*.msi
+*.deb
+*.rpm
+*.pkg
+
+# IDEs and editors
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+
+# Generated Problem artifacts
+generated/
+*.beecodepack
+
+# Operating systems
+.DS_Store
+Thumbs.db
+
