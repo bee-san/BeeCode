@@ -29,7 +29,7 @@ state and focus semantics.
   - At least one low/mid-range physical phone is in the release matrix.
   - Unsupported ABI/runtime state fails before a review is started.
 - **Evidence:** published device matrix.
-- **Dependencies:** PROD-005, RUN-003.
+- **Dependencies:** PROD-005, ARCH-002.
 - **Risks:** emulator-only confidence; large ABI packaging.
 - **Non-goals:** every OEM/API combination.
 
@@ -249,4 +249,3 @@ The same representative Problem pack and runner conformance suite must pass
 offline on the supported emulator and at least one physical phone. Drafts must
 survive lifecycle/process death, infinite code must terminate without killing
 the app, and review finalization must remain exactly once.
-

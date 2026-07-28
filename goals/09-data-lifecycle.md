@@ -81,7 +81,7 @@ The transaction produces all effects or none.
   - Domain events and projections cannot commit with mismatched cursors.
   - Long runner/network work never holds a database transaction open.
 - **Evidence:** failure injection with actual database.
-- **Dependencies:** DATA-001, SRS-006.
+- **Dependencies:** DATA-001, ARCH-003.
 - **Risks:** nested/implicit transactions obscuring atomicity.
 - **Non-goals:** one giant transaction for unrelated settings.
 
@@ -277,4 +277,3 @@ The transaction produces all effects or none.
 BeeCode must work offline indefinitely, finalize reviews atomically, migrate
 every supported stored fixture, survive forced failure/full disk safely, and
 round-trip a backup without source conflict or duplicate events.
-

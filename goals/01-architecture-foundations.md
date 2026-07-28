@@ -222,7 +222,7 @@ Primary planning sources:
   - No signing key, token, password, or production URL is committed.
   - Diagnostics redact secret values.
 - **Evidence:** secret scan and invalid-configuration tests.
-- **Dependencies:** SEC-006.
+- **Dependencies:** ARCH-002, SEC-006.
 - **Risks:** convenient development defaults reaching production.
 - **Non-goals:** a generic secrets-management product.
 
@@ -284,4 +284,3 @@ Primary planning sources:
 This target is verified only when a clean environment can build the documented
 shells and contract-test fakes, dependency rules are enforced, the critical
 ADRs are accepted, and no study behavior requires the optional server.
-

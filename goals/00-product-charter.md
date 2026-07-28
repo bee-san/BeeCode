@@ -94,7 +94,7 @@ different product.
   - Unsupported configurations fail clearly rather than silently losing Python
     execution.
 - **Evidence:** published matrix backed by CI and device results.
-- **Dependencies:** RUN-002, RUN-003, DSK-001, AND-001.
+- **Dependencies:** PROD-001, PROD-002.
 - **Risks:** claiming platforms that cannot be tested or packaged.
 - **Non-goals:** browser/iOS support in v1.
 
@@ -110,7 +110,7 @@ different product.
   - Account deletion has a documented server-data effect without deleting local
     study data.
 - **Evidence:** offline first-run and account lifecycle tests.
-- **Dependencies:** LDB-001, DATA-005.
+- **Dependencies:** PROD-002.
 - **Risks:** accidentally coupling settings or achievements to server identity.
 - **Non-goals:** cross-device study sync through Leaderboard accounts.
 
@@ -127,7 +127,7 @@ different product.
   - Manual overrides are recorded, reversible where safe, and explained.
   - The next due date and rating effect are inspectable.
 - **Evidence:** usability sessions and state-model tests.
-- **Dependencies:** PROD-002, SRS-003.
+- **Dependencies:** PROD-002.
 - **Risks:** punitive flow discouraging honest failure; opaque scheduling.
 - **Non-goals:** preventing every possible self-cheat.
 
@@ -162,7 +162,7 @@ different product.
     recommendation.
   - Accessibility does not depend on color, animation, or social comparison.
 - **Evidence:** review of every achievement definition and social screen.
-- **Dependencies:** ACH-001, LDB-001, UX-001.
+- **Dependencies:** PROD-002.
 - **Risks:** compulsion, shame, or gaming counts.
 - **Non-goals:** clinical claims about habit formation.
 
@@ -181,7 +181,6 @@ different product.
     feature requests.
   - Accepted roadmap changes name the displaced work.
 - **Evidence:** three monthly feedback synthesis notes during beta.
-- **Dependencies:** SEC-008.
+- **Dependencies:** PROD-001.
 - **Risks:** collecting sensitive code or unbounded telemetry.
 - **Non-goals:** public voting as product governance.
-

@@ -50,7 +50,7 @@ must connect recall, coding evidence, reflection, and future scheduling.
   - Expanded Android can combine modes without changing state semantics.
   - Critical action remains reachable at minimum size and 200% scaling.
 - **Evidence:** responsive prototype and screenshot matrix.
-- **Dependencies:** DSK-003, AND-003.
+- **Dependencies:** ARCH-001, PROD-001.
 - **Risks:** excessive shared UI conditional logic.
 - **Non-goals:** pixel-identical platforms.
 
@@ -69,7 +69,7 @@ must connect recall, coding evidence, reflection, and future scheduling.
   - Shortcut/action names are discoverable.
   - Editor controls and ratings expose role/state/value.
 - **Evidence:** manual assistive-technology scripts plus semantic tests.
-- **Dependencies:** QLT-010.
+- **Dependencies:** UX-001, PROD-001.
 - **Risks:** editor component having poor semantics.
 - **Non-goals:** declaring conformance solely from an automated checker.
 
@@ -106,7 +106,7 @@ must connect recall, coding evidence, reflection, and future scheduling.
   - Technical detail never includes secrets or internal sensitive paths.
   - Error is not conveyed only by color/icon.
 - **Evidence:** golden copy/state review.
-- **Dependencies:** RUN-007, SEC-011.
+- **Dependencies:** RUN-001, SEC-006.
 - **Risks:** technical precision overwhelming novice users.
 - **Non-goals:** exposing raw stack traces as primary UI.
 
@@ -124,7 +124,7 @@ must connect recall, coding evidence, reflection, and future scheduling.
   - Committed summary reflects the exact stored transition.
   - Settings warn before materially changing due load.
 - **Evidence:** comprehension testing and golden explanation suite.
-- **Dependencies:** SRS-003, SRS-010.
+- **Dependencies:** SRS-003, SRS-004.
 - **Risks:** false precision or overly academic FSRS explanation.
 - **Non-goals:** requiring users to understand FSRS equations.
 
@@ -263,4 +263,3 @@ the declared Android accessibility script; core states must survive text
 scaling and reduced motion; and usability evidence must show that “tests
 passed”, “review finalized”, “saved locally”, and “synced socially” are
 understood as distinct states.
-

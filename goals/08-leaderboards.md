@@ -122,7 +122,7 @@ Forbidden:
   - Health and readiness distinguish process from database/migration status.
   - Resource limits and persistent volumes are documented.
 - **Evidence:** independent clean-host deployment and restart test.
-- **Dependencies:** ARCH-007, OPS-004.
+- **Dependencies:** ARCH-007.
 - **Risks:** self-host documentation assuming hidden expertise.
 - **Non-goals:** public SaaS operations in v1.
 
@@ -181,7 +181,7 @@ Forbidden:
   - Payload/request sizes are bounded.
 - **Evidence:** duplicate, reordered, timeout-after-commit, and partial batch
   tests.
-- **Dependencies:** DATA-004, ACH-003.
+- **Dependencies:** SRS-006, ARCH-006.
 - **Risks:** treating HTTP exactly-once delivery as possible.
 - **Non-goals:** synchronous review finalization waiting on upload.
 
@@ -353,4 +353,3 @@ and observe stable Today/week/all-time ranks with duplicates ignored. Captured
 requests, database rows, and logs must prove that source, test output, and FSRS
 state never crossed the server boundary. A clean self-host deployment and
 restore must also succeed.
-

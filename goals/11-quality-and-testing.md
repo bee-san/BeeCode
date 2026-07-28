@@ -35,7 +35,7 @@ percentage.
   - Manual-only evidence has reason and cadence.
   - Retired behavior removes/updates obsolete tests deliberately.
 - **Evidence:** matrix reviewed at milestone gates.
-- **Dependencies:** all target acceptance criteria.
+- **Dependencies:** ARCH-008.
 - **Risks:** tests existing without proving the intended rule.
 - **Non-goals:** mapping every cosmetic line of code.
 
@@ -97,7 +97,7 @@ percentage.
   - Regressions beyond threshold block or receive explicit time-bounded review.
   - Budgets are revised from evidence, not quietly ignored.
 - **Evidence:** milestone benchmark report.
-- **Dependencies:** RUN-011, AND-009, DATA-010.
+- **Dependencies:** QLT-002.
 - **Risks:** false precision before prototypes.
 - **Non-goals:** optimizing synthetic scores that do not affect use.
 
@@ -227,7 +227,7 @@ percentage.
   - Missing required platform/device evidence blocks support claim.
   - Waivers are visible, time-limited, and cannot redefine severity.
 - **Evidence:** dry-run release with injected blockers.
-- **Dependencies:** SEC-012, OPS-010.
+- **Dependencies:** QLT-001, SEC-001.
 - **Risks:** calling severe defects “known limitations”.
 - **Non-goals:** zero defects.
 
@@ -261,4 +261,3 @@ The declared platform matrix, critical invariant traceability, performance
 budgets, accessibility scripts, fault scenarios, and human journeys must all
 have current evidence. A compile-only Android result or desktop-only runner
 result cannot satisfy cross-platform support.
-

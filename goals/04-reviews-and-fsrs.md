@@ -266,4 +266,3 @@ A passing solution must be finalizable exactly once, create one auditable review
 transition, match the Bee FSRS golden vectors, survive restart/migration, and
 yield the same due queue and achievement/social events when canonical history is
 replayed.
-

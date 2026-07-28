@@ -109,7 +109,7 @@ quality of boundaries matters more than count.
   - Fresh install and upgrade verification pass.
   - Key rotation/revocation has a rehearsed response.
 - **Evidence:** signed release-candidate verification.
-- **Dependencies:** SEC-002, DSK-012, AND-012.
+- **Dependencies:** SEC-002, DSK-001, AND-001.
 - **Risks:** platform signing discovered too late.
 - **Non-goals:** auto-update without secure rollback/compatibility design.
 
@@ -127,7 +127,7 @@ quality of boundaries matters more than count.
   - Service can run behind a user-provided reverse proxy as documented.
   - Upgrade command backs up or verifies backup before risky migration.
 - **Evidence:** clean VPS/VM deployment exercise.
-- **Dependencies:** LDB-001, SEC-004.
+- **Dependencies:** LDB-001, ARCH-007.
 - **Risks:** Docker Compose called “one click” despite DNS/TLS/operator duties.
 - **Non-goals:** Kubernetes/HA/multi-region deployment.
 
@@ -145,7 +145,7 @@ quality of boundaries matters more than count.
   - Client backup sensitivity/source inclusion is explicit.
   - Operators know that an untested backup is not a recovery plan.
 - **Evidence:** release-candidate restore report.
-- **Dependencies:** DATA-011, LDB-012.
+- **Dependencies:** DATA-011, LDB-001, OPS-004.
 - **Risks:** backing up corrupt state or losing encryption keys.
 - **Non-goals:** automatic off-site provider selection.
 
@@ -305,4 +305,3 @@ Stable BeeCode requires signed verifiable clients, tested upgrades, a clean-host
 self-host deployment, a timed backup restore, privacy-safe diagnostics, legal/
 user/operator documentation, and a milestone evidence bundle with no
 nonwaivable blocker.
-

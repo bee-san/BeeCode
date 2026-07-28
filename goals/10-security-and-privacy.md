@@ -66,7 +66,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Release artifacts map to source revision and dependencies.
   - Unreviewed repository/binary sources are prohibited.
 - **Evidence:** archived release report.
-- **Dependencies:** ARCH-010, OPS-003.
+- **Dependencies:** ARCH-002.
 - **Risks:** noisy scans masking meaningful vulnerabilities.
 - **Non-goals:** blindly upgrading dependencies during a release freeze.
 
@@ -85,7 +85,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Termination kills the intended process tree/service.
   - Unsupported containment level is visible before executing untrusted packs.
 - **Evidence:** desktop OS and Android device reports.
-- **Dependencies:** RUN-010.
+- **Dependencies:** SEC-001, ARCH-003.
 - **Risks:** OS updates changing sandbox primitives.
 - **Non-goals:** guaranteeing protection against kernel/VM vulnerabilities.
 
@@ -122,7 +122,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Recovery codes are one-time and stored safely.
   - Credential storage uses platform facilities where available.
 - **Evidence:** authentication attack-case suite and parameter review.
-- **Dependencies:** LDB-002, DATA-006.
+- **Dependencies:** SEC-001, ARCH-007.
 - **Risks:** password recovery and operator powers being unclear.
 - **Non-goals:** enterprise identity federation in v1.
 
@@ -140,7 +140,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Board member visibility is distinguished from operator visibility.
   - Optional diagnostics/telemetry have consent and redaction.
 - **Evidence:** automated schema allowlist plus human review.
-- **Dependencies:** PROD-006, LDB-004.
+- **Dependencies:** PROD-006, ARCH-006.
 - **Risks:** harmless-looking diagnostic fields becoming sensitive in
   combination.
 - **Non-goals:** default behavioral telemetry.
@@ -159,7 +159,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Backup/log deletion limitations are disclosed.
   - Operator process can verify completion.
 - **Evidence:** timed deletion drill.
-- **Dependencies:** DATA-003, DATA-007.
+- **Dependencies:** SEC-006.
 - **Risks:** promising impossible deletion from independent backups.
 - **Non-goals:** legal advice for every jurisdiction; obtain review before public
   service.
@@ -179,7 +179,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Duplicate/future/flooded events cannot inflate current rank.
   - Audit logs reveal action/actor without raw secret/activity detail.
 - **Evidence:** integration, abuse, and IDOR test suite.
-- **Dependencies:** LDB-003, LDB-004, LDB-010.
+- **Dependencies:** SEC-001, LDB-003, LDB-004.
 - **Risks:** custom boards creating moderation expectations.
 - **Non-goals:** perfect local anti-cheat.
 
@@ -214,7 +214,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Bad client/content releases have a stop/rollback/forward-fix path.
   - Logs needed for response follow privacy retention policy.
 - **Evidence:** tabletop for token compromise and bad migration.
-- **Dependencies:** OPS-006.
+- **Dependencies:** SEC-001, SEC-005.
 - **Risks:** single-maintainer response gaps.
 - **Non-goals:** a 24/7 SOC promise.
 
@@ -250,7 +250,7 @@ behavior on supported targets, and refuse to disguise gaps.
   - Security documentation states unresolved capability differences.
   - Stable release links threat-model/scans/tests.
 - **Evidence:** release-candidate gate rehearsal.
-- **Dependencies:** QLT-011, OPS-010.
+- **Dependencies:** QLT-011, SEC-001.
 - **Risks:** vague severity allowing exceptions by wording.
 - **Non-goals:** shipping with “security later” for core boundaries.
 
@@ -260,4 +260,3 @@ The threat model and privacy inventory must match the actual architecture;
 runner claims, authorization, deletion, redaction, and restore must be exercised;
 and no captured social request/database/log may contain learner source, test
 output, or FSRS state.
-

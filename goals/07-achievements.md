@@ -206,7 +206,7 @@ Required automated cases:
   - Server-visible title must reference a server-confirmed award.
   - Revoked/incompatible title falls back safely without erasing local award.
 - **Evidence:** state, authorization, and offline reconciliation tests.
-- **Dependencies:** ACH-005, LDB-008.
+- **Dependencies:** ACH-005.
 - **Risks:** local/server confirmation confusion.
 - **Non-goals:** free-form title text.
 
@@ -308,4 +308,3 @@ Required automated cases:
 Achievement progress must rebuild deterministically from canonical review
 events, awards must be idempotent, and the complete 5am Club boundary/timezone/
 DST/offline matrix must pass before the title can appear socially.
-
