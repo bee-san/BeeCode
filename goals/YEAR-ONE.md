@@ -10,6 +10,12 @@ a minimal private Leaderboard. Stable 1.0 at week 52 is conditional on the
 release gates; slipping to a well-tested private beta is preferable to waiving
 data-loss, runner, privacy, or restore requirements.
 
+Local Python execution on Android is a core product requirement, not an
+optional scope lever. If every Android runtime fallback fails its honest
+capability gate, the committed BeeCode outcome is blocked and the whole
+year-one plan must be reforecast; a desktop-only build is not completion of
+this plan.
+
 ## Capacity rules
 
 - Plan around 40–44 productive feature weeks, not 52.
@@ -120,7 +126,7 @@ architecture.
 
 | Spike | Decision deadline | Success threshold | Fallback | Work displaced |
 |---|---:|---|---|---|
-| Android Python boundary | End week 3 | Embedded Python starts on emulator/device, GIL-bound loop is killable, UI/source survive, claimed UID/network/storage/Logcat boundary is tested | Separate no-permission runner APK; then trusted-code-only label; then reject Android execution | Social beta first, then advanced content tooling |
+| Android Python boundary | End week 3 | Embedded Python starts on emulator/device, GIL-bound loop is killable, UI/source survive, claimed UID/network/storage/Logcat boundary is tested | Separate no-permission runner APK; then trusted-code-only label; if all fail, block and reforecast the committed product | Social beta first, then advanced content tooling; all downstream work stops if no fallback is acceptable |
 | Desktop worker | End week 3 | Supervisor/child topology, separate control channel, process-tree kill, timeout, output cap on first stable OS | Support one desktop OS; label weaker capability honestly | Additional desktop OSes |
 | Editor/IME | End week 3 | Problem-sized source remains responsive; indentation/selection/undo work on desktop and Android IME | Platform-specific editor behind `CodeEditorSurface` | Syntax polish |
 | Persistence packaging | End week 3 | One migration/transaction works on both targets; process-kill recovery understood | Platform drivers behind same repository contract | Nonessential settings/history UI |
@@ -130,8 +136,9 @@ architecture.
 
 ### Gate
 
-- Android execution architecture is accepted, downgraded with an honest
-  capability level, or explicitly blocked.
+- Android execution architecture is accepted or downgraded to an honest
+  capability level that still runs Python. If neither is possible, the
+  committed product outcome is blocked and the entire plan is reforecast.
 - The chosen desktop baseline can kill a learner process tree.
 - FSRS 7 reuse/provenance is recorded.
 - The first database transaction and editor input work on both platform shells.
@@ -286,7 +293,8 @@ second-year plan.
 ## Slip and stop rules
 
 - No acceptable Android Python boundary by week 4: do not commit to a false
-  isolation claim; choose fallback or block Android execution.
+  isolation claim; choose an acceptable fallback or block the committed
+  product outcome and reforecast the entire plan.
 - No Android alpha by week 27: make the Leaderboard an integration preview or
   move it after year one.
 - Unreliable exactly-once finalization or restore: stop feature work.

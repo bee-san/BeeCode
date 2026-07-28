@@ -35,8 +35,8 @@ This repository currently contains the **planning baseline only**. It does not
 contain an application scaffold or claim that any feature has been built.
 
 - [High-level architecture](docs/architecture.md)
-- [Ultra-deep year roadmap and all targets](goals/README.md)
-- [Realistic year-one execution plan](goals/YEAR-ONE.md)
+- [North-star catalogue: 164 goals across all targets](goals/README.md)
+- [Realistic year-one execution roadmap](goals/YEAR-ONE.md)
 - [Architecture decisions](docs/adr/README.md)
 
 The plan contains 164 stable goals across product, architecture, Problem

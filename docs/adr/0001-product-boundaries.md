@@ -39,7 +39,7 @@ The server never needs a learner's solution source, test output, or FSRS state.
   scheduling truth.
 - Some anti-cheat measures remain intentionally lightweight because the social
   feature is friendly competition rather than a prize-bearing contest.
-- Platform-specific Python sandboxes may differ internally, but they must
+- Platform-specific Python execution workers may differ internally, but they must
   implement one shared execution contract.
 
 ## Revisit when

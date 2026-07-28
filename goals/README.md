@@ -46,7 +46,7 @@ live cross-device study-history synchronization.
 9. “5am Club” means a qualifying successful Problem review before 06:00 on
    seven consecutive local calendar days; the boundary is exact and tested.
 10. Desktop and Android share domain behavior but do not pretend their Python
-   sandboxes are identical.
+    execution boundaries are identical.
 11. No goal is complete because a screen exists. It is complete when its
     acceptance criteria and evidence are satisfied.
 
@@ -147,22 +147,23 @@ passing by week 27.
 The detailed calendar, commitment classes, per-milestone gates, fallback ladder,
 and stop/slip rules are in [YEAR-ONE.md](YEAR-ONE.md).
 
-## Milestone slices
+## Vertical proof slices
 
-The phase plan is complemented by small demonstrable milestones. A milestone
-must exercise real behavior across boundaries; it is not a collection of
-screenshots.
+The milestone plan is complemented by small demonstrable proofs. These are
+evidence slices inside the numbered milestones, not a second milestone
+taxonomy. Each proof must exercise real behavior across boundaries; it is not a
+collection of screenshots.
 
-| Milestone | Demonstration |
+| Proof slice | Demonstration |
 |---|---|
-| M0: Shells | Desktop and Android launch from one documented checkout. |
-| M1: First run | Two Sum loads from a pack and executes locally on desktop. |
-| M2: First review | A passing solution becomes one finalized review and due date. |
-| M3: Daily driver | Due queue, drafts, history, settings, backup, and recovery work. |
-| M4: Mobile solve | The same Problem and tests execute safely on Android. |
-| M5: Motivation | Events rebuild progress and can unlock 5am Club correctly. |
-| M6: Friends | Two accounts join a private Leaderboard and see stable ranks. |
-| M7: Beta | Signed clients and a documented server survive migration rehearsal. |
+| Shell proof | Desktop and Android launch from one documented checkout. |
+| First-run proof | Two Sum loads from a pack and executes locally on desktop. |
+| First-review proof | A passing solution becomes one finalized review and due date. |
+| Daily-driver proof | Due queue, drafts, history, settings, backup, and recovery work. |
+| Mobile proof | The same Problem and tests execute safely on Android. |
+| Motivation proof | Events rebuild progress and can unlock 5am Club correctly. |
+| Friends proof | Two accounts join a private Leaderboard and see stable ranks. |
+| Release proof | Signed clients and a documented server survive migration rehearsal. |
 
 ## Cross-cutting definition of done
 
