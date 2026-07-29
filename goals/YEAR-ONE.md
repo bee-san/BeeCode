@@ -76,6 +76,8 @@ M5 only after this local gate passes; it cannot displace unfinished local work.
   and deterministic packaging.
 - Local Python execution on desktop and Android with honest platform capability
   labels, timeout/cancellation, bounded output, and source recovery.
+- A versioned `bee-san/bee-fsrs` repository/package that BeeCode and clean
+  external consumers resolve as the same pinned FSRS 7 artifact.
 - Durable drafts, append-only reviews, exactly-once finalization, FSRS 7 due
   scheduling, queue/history basics, and verified export/restore.
 - Local achievement projection, 5am Club, and two or three additional restrained
@@ -132,7 +134,7 @@ quality, security, beta, or reserve time.
 
 | Period | Milestone | Primary outcome |
 |---|---|---|
-| Weeks 1–4 | M0: feasibility and contracts | Toolchain shells plus Android Python, desktop worker, editor/IME, persistence, FSRS provenance, KVM/device, and threat-model decisions. |
+| Weeks 1–4 | M0: feasibility and contracts | Toolchain shells plus Android Python, desktop worker, editor/IME, persistence, reusable FSRS package/provenance, KVM/device, and threat-model decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One compiled Problem loads, source persists, Python runs, typed result displays; then generalize minimum content tooling. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 transition, due queue, replay/audit, backup baseline, desktop dogfooding. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Install both clients and complete the same offline answer–run–retry–finalize–restart journey. |
@@ -157,7 +159,7 @@ architecture.
 | Desktop worker | End week 3 | Supervisor/child topology, separate control channel, process-tree kill, timeout, output cap on first stable OS | Support one desktop OS; label weaker capability honestly | Additional desktop OSes |
 | Editor/IME | End week 3 | Problem-sized source remains responsive; indentation/selection/undo work on desktop and Android IME | Platform-specific editor behind `CodeEditorSurface` | Syntax polish |
 | Persistence packaging | End week 3 | One migration/transaction works on both targets; process-kill recovery understood | Platform drivers behind same repository contract | Nonessential settings/history UI |
-| FSRS 7 provenance | End week 2 | Exact commit/tree, owner grant/license/SPDX record, independent vectors, algorithm/implementation/parameter IDs | Block public distribution until resolved | None; this is a gate |
+| Reusable FSRS package | End week 2 | `bee-san/bee-fsrs` repository, exact source commit/tree, owner grant/license/SPDX record, independent vectors, version/API policy, first tagged JVM artifact, and clean-consumer resolution | Keep the engine in `kanji_anki` only as a temporary source and block M0 exit, BeeCode scheduling, and public distribution until the tagged package and clean-consumer smoke pass | None; this is a gate |
 | Android test access | End week 1 | Accelerated emulator or reachable ADB device plus one physical-device route | Remote/host emulator or physical device; compile-only is not a pass | Android schedule if unavailable |
 | Problem rights policy | End week 2 | Original/licensed statement/test policy and provenance fields accepted | Keep all Problems private/local until reviewed | Public content release |
 
@@ -167,7 +169,8 @@ architecture.
   capability level that still runs Python. If neither is possible, the
   committed product outcome is blocked and the entire plan is reforecast.
 - The chosen desktop baseline can kill a learner process tree.
-- FSRS 7 reuse/provenance is recorded.
+- The `bee-fsrs` repository, first tagged package, clean-consumer smoke,
+  FSRS 7 reuse authorization, and provenance are recorded.
 - The first database transaction and editor input work on both platform shells.
 - A threat model covers the chosen boundaries.
 
@@ -206,6 +209,7 @@ Build:
 - selected-run/source-snapshot binding;
 - failed-review `Again` path and unaided/reveal rating matrix;
 - `BEGIN IMMEDIATE` or equivalent schedule-version/CAS transaction;
+- pinned `bee-fsrs` release integration through the BeeCode scheduler adapter;
 - recorded FSRS 7 inputs/outputs and due projection;
 - no minute-based learning ladder in v1;
 - due queue and basic history;
@@ -215,6 +219,8 @@ Build:
 ### Gate
 
 - Two different sessions cannot transition one prior schedule silently.
+- BeeCode and the clean sample consumer pass the same golden vectors against the
+  same pinned `bee-fsrs` release.
 - Restart/retry cannot duplicate reviews or events; once M5 begins, the same
   rule also covers the outbox.
 - Recorded transition folding rebuilds operational state without an old engine
@@ -350,7 +356,8 @@ Stable 1.0 is allowed only if:
 
 - no known defect can lose source/reviews or duplicate a finalized effect;
 - runner hangs recover on every claimed target;
-- FSRS 7 provenance/vectors/migrations are archived;
+- `bee-fsrs` source provenance, released artifact/checksum, vectors, and
+  migrations are archived;
 - 5am Club semantics are stable;
 - Android/desktop install and upgrade paths pass;
 - client restore drills pass;

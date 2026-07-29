@@ -36,8 +36,10 @@ live cross-device study-history synchronization.
    work without an account or network.
 3. A Problem is repository-native content, not a row hand-authored in a central
    registry.
-4. Scheduling uses the user's FSRS 7 implementation from
-   `bee-san/kanji_anki`, pinned and tested independently from BeeCode policy.
+4. Scheduling uses the user's FSRS 7 implementation from the dedicated
+   `bee-san/bee-fsrs` GitHub repository/package. It is extracted once with
+   provenance from `bee-san/kanji_anki`, released independently, pinned, and
+   tested separately from BeeCode policy.
 5. Learner source code, test output, and FSRS memory state stay local.
 6. A passing test run is evidence, not automatically a finalized review.
 7. Every finalized review is idempotent and traceable to one review session.
@@ -179,7 +181,7 @@ desktop and Android product passing by the end of week 34.
 
 | Period | Milestone | Exit result |
 |---|---|---|
-| Weeks 1–4 | M0: feasibility and contracts | Android Python, desktop worker, editor/IME, persistence, FSRS provenance, device access, rights, and threat-boundary decisions. |
+| Weeks 1–4 | M0: feasibility and contracts | Android Python, desktop worker, editor/IME, persistence, reusable FSRS package/provenance, device access, rights, and threat-boundary decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One-folder Problem authoring and a durable bounded local Python run. |
 | Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 scheduling, due queue, replay, and restore baseline. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Owner installs both clients and completes the answer–run–retry–finalize–restart journey. |

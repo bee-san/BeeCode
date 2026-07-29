@@ -57,8 +57,7 @@ BeeCode/
 ├── shared/           KMP shared UI and application services
 ├── domain/           Pure models, commands, events, and state machines
 ├── persistence/      Local schema, repositories, transactions, migrations
-├── fsrs-core/        User's FSRS 7 dev.bee.fsrs engine from kanji_anki
-├── fsrs-adapter/     BeeCode schedule policy and model mapping
+├── fsrs-adapter/     BeeCode policy around the external bee-fsrs package
 ├── python-api/       Platform-neutral execution contracts
 ├── protocol/         Versioned Leaderboard DTOs
 ├── server/           Ktor/PostgreSQL modular monolith
@@ -77,9 +76,11 @@ skeleton. The dependency rules are more important than the physical split.
 - A shared KMP domain/application layer with platform adapter interfaces.
 - SQLite as local authority, with SQLDelight as the leading shared schema/
   migration candidate.
-- User's Kotlin FSRS 7 engine vendored or extracted from
-  [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki), pinned to source
-  commit and wrapped by a BeeCode-owned scheduler adapter.
+- User's Kotlin FSRS 7 engine extracted with provenance from
+  [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki) into the
+  independently versioned `bee-san/bee-fsrs` GitHub repository/package. BeeCode
+  pins its released artifact and wraps it with a BeeCode-owned scheduler
+  adapter.
 - Platform-neutral `PythonRunner`; out-of-process worker on desktop and an
   isolated Android service/process if the provider spike proves the boundary.
 - Ktor/PostgreSQL/Docker Compose/Caddy for the optional self-hosted server.
@@ -177,7 +178,7 @@ alone never mutates FSRS, achievements, or Leaderboards.
 
 ## FSRS boundary
 
-The user's FSRS 7 `dev.bee.fsrs` engine owns memory mathematics:
+The user's versioned `bee-fsrs` package owns FSRS 7 memory mathematics:
 
 - initial state;
 - retrievability;
@@ -193,9 +194,10 @@ BeeCode owns:
 - parameter/version migration;
 - persistence, clocks, explanation, and history.
 
-Every schedule transition records the FSRS algorithm ID, Bee implementation/
-source commit, previous-state hash, elapsed/rating inputs, immutable 21-value
-parameter set/hash, resulting memory state, interval, and due decision.
+Every schedule transition records the FSRS algorithm ID, `bee-fsrs` package
+version/checksum and source commit, previous-state hash, elapsed/rating inputs,
+immutable 21-value parameter set/hash, resulting memory state, interval, and due
+decision.
 Operational rebuild folds those recorded outputs; historical recomputation is
 an integrity check only while the exact old implementation remains available.
 Golden vectors run through both platform compositions before an upgrade can

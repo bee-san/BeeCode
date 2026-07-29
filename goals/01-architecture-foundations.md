@@ -48,8 +48,7 @@ BeeCode/
 ├── shared/           KMP UI, application services, and domain presentation
 ├── domain/           Platform-neutral entities, events, and use cases
 ├── persistence/      Database schema, repositories, and migrations
-├── fsrs-core/        Generic engine from bee-san/kanji_anki
-├── fsrs-adapter/     BeeCode review policy around the generic engine
+├── fsrs-adapter/     BeeCode policy around the external bee-fsrs package
 ├── python-api/       Execution contracts, test results, and limits
 ├── protocol/         Versioned Leaderboard DTOs
 ├── server/           Ktor/PostgreSQL Leaderboard service
@@ -61,6 +60,8 @@ BeeCode/
 This is a target architecture. Early milestones may combine modules while
 interfaces settle, but dependencies must point toward the domain and never from
 the domain into UI, Android, desktop, database, or server frameworks.
+The generic engine is released independently from the sibling
+`bee-san/bee-fsrs` repository; it is not a copied BeeCode module.
 
 ## Recommended bootstrap stack
 
@@ -91,7 +92,7 @@ behind `PythonRunner`; it must never become a domain dependency.
 | `shared` | Kotlin Multiplatform, `com.android.kotlin.multiplatform.library`, Compose Multiplatform/compiler; Android + desktop JVM targets | Android-KMP plugin is single-variant; resources/tests/Java are explicitly opted in. |
 | `desktopApp` | Kotlin/JVM + Compose Desktop/compiler | Standalone entry avoids KMP/application-plugin coupling. |
 | `domain` / `python-api` / `protocol` | KMP common plus Android/JVM targets as needed | No platform/provider framework imports. |
-| `fsrs-core` | JVM library consumed by both JVM-based targets, or genuine KMP port only after provenance/vector review | Moving Java/Kotlin APIs to `commonMain` is a recorded source diff. |
+| `bee-fsrs` dependency | Pinned JVM artifact consumed by both JVM-based targets; genuine KMP targets only after provenance/vector review | BeeCode never consumes an unpublished source checkout; moving APIs to `commonMain` is a recorded source diff. |
 | `persistence` | Shared SQL/schema with explicit Android and desktop SQLite drivers | Driver, migration, WAL, and backup behavior tested on both. |
 | `server` | Kotlin/JVM + Ktor | No Android, KMP UI, or Compose plugin. |
 
@@ -284,13 +285,14 @@ Primary planning sources:
 - **Deliverables:** dependency inventory, SBOM, license report, exception list,
   and high-risk component watchlist.
 - **Acceptance:**
-  - FSRS source provenance is pinned to a commit and attributed.
+  - The `bee-fsrs` artifact is pinned to an immutable release and source commit,
+    attributed, licensed, checksummed, and represented in the SBOM.
   - Python provider, editor, database, server, and crypto dependencies have
     explicit upgrade owners.
   - Release evidence archives the dependency graph.
   - Critical advisories have a response SLA.
 - **Evidence:** automated report plus human review.
-- **Dependencies:** ARCH-002, SEC-002.
+- **Dependencies:** ARCH-002, SEC-002, SRS-001.
 - **Risks:** broad cross-platform dependency surface.
 - **Non-goals:** banning dependencies merely to minimize their count.
 

@@ -2,9 +2,10 @@
 
 BeeCode is an offline-first spaced-repetition app for practising
 LeetCode-style algorithm Problems. It targets Android phones and desktop
-computers, schedules reviews with the user's FSRS 7 engine from
-[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki), and lets a
-learner write and run Python solutions inside each review.
+computers, schedules reviews with the user's FSRS 7 engine through the planned
+reusable `bee-san/bee-fsrs` package, and lets a learner write and run Python
+solutions inside each review. The package is extracted with provenance from
+[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki).
 
 The product is intentionally built around **Problems**, not generic cards:
 
@@ -21,6 +22,9 @@ The product is intentionally built around **Problems**, not generic cards:
   shared, while each platform owns the runtime and security details it needs.
 - **Offline comes first.** Studying, scheduling, achievements, and local
   statistics do not require a server.
+- **FSRS is a shared package.** The generic engine lives in its own versioned
+  GitHub repository/package so BeeCode and other apps use the same tested
+  artifact; BeeCode keeps only its review-policy adapter.
 - **The local product ships first.** The complete desktop and Android study
   experience is gated before any Leaderboard implementation begins.
 - **Problem authoring is repository-native.** A contributor adds one

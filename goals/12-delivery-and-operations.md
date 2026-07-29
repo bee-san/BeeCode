@@ -214,7 +214,8 @@ quality of boundaries matters more than count.
   needed, runner trust statement, data guide, operator guide, and accessibility
   statement.
 - **Acceptance:**
-  - FSRS reuse authorization/provenance is recorded.
+  - `bee-fsrs` package reuse authorization, provenance, license, and release
+    coordinates are recorded.
   - No LeetCode text/tests are distributed without rights.
   - Social data fields/visibility/deletion are accurately described.
   - Local Python containment wording matches tests.
@@ -273,7 +274,7 @@ quality of boundaries matters more than count.
   - iOS/web;
   - trusted community packs;
   - richer editor/debugging;
-  - separately published `bee-fsrs`;
+  - additional `bee-fsrs` platform targets and distribution channels;
   - advanced FSRS parameter analysis;
   - distinct-Problem and topic-quality social metrics.
 - **Acceptance:**
@@ -294,7 +295,7 @@ never motivate artificial churn.
 
 | Milestone | Approximate period | Cumulative meaningful commits | Exit result |
 |---|---:|---:|---|
-| M0: Feasibility/contracts | Weeks 1–4 | 12–20 | Critical runtime, FSRS provenance, editor, persistence, device, rights, and boundary decisions. |
+| M0: Feasibility/contracts | Weeks 1–4 | 12–20 | Critical runtime, reusable FSRS package/provenance, editor, persistence, device, rights, and boundary decisions. |
 | M1: Thin desktop slice | Weeks 5–11 | 30–50 | One-folder Problem flow and bounded recoverable desktop run. |
 | M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS 7 due queue, replay, and restore baseline. |
 | **M3 / Test 1: playable desktop + Android alpha** | Weeks 19–27 | 70–105 | Owner installs both clients and completes the full offline Problem journey. |

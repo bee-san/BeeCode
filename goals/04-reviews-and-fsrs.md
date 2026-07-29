@@ -1,8 +1,10 @@
 # Target 04: reviews and FSRS
 
 This target turns a Problem attempt into durable study history and a future due
-date using the user's FSRS 7 implementation in the
-[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki) repository.
+date using the user's FSRS 7 implementation from the planned reusable
+`bee-san/bee-fsrs` GitHub repository/package. Its initial source is extracted
+with provenance from
+[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki).
 
 The engine performs memory math. BeeCode owns the workflow policy around it.
 Those concerns must remain separate.
@@ -21,9 +23,10 @@ flowchart LR
 ```
 
 The generic engine API already provides initial state, retrievability, next
-state, next interval, and complete review calculation. BeeCode should copy or
-extract only the generic `dev.bee.fsrs` module—not Kani-specific promotion or
-ladder rules.
+state, next interval, and complete review calculation. Extract only the generic
+`dev.bee.fsrs` module into `bee-fsrs`—not Kani-specific promotion or ladder
+rules—and make that package the shared source of truth instead of copying it
+into BeeCode.
 
 ## Review-session state model
 
@@ -48,28 +51,50 @@ stateDiagram-v2
 Actual rating availability is a product policy. The state model must guarantee
 that impossible combinations are rejected, not merely hidden by the UI.
 
-## SRS-001 — Vendor or extract the generic Bee FSRS module
+## SRS-001 — Create and publish the generic Bee FSRS package
 
 - **State:** proposed
-- **Outcome:** BeeCode uses the user's engine unchanged and can prove its source
-  provenance.
-- **Deliverables:** pinned source commit, generic source module, attribution,
-  license/permission record, source-diff process, and compatibility fixtures.
+- **Outcome:** the generic engine has one independently versioned GitHub
+  repository/package that BeeCode and the user's other apps can reuse.
+- **Deliverables:** dedicated `bee-san/bee-fsrs` repository, extracted
+  `dev.bee.fsrs` source, initial JVM artifact using the planned
+  `dev.bee:bee-fsrs` coordinate, tagged releases, changelog/versioning policy,
+  ownership/cutover policy, attribution and license/permission record, source
+  manifest/diff, golden vectors, CI, package-consumer documentation, and a
+  clean sample consumer.
 - **Acceptance:**
-  - Imported code is limited to generic `dev.bee.fsrs` memory math.
-  - The pinned source and persisted algorithm identifier explicitly record
-    `FSRS 7`; a later implementer cannot silently substitute another revision.
+  - The repository is limited to generic `dev.bee.fsrs` memory math and the
+    build, tests, documentation, and release machinery needed to publish it.
+  - The first release records the exact source commit/tree and persisted
+    algorithm identifier for `FSRS 7`; an artifact upgrade cannot silently
+    substitute another algorithm revision.
   - No Android, UI, database, Kani ladder, deck, or promotion policy enters the
-    module.
+    package.
   - Source commit/tree hash and an explicit owner grant/license/SPDX record are
     retained before public distribution.
   - Local changes are either absent or documented line by line.
   - Upstream behavior tests pass unchanged where available.
-- **Evidence:** source manifest, diff report, and tests.
-- **Dependencies:** ARCH-010.
-- **Risks:** repository has no explicit license file; permission/provenance
-  needs recording even though the owner authorized reuse.
-- **Non-goals:** copying unrelated Kani application code.
+  - BeeCode resolves a pinned released artifact rather than vendoring the
+    engine or depending on a source checkout.
+  - BeeCode's Android and desktop compositions both consume that artifact
+    successfully.
+  - A clean throwaway consumer resolves the same release through the documented
+    package path and passes the published golden vectors.
+  - After cutover, `bee-fsrs` is the canonical generic engine. Any transitional
+    copy in `kanji_anki` has an owner and removal deadline; no permanent
+    dual-source fork is maintained.
+  - Package versions, FSRS algorithm IDs, API compatibility, and deprecation
+    rules are distinct and documented.
+- **Evidence:** repository URL, immutable release/tag, package coordinates and
+  checksum, source manifest/diff report, CI run, golden-vector report, and
+  clean-consumer log.
+- **Dependencies:** ARCH-002.
+- **Risks:** the originating `kanji_anki` repository has no explicit license
+  file; package publication or split-repository drift could leave consumers on
+  inconsistent math.
+- **Non-goals:** copying unrelated Kani application code; moving BeeCode review
+  policy into the package; promising non-JVM targets before vector parity and a
+  real consumer need.
 
 ## SRS-002 — Define the BeeCode scheduler port
 
@@ -114,17 +139,17 @@ that impossible combinations are rejected, not merely hidden by the UI.
 - **Outcome:** schedule truth survives upgrades and can be audited.
 - **Deliverables:** schema for stability, difficulty, elapsed days, interval,
   due date/instant, last review, lapses, review count, desired retention,
-  maximum interval, algorithm/implementation/source identifiers, immutable
-  parameter set/hash (including all 21 values), previous-state hash, and
-  recorded transition output.
+  maximum interval, package version/checksum, algorithm/implementation/source
+  identifiers, immutable parameter set/hash (including all 21 values),
+  previous-state hash, and recorded transition output.
 - **Acceptance:**
   - Numeric bounds and null/new-Problem state are explicit.
   - Operational state rebuild folds recorded transition outputs without
     requiring an obsolete engine binary.
   - Recomputing old math is an optional integrity check only while the exact
     engine/parameter implementation remains available.
-  - Parameter, algorithm, implementation, and source versions are attached to
-    every transition.
+  - Package, parameter, algorithm, implementation, and source versions are
+    attached to every transition.
   - Serialization round trips without precision surprises.
 - **Evidence:** database and backup fixtures.
 - **Dependencies:** SRS-002, DATA-001.
