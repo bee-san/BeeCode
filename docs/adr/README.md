@@ -13,3 +13,10 @@ Each ADR uses this lifecycle:
 An ADR should state the context, decision, consequences, alternatives, and the
 evidence required to revisit it.
 
+## Index
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-product-boundaries.md) | Product boundaries | Accepted |
+| [0002](0002-personal-sync-direction.md) | Personal sync direction (snapshot merge) | Accepted for planning |
+
