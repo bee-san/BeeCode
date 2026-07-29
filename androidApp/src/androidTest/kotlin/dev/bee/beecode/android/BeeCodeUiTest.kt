@@ -16,7 +16,11 @@ import dev.bee.beecode.android.ui.BeeCodeApp
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
+import android.content.Context
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import org.junit.After
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -26,14 +30,23 @@ import java.io.File
 /**
  * The Android UI, driven through Compose's test harness.
  *
- * This asserts the **composed tree**, not pixels, which is deliberately stronger
- * evidence on a headless device: the automated-test-device emulator image renders no
- * pixels at all, so a screenshot proves nothing, while the semantics tree is fully
- * present and can be queried and clicked.
+ * These assert the composed tree — that the queue lists Problems, that opening one
+ * shows an editor, that a failing run offers only *Again*, and that Settings states
+ * the runner limitation in plain words. They cover the wiring between the UI and the
+ * shared study service that [AndroidStudyJourneyTest] exercises directly.
  *
- * These tests cover the wiring between the UI and the shared study service that
- * `AndroidStudyJourneyTest` exercises directly. Together they mean a real learner's
- * path through the app is verified end to end.
+ * ### These require a rendering-capable emulator
+ *
+ * Compose's `assertIsDisplayed` needs real layout bounds and `performClick` needs
+ * touch injection, so both need a display. Google's automated-test-device ("atd" /
+ * "gslim") images have none: they fail with "Failed to inject touch input" and
+ * produce an all-black framebuffer for every app including system ones.
+ *
+ * A rendering image needs hardware acceleration, so a host without `/dev/kvm` can
+ * only boot ATD. Rather than fail misleadingly there, these tests **skip** when no
+ * display is available, and CI enables KVM so they run for real. [
+ * AndroidStudyJourneyTest] carries no such requirement and is the behavioural gate
+ * that always runs.
  */
 @RunWith(AndroidJUnit4::class)
 class BeeCodeUiTest {
@@ -45,19 +58,28 @@ class BeeCodeUiTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComposeTestHostActivity>()
 
-    private lateinit var databaseFile: File
-    private lateinit var profile: BeeCodeProfile
+    // Nullable rather than lateinit: when the display assumption fails, setUp never
+    // reaches the assignment, and a lateinit access from tearDown would turn a clean
+    // skip into a spurious failure.
+    private var databaseFile: File? = null
+    private var profile: BeeCodeProfile? = null
 
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeTrue(
+            "This emulator image has no display, so Compose touch input and layout " +
+                "bounds are unavailable. Run on a rendering-capable image.",
+            hasUsableDisplay(context),
+        )
         System.setProperty("java.io.tmpdir", context.cacheDir.absolutePath)
         System.setProperty("org.sqlite.tmpdir", context.cacheDir.absolutePath)
 
         val application = context.applicationContext as BeeCodeApplication
-        databaseFile = File(context.cacheDir, "beecode-ui-${System.nanoTime()}.db")
+        val file = File(context.cacheDir, "beecode-ui-${System.nanoTime()}.db")
+        databaseFile = file
         profile = BeeCodeProfile.open(
-            databasePath = databaseFile.absolutePath,
+            databasePath = file.absolutePath,
             catalogue = application.catalogue,
             runner = application.runner,
         )
@@ -65,16 +87,19 @@ class BeeCodeUiTest {
 
     @After
     fun tearDown() {
-        profile.close()
-        databaseFile.delete()
-        File(databaseFile.absolutePath + "-wal").delete()
-        File(databaseFile.absolutePath + "-shm").delete()
+        profile?.close()
+        databaseFile?.let { file ->
+            file.delete()
+            File(file.absolutePath + "-wal").delete()
+            File(file.absolutePath + "-shm").delete()
+        }
     }
 
     private fun launch() {
+        val opened = requireNotNull(profile) { "the profile should have been opened in setUp" }
         compose.setContent {
             BeeCodeTheme {
-                BeeCodeApp(StudyViewModel(profile))
+                BeeCodeApp(StudyViewModel(opened))
             }
         }
     }
@@ -228,8 +253,29 @@ class BeeCodeUiTest {
         compose.onNodeWithText("10").performScrollTo().performClick()
         // Reading it back through the profile proves the click reached persistence and
         // not merely the UI's own state.
-        assert(profile.settings.dailyReviewLimit() == 10) {
-            "expected a stored daily limit of 10, got ${profile.settings.dailyReviewLimit()}"
+        val settings = requireNotNull(profile).settings
+        assert(settings.dailyReviewLimit() == 10) {
+            "expected a stored daily limit of 10, got ${settings.dailyReviewLimit()}"
         }
+    }
+
+    private companion object {
+        /**
+         * Whether this device can actually render and accept touch input.
+         *
+         * ATD images report a display of zero size, which is what makes
+         * `assertIsDisplayed` and `performClick` fail there.
+         */
+        fun hasUsableDisplay(context: Context): Boolean = runCatching {
+            val metrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager)
+                .defaultDisplay
+                .getMetrics(metrics)
+            metrics.widthPixels > 0 && metrics.heightPixels > 0 &&
+                // ATD images are identifiable by name and render nothing.
+                !android.os.Build.PRODUCT.contains("atd") &&
+                !android.os.Build.PRODUCT.contains("gslim")
+        }.getOrDefault(false)
     }
 }

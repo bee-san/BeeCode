@@ -25,11 +25,17 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Verified by | 9 instrumented tests on an API 35 x86_64 emulator | 21 JVM tests |
+| Verified by | 18 instrumented tests on an API 35 x86_64 emulator | 21 JVM tests |
 
-**223 automated tests pass**: 214 JVM tests across eight modules and 9 Android
+**232 automated tests**: 214 JVM tests across eight modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
+
+One caveat stated plainly: 9 of the Android tests are Compose UI tests that need a
+rendering-capable emulator, and they **skip** on the automated-test-device image a
+host without `/dev/kvm` is limited to. CI enables KVM so they run for real. The 9
+behavioural tests — which cover the full study journey, the timeout, and the
+no-network check — have no such requirement and always run.
 
 Not built yet: the private Leaderboard, personal cross-device sync, and the wider
 Problem curriculum. See [the year-one plan](goals/YEAR-ONE.md).
