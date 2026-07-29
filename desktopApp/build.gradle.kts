@@ -34,6 +34,23 @@ dependencies {
     testImplementation(libs.junit)
 }
 
+/**
+ * Normalise a version for installer formats that reject a zero major.
+ *
+ * macOS requires `CFBundleShortVersionString` to start at 1, and jpackage enforces
+ * it — `0.1.0` fails outright. Rather than inflate BeeCode's real version to satisfy
+ * a packaging rule, the *installer* version is normalised and the application keeps
+ * its own; the release tag and the About screen still say 0.1.0.
+ *
+ * Any pre-1.0 version maps to a flat `1.0.0` rather than substituting the major.
+ * Substituting would turn 0.1.0 into "1.1.0", which reads as a released 1.1 and is
+ * worse than obviously-a-placeholder.
+ */
+fun macPackageVersion(version: String): String {
+    val major = version.substringBefore('.').toIntOrNull() ?: 0
+    return if (major >= 1) version else "1.0.0"
+}
+
 compose.desktop {
     application {
         mainClass = "dev.bee.beecode.desktop.MainKt"
@@ -54,6 +71,9 @@ compose.desktop {
             packageName = "BeeCode"
             packageVersion = libs.versions.appVersionName.get()
             description = "Offline spaced-repetition practice for algorithm Problems"
+            // macOS and Windows installer formats reject a zero major version —
+            // jpackage fails with "'0.1.0' is not a valid version" — so the native
+            // package version is normalised below while the app keeps its real one.
             vendor = "bee-san"
             licenseFile.set(rootProject.file("LICENSE").takeIf { it.exists() })
 
@@ -68,6 +88,12 @@ compose.desktop {
                 bundleID = "dev.bee.beecode"
                 packageName = "BeeCode"
                 appCategory = "public.app-category.developer-tools"
+                // CFBundleShortVersionString must have a major of at least 1 on
+                // macOS. 0.1.0 is rejected outright by jpackage, so the DMG carries
+                // 1.0.0 while the app's own version stays 0.1.0 — which is what the
+                // release tag and the About screen show.
+                packageVersion = macPackageVersion(libs.versions.appVersionName.get())
+                dmgPackageVersion = macPackageVersion(libs.versions.appVersionName.get())
                 // Unsigned and un-notarized: there is no Apple Developer certificate
                 // for this project. Gatekeeper will refuse the first launch, and the
                 // release notes tell the user how to open it anyway. Claiming to sign
