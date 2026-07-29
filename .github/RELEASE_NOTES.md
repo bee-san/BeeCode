@@ -45,6 +45,11 @@ Download the `.tar.gz`, extract it, and run `BeeCode/bin/BeeCode`. Needs `python
 - Local statistics, a solve streak, and four achievements including the 5am Club.
 - Export your whole profile to a file and restore it — merging rather than
   overwriting, so importing twice is safe.
+- **Cross-device sync**, new in this release: a snapshot file you choose (in a folder
+  Dropbox or Syncthing already replicates), or a WebDAV server. The merge is
+  order-independent, so two devices syncing in either order reach the same result.
+- **A Leaderboard queue** you can inspect in Settings. Nothing is uploaded — the
+  server does not exist yet, and this is the client half only.
 
 ## What to know before trusting it with your practice
 
@@ -61,20 +66,39 @@ BeeCode's own storage. On desktop your code runs in a separate process BeeCode c
 kill, but with your own user account's privileges.
 
 **An export contains your solutions.** That is the point of a backup, and it is why
-the file should be kept somewhere private.
+the file should be kept somewhere private. Your sync file too — it is written `0600`,
+readable only by your own account.
+
+**Where your WebDAV password is kept.** On Android, encrypted with a key in the
+platform keystore, which on most devices is hardware-backed. On desktop, handed to your
+OS keyring (`secret-tool` on Linux, `security` on macOS) so the profile itself holds no
+credential. If no keyring is available — Windows, or a headless machine — it falls back
+to storing the password unencrypted in the profile, and **Settings tells you which of
+the two happened.** It is never included in an export or a sync payload.
+
+*This is the least-tested thing in the release.* No machine available to this project
+has either keyring binary installed, so the code is verified against a stand-in and
+agreement with the real `secret-tool`/`security` is an assumption. If Settings claims
+your password went to the keyring, it is worth confirming with
+`secret-tool lookup service dev.bee.beecode.webdav account beecode-sync`.
 
 ## Not in this release
 
-The private Leaderboard, cross-device sync, and a wider Problem curriculum. See the
+The Leaderboard server (the client queue is there; nothing is uploaded), Google Drive
+sync, and a wider Problem curriculum. See the
 [year-one plan](https://github.com/bee-san/BeeCode/blob/main/goals/YEAR-ONE.md).
 
 ## Verification
 
-216 JVM tests and 18 Android instrumented tests, including the full
-answer → fail → fix → pass → finalize → restart journey against real CPython and real
-SQLite on both platforms.
+440 automated tests: 414 JVM tests across nine modules and 26 Android instrumented
+tests, including the full answer → fail → fix → pass → finalize → restart journey
+against real CPython and real SQLite on both platforms. None of the 414 skip.
 
-One honest gap: 9 of the Android tests are Compose UI tests needing an emulator that
-accepts injected touch input, which neither the dev host nor CI's headless emulator
-provides. They are written but have not yet run, so treat the UI's finer details as
-less verified than its behaviour.
+Both clients' UI is tested headlessly on every push. The Android UI is covered by
+Robolectric on the JVM rather than by instrumented Compose tests: those need an emulator
+that accepts injected touch input, and neither the dev host (no `/dev/kvm`) nor CI's
+headless emulator provides one. Moving them to Robolectric is what got those assertions
+running at all — previously they were written and never executed.
+
+FSRS-7 (35 parameters) is checked against 384 reference vectors generated from
+upstream's own `models/fsrs_v7.py`, at 1e-9 relative tolerance.
