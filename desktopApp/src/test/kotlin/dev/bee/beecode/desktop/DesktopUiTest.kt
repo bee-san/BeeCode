@@ -155,7 +155,47 @@ class DesktopUiTest {
         ui.onNode(hasText("not a security sandbox", substring = true)).assertIsDisplayed()
     }
 
+    @Test
+    fun syncIsOffByDefaultAndSaysSoRatherThanLookingBroken() = withUi { ui, profile ->
+        // Sync is opt-in: it writes source code somewhere BeeCode does not control, so
+        // the default must be off and the UI must say off rather than showing a dead
+        // button with no explanation.
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Sync between devices").assertIsDisplayed()
+        ui.onNodeWithText("Not set — sync is off").assertIsDisplayed()
+        // And the privacy consequence is stated before a learner picks a folder, not
+        // after — the file carries their solutions.
+        ui.onNode(hasText("contains your solutions", substring = true)).assertIsDisplayed()
+        assertEquals(null, profile.settings.syncFilePath())
+    }
+
+    @Test
+    fun aConfiguredSyncFileEnablesSyncNowAndActuallySyncs() = withUi { ui, profile ->
+        // Drives the real button against a real file, so this covers the wiring between
+        // the UI, the setting, and SyncService — not just that a card renders.
+        val shared = java.io.File.createTempFile("beecode-ui-sync-", ".json").apply { delete() }
+        try {
+            profile.settings.setSyncFilePath(shared.absolutePath, NOW)
+            ui.onNodeWithText("Settings").performClick()
+            // Recompose so the pane picks up the setting written above.
+            ui.onNodeWithText("Study").performClick()
+            ui.onNodeWithText("Settings").performClick()
+
+            ui.onNodeWithText("Sync now").performClick()
+            ui.waitUntil(timeoutMillis = 10_000) {
+                ui.onAllNodesWithText("Sync now").fetchSemanticsNodes().isNotEmpty() && shared.isFile
+            }
+            // The remote now holds a snapshot this device wrote.
+            assertTrue(shared.readText().contains("formatVersion"), "sync must have written a snapshot")
+        } finally {
+            shared.delete()
+            java.io.File(shared.absolutePath + ".tmp").delete()
+        }
+    }
+
     private companion object {
+        val NOW: kotlinx.datetime.Instant = kotlinx.datetime.Instant.parse("2026-07-29T12:00:00Z")
+
         /**
          * Matches a *rating button* labelled [label], not merely any node with that text.
          *

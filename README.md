@@ -30,9 +30,10 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Verified by | 9 Robolectric UI + 18 instrumented tests | 29 JVM tests, 6 of them UI |
+| Sync between devices | engine only | ✅ Settings → Sync |
+| Verified by | 9 Robolectric UI + 18 instrumented tests | 31 JVM tests, 8 of them UI |
 
-**285 automated tests**: 267 JVM tests across nine modules and 18 Android
+**287 automated tests**: 269 JVM tests across nine modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -82,11 +83,15 @@ commutative and byte-deterministic, which is what makes the compare-and-swap mea
 two devices computing the same merge must agree on its token. A lost race re-pulls and
 retries; a push is never forced.
 
-29 tests over the merge and the loop, with both mutation-checked: inverting any merge
-comparison, pushing the local snapshot instead of the merged one, or skipping the local
-restore each fail named tests.
+31 tests cover the merge, the loop, and the desktop UI, and each layer is
+mutation-checked: inverting any merge comparison, pushing the local snapshot instead of
+the merged one, skipping the local restore, or stubbing out the UI's sync call each fail
+named tests.
 
-Not built yet: the private Leaderboard, sync UI, and networked backends (WebDAV, Drive).
+The desktop client exposes it under Settings → Sync between devices. The Android client
+has the engine but no UI yet.
+
+Not built yet: the private Leaderboard, Android sync UI, and networked backends (WebDAV, Drive).
 See [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build

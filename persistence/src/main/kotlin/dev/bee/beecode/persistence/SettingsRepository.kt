@@ -81,6 +81,19 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         if (limit == null) remove(KEY_DAILY_REVIEW_LIMIT) else put(KEY_DAILY_REVIEW_LIMIT, limit.toString(), now)
     }
 
+    /**
+     * Path to the shared file this device syncs through, if the learner set one.
+     *
+     * Storage the learner already owns — a folder Dropbox, Syncthing, or a network share
+     * replicates. Absent means sync is off, which is the default: it is opt-in because it
+     * writes source code somewhere BeeCode does not control (ADR 0002).
+     */
+    fun syncFilePath(): String? = get(KEY_SYNC_FILE)?.takeIf { it.isNotBlank() }
+
+    fun setSyncFilePath(path: String?, now: Instant) {
+        if (path.isNullOrBlank()) remove(KEY_SYNC_FILE) else put(KEY_SYNC_FILE, path, now)
+    }
+
     /** Path to a Python interpreter chosen by the learner, if any. */
     fun pythonExecutable(): String? = get(KEY_PYTHON_EXECUTABLE)?.takeIf { it.isNotBlank() }
 
@@ -167,6 +180,7 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_FSRS_PARAMETERS = "fsrs.parameters"
         const val KEY_DAILY_REVIEW_LIMIT = "review.dailyLimit"
         const val KEY_PYTHON_EXECUTABLE = "python.executable"
+        const val KEY_SYNC_FILE = "sync.file"
     }
 }
 

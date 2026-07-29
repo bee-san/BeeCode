@@ -39,6 +39,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import java.io.File
+import kotlinx.datetime.Clock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -879,6 +883,10 @@ private fun AchievementRow(state: AchievementState) {
 private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
     var transferMessage by remember { mutableStateOf<String?>(null) }
+    var syncPath by remember { mutableStateOf(profile.settings.syncFilePath()) }
+    var syncMessage by remember { mutableStateOf<String?>(null) }
+    var syncing by remember { mutableStateOf(false) }
+    val settingsScope = rememberCoroutineScope()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -976,6 +984,74 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                     }) { Text("Restore…") }
                 }
                 transferMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Sync between devices", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Optional. Point this and your other devices at the same file in a " +
+                        "folder something already syncs — Dropbox, Syncthing, iCloud Drive, " +
+                        "a network share. There is no account and no BeeCode server; the " +
+                        "file is yours.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Reviews from every device are combined, and the most recent edit of a " +
+                        "draft wins. Like an export, the file contains your solutions, so " +
+                        "choose somewhere private.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Labelled("File", syncPath ?: "Not set — sync is off")
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        ProfileFiles.chooseSyncFile()?.let { chosen ->
+                            profile.settings.setSyncFilePath(chosen.absolutePath, Clock.System.now())
+                            syncPath = chosen.absolutePath
+                            syncMessage = null
+                        }
+                    }) { Text(if (syncPath == null) "Choose a file…" else "Change…") }
+
+                    Button(
+                        // Disabled rather than hidden while running, so a second click
+                        // cannot start an overlapping sync against the same file.
+                        enabled = syncPath != null && !syncing,
+                        onClick = {
+                            val target = syncPath ?: return@Button
+                            syncing = true
+                            syncMessage = null
+                            settingsScope.launch {
+                                syncMessage = withContext(Dispatchers.IO) {
+                                    ProfileFiles.sync(profile, File(target))
+                                }
+                                syncing = false
+                            }
+                        },
+                    ) { Text(if (syncing) "Syncing…" else "Sync now") }
+
+                    if (syncPath != null) {
+                        TextButton(onClick = {
+                            profile.settings.setSyncFilePath(null, Clock.System.now())
+                            syncPath = null
+                            syncMessage = "Sync turned off. The file was left where it is."
+                        }) { Text("Turn off") }
+                    }
+                }
+                syncMessage?.let { message ->
                     Spacer(Modifier.height(10.dp))
                     Text(
                         message,

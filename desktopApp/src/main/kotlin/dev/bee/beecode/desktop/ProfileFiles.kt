@@ -1,8 +1,11 @@
 package dev.bee.beecode.desktop
 
 import dev.bee.beecode.app.BeeCodeProfile
+import dev.bee.beecode.app.FileSyncStore
 import dev.bee.beecode.app.ProfileTransfer
 import dev.bee.beecode.app.RestoreResult
+import dev.bee.beecode.app.SyncReport
+import dev.bee.beecode.app.SyncService
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 import java.awt.FileDialog
@@ -59,6 +62,74 @@ internal object ProfileFiles {
             "Could not read ${source.name}: ${e.message}"
         }
     }
+
+    /**
+     * Run one sync against the configured shared file.
+     *
+     * Blocking on purpose: the caller runs it off the UI thread, and a file sync is
+     * milliseconds. A networked backend would need progress reporting; this does not,
+     * and pretending otherwise would add machinery for a case that does not exist yet.
+     *
+     * @return a message for the learner. Never null — unlike export and restore there is
+     *   no dialog to cancel.
+     */
+    suspend fun sync(profile: BeeCodeProfile, target: File): String {
+        val report = SyncService(FileSyncStore(target), profile).sync(Clock.System.now())
+        return report.describe(target)
+    }
+
+    /**
+     * Turn a sync report into something worth reading.
+     *
+     * Deliberately specific about *what moved*. "Synced" tells a learner nothing, and the
+     * difference between "nothing to do" and "received 12 reviews" is the difference
+     * between trusting sync and wondering whether it ran.
+     */
+    private fun SyncReport.describe(target: File): String = when (this) {
+        is SyncReport.Completed -> {
+            val received = merge?.let { merge ->
+                buildList {
+                    if (merge.reviewsFromRemote > 0) add("${merge.reviewsFromRemote} reviews")
+                    if (merge.draftsFromRemote > 0) add("${merge.draftsFromRemote} drafts")
+                    if (merge.settingsFromRemote > 0) add("${merge.settingsFromRemote} settings")
+                }
+            }.orEmpty()
+            when {
+                received.isNotEmpty() && pushed ->
+                    "Synced with ${target.name}: received ${received.joinToString(", ")}, and sent this device\'s changes."
+                received.isNotEmpty() ->
+                    "Synced with ${target.name}: received ${received.joinToString(", ")}."
+                pushed -> "Synced with ${target.name}: sent this device\'s changes."
+                else -> "Already up to date with ${target.name}."
+            }
+        }
+        // Nothing was lost: whatever was pulled is already applied locally.
+        is SyncReport.Conflicted ->
+            "Another device kept updating ${target.name} while syncing, so this device\'s " +
+                "changes were not sent. Everything it had was received, and the next sync " +
+                "will try again."
+        is SyncReport.Failed -> "Could not sync with ${target.name}: $reason"
+    }
+
+    /** Ask which shared file to sync against. */
+    fun chooseSyncFile(): File? {
+        val dialog = FileDialog(null as Frame?, "Choose a shared BeeCode sync file", FileDialog.SAVE).apply {
+            file = DEFAULT_SYNC_NAME
+            isVisible = true
+        }
+        val directory = dialog.directory ?: return null
+        val name = dialog.file ?: return null
+        val withExtension = if (name.endsWith(".json", ignoreCase = true)) name else "$name.json"
+        return File(directory, withExtension)
+    }
+
+    /**
+     * The suggested filename, shared across devices.
+     *
+     * Not dated, unlike an export\'s name: this is one file two devices keep writing to,
+     * so a name that changed daily would silently start a new sync history.
+     */
+    const val DEFAULT_SYNC_NAME: String = "beecode-sync.json"
 
     /** A self-describing default name, so exports are identifiable on disk. */
     private fun suggestedName(profile: BeeCodeProfile): String {
