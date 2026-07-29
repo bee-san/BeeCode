@@ -1,5 +1,7 @@
 package dev.bee.beecode.app
 
+import dev.bee.beecode.persistence.ActivityOutboxRepository
+import dev.bee.beecode.persistence.StoredOutboxRow
 import kotlinx.datetime.Instant
 
 /**
@@ -302,6 +304,61 @@ sealed interface UploadVerdict {
 
     /** Nothing was decided: an outage, a timeout, an expired token. */
     data class Retryable(val reason: String) : UploadVerdict
+}
+
+/**
+ * Maps between the pure outbox rows and the primitives `:persistence` stores.
+ *
+ * Lives here rather than in `:persistence` because the dependency runs `:shared` →
+ * `:persistence`: the storage layer cannot see [OutboxRow] and should not learn to. This is
+ * the layer that already knows both shapes.
+ */
+object OutboxStorage {
+
+    fun toStored(row: OutboxRow): StoredOutboxRow = StoredOutboxRow(
+        eventId = row.event.eventId,
+        problemId = row.event.problemId,
+        occurredAtEpochMillis = row.event.occurredAt.toEpochMilliseconds(),
+        localDate = row.event.localDate,
+        countsAsSolved = row.event.countsAsSolved,
+        state = row.state.name,
+        attempts = row.attempts,
+        nextAttemptAtEpochMillis = row.nextAttemptAt.toEpochMilliseconds(),
+        lastReason = row.lastReason,
+    )
+
+    /**
+     * Read one stored row back, or null if its state is unrecognized.
+     *
+     * A null rather than a throw, because the realistic cause is a *downgrade*: a newer
+     * BeeCode wrote a state this build has no name for. Dropping that row loses at most one
+     * Leaderboard count, while throwing would make the app unopenable — and the count is
+     * recoverable, because [ActivityProjection] derives events from the review log rather
+     * than from this queue.
+     */
+    fun fromStored(stored: StoredOutboxRow): OutboxRow? {
+        val state = OutboxState.entries.firstOrNull { it.name == stored.state } ?: return null
+        return OutboxRow(
+            event = ActivityEvent(
+                eventId = stored.eventId,
+                problemId = stored.problemId,
+                occurredAt = Instant.fromEpochMilliseconds(stored.occurredAtEpochMillis),
+                localDate = stored.localDate,
+                countsAsSolved = stored.countsAsSolved,
+            ),
+            state = state,
+            attempts = stored.attempts,
+            nextAttemptAt = Instant.fromEpochMilliseconds(stored.nextAttemptAtEpochMillis),
+            lastReason = stored.lastReason,
+        )
+    }
+
+    fun load(repository: ActivityOutboxRepository): List<OutboxRow> =
+        repository.all().mapNotNull(::fromStored)
+
+    fun save(repository: ActivityOutboxRepository, rows: List<OutboxRow>) {
+        repository.replaceAll(rows.map(::toStored))
+    }
 }
 
 /** Counts for a status line, so a stuck queue is visible. */

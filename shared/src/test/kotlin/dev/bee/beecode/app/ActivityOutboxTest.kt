@@ -314,6 +314,86 @@ class ActivityOutboxTest {
         assertEquals(7, rows.map { it.event.eventId }.toSet().size)
     }
 
+    // ---- Durability ----------------------------------------------------------
+
+    @Test
+    fun theQueueSurvivesAProcessDeathThroughRealSqlite() {
+        // "App restart preserves pending events." The state machine is pure and was
+        // exhaustively correct while living entirely in memory, which is a way of saying it
+        // was exhaustively correct and completely lost on every process death.
+        val file = kotlin.io.path.createTempFile("beecode-outbox-shared-", ".db").toFile()
+        file.delete()
+        try {
+            var rows = emptyList<OutboxRow>()
+            rows = ActivityOutbox.enqueue(rows, event("e1"), NOW)
+            rows = ActivityOutbox.enqueue(rows, event("e2"), NOW)
+            rows = ActivityOutbox.applyVerdict(rows, "e1", UploadVerdict.Retryable("502"), NOW)
+
+            dev.bee.beecode.persistence.BeeCodeDatabase.open(file.absolutePath).use { database ->
+                OutboxStorage.save(
+                    dev.bee.beecode.persistence.ActivityOutboxRepository(database),
+                    rows,
+                )
+            }
+
+            // A new process, a new database handle, the same queue.
+            dev.bee.beecode.persistence.BeeCodeDatabase.open(file.absolutePath).use { database ->
+                val reloaded = OutboxStorage.load(
+                    dev.bee.beecode.persistence.ActivityOutboxRepository(database),
+                )
+                assertEquals(rows, reloaded, "the reloaded queue must equal what was saved")
+                // And the backoff survived, so a retry does not restart its schedule — which
+                // is what would let a restart loop hammer a server that is already down.
+                val retried = reloaded.single { it.event.eventId == "e1" }
+                assertEquals(1, retried.attempts)
+                assertEquals("502", retried.lastReason)
+                // e2 was never retried, so it is still due immediately; e1 carries the
+                // backoff from its failure and is not.
+                assertEquals(listOf("e2"), ActivityOutbox.nextBatch(reloaded, NOW).map { it.event.eventId })
+                assertEquals(2, ActivityOutbox.nextBatch(reloaded, NOW + 1.hours).size)
+            }
+        } finally {
+            listOf("", "-wal", "-shm").forEach { java.io.File(file.absolutePath + it).delete() }
+        }
+    }
+
+    @Test
+    fun anUnrecognizedStateIsDroppedRatherThanCrashingTheApp() {
+        // The realistic cause is a downgrade: a newer BeeCode wrote a state this build has
+        // no name for. Dropping the row loses at most one Leaderboard count — recoverable,
+        // because ActivityProjection derives events from the review log — while throwing
+        // would make the app unopenable.
+        val unknown = dev.bee.beecode.persistence.StoredOutboxRow(
+            eventId = "e1",
+            problemId = "two-sum",
+            occurredAtEpochMillis = NOW.toEpochMilliseconds(),
+            localDate = "2026-07-29",
+            countsAsSolved = true,
+            state = "TRANSMOGRIFYING",
+            attempts = 0,
+            nextAttemptAtEpochMillis = NOW.toEpochMilliseconds(),
+            lastReason = null,
+        )
+        assertEquals(null, OutboxStorage.fromStored(unknown))
+    }
+
+    @Test
+    fun everyStateNameRoundTripsThroughStorage() {
+        // A state whose name did not survive would be silently dropped by the reader above,
+        // so the mapping is checked for all of them rather than the ones a test happens to
+        // produce.
+        OutboxState.entries.forEach { state ->
+            val row = OutboxRow(
+                event = event("e-${state.name}"),
+                state = state,
+                attempts = 3,
+                nextAttemptAt = NOW,
+                lastReason = "because",
+            )
+            assertEquals(row, OutboxStorage.fromStored(OutboxStorage.toStored(row)))
+        }
+    }
+
     private fun event(
         id: String,
         occurredAt: Instant = NOW,

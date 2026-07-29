@@ -31,7 +31,7 @@ internal object Schema {
      * existing migration: an installed client has already run it, and changing it
      * would leave the two databases silently different.
      */
-    const val VERSION: Int = 2
+    const val VERSION: Int = 3
 
     /**
      * Migrations, indexed by the version they produce.
@@ -309,6 +309,42 @@ internal object Schema {
             "CREATE INDEX idx_problem_review_problem ON problem_review (problem_id, finalized_at)",
             "CREATE INDEX idx_problem_review_finalized ON problem_review (finalized_at)",
             "CREATE INDEX idx_problem_review_solved_date ON problem_review (counts_as_solved, local_date)",
+        ),
+
+        // ---- Version 3: the Leaderboard activity outbox ---------------------
+        //
+        // LDB-007 calls the outbox "durable", and until now it was a list in
+        // memory: correct in every state transition and lost on every process
+        // death. "App restart preserves pending events" is one of its acceptance
+        // criteria, so the queue has to live here.
+        //
+        // Keyed by `event_id` rather than an autoincrement rowid, because that id
+        // is the idempotency key end to end — the review's own session id, minted
+        // on-device. A surrogate key would let one review enqueue twice after a
+        // restart, which is precisely the double-count the whole design exists to
+        // prevent (ADR 0002 property 1).
+        //
+        // Deliberately *not* joined to `problem_review`. A rejected event must
+        // survive as the record of a server decision even if its Problem later
+        // leaves the pack, and a foreign key would make deleting a pack delete
+        // that history.
+        listOf(
+            """
+            CREATE TABLE activity_outbox (
+                event_id        TEXT    NOT NULL PRIMARY KEY,
+                problem_id      TEXT    NOT NULL,
+                occurred_at     INTEGER NOT NULL,
+                local_date      TEXT    NOT NULL,
+                counts_as_solved INTEGER NOT NULL,
+                state           TEXT    NOT NULL,
+                attempts        INTEGER NOT NULL,
+                next_attempt_at INTEGER NOT NULL,
+                last_reason     TEXT
+            )
+            """,
+            // The batch query's exact shape: pending rows whose backoff has
+            // elapsed, oldest first.
+            "CREATE INDEX idx_activity_outbox_ready ON activity_outbox (state, next_attempt_at, occurred_at)",
         ),
     )
 

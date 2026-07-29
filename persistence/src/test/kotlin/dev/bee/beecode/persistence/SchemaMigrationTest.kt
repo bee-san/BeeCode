@@ -33,7 +33,7 @@ class SchemaMigrationTest {
             createVersionOneDatabase(path)
 
             BeeCodeDatabase.open(path).use { database ->
-                assertEquals(2, database.schemaVersion())
+                assertEquals(Schema.VERSION, database.schemaVersion())
                 val repository = ReviewRepository(database, BeeCodeScheduler())
 
                 // The schedule row survived, and its whole-day interval reads back
@@ -119,11 +119,11 @@ class SchemaMigrationTest {
         withTempFile { path ->
             createVersionOneDatabase(path)
 
-            BeeCodeDatabase.open(path).use { assertEquals(2, it.schemaVersion()) }
+            BeeCodeDatabase.open(path).use { assertEquals(Schema.VERSION, it.schemaVersion()) }
             // A second open must not re-run the migration: the renamed table it works
             // from no longer exists, so a re-run would fail rather than no-op.
             BeeCodeDatabase.open(path).use { database ->
-                assertEquals(2, database.schemaVersion())
+                assertEquals(Schema.VERSION, database.schemaVersion())
                 assertNotNull(ReviewRepository(database, BeeCodeScheduler()).schedule(ProblemId("two-sum")))
             }
         }
@@ -131,10 +131,10 @@ class SchemaMigrationTest {
 
     @Test
     fun theMigrationListStaysInStepWithTheDeclaredVersion() {
-        // Schema.VERSION and the migration count are checked in Schema's own init,
-        // so this asserts the pair is what this build expects rather than merely
-        // self-consistent.
-        assertEquals(2, Schema.VERSION)
+        // Schema's own init already checks these agree. What this adds is that the
+        // count is what a reviewer expects to see change: bumping VERSION without
+        // appending a migration, or vice versa, fails here with a number to read.
+        assertEquals(3, Schema.VERSION, "bump this deliberately when adding a migration")
         assertEquals(Schema.VERSION, Schema.MIGRATIONS.size)
     }
 
