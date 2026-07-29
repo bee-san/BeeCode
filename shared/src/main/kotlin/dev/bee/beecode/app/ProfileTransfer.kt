@@ -45,7 +45,7 @@ object ProfileTransfer {
     /** Bumped when the payload shape changes incompatibly. */
     const val FORMAT_VERSION: Int = 1
 
-    private val json = Json {
+    internal val json = Json {
         prettyPrint = true
         encodeDefaults = true
         ignoreUnknownKeys = true
@@ -67,6 +67,8 @@ object ProfileTransfer {
             formatVersion = FORMAT_VERSION,
             exportedAtEpochMillis = exportedAt.toEpochMilliseconds(),
             settings = profile.settings.all(),
+            settingsUpdatedAtEpochMillis = profile.settings.allStamped()
+                .mapValues { (_, stamped) -> stamped.updatedAt.toEpochMilliseconds() },
             drafts = profile.drafts.allDrafts().map { it.toWire() },
             reviews = profile.allReviews().map { review ->
                 review.toWire(sources[review.sessionId.value].orEmpty())
@@ -294,16 +296,25 @@ sealed interface RestoreResult {
 }
 
 @Serializable
-private data class ProfilePayload(
+internal data class ProfilePayload(
     val formatVersion: Int,
     val exportedAtEpochMillis: Long,
     val settings: Map<String, String>,
     val drafts: List<WireDraft>,
     val reviews: List<WireReview>,
+    /**
+     * When each setting was last written, for [SnapshotMerge].
+     *
+     * Additive and defaulted, so a payload written before this field existed still
+     * decodes; a setting with no stamp is treated as older than any stamped one.
+     * `settings` is kept as-is rather than replaced, so an older BeeCode can still
+     * restore a newer export.
+     */
+    val settingsUpdatedAtEpochMillis: Map<String, Long> = emptyMap(),
 )
 
 @Serializable
-private data class WireDraft(
+internal data class WireDraft(
     val problemId: String,
     val problemRevisionId: String,
     val source: String,
@@ -312,7 +323,7 @@ private data class WireDraft(
 )
 
 @Serializable
-private data class WireReview(
+internal data class WireReview(
     val eventId: String,
     val sessionId: String,
     val problemId: String,

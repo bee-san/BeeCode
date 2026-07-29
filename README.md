@@ -30,7 +30,7 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Verified by | 9 Robolectric UI + 18 instrumented tests | 29 JVM tests, 6 of them UI |
 
-**256 automated tests**: 238 JVM tests across nine modules and 18 Android
+**274 automated tests**: 256 JVM tests across nine modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -67,7 +67,17 @@ of them hidden. That meets the year-one target of 12–20, and it covers all fou
 comparators; `any_of` and `approximate_numeric` had been implemented but unused by any
 Problem, so those code paths shipped untested.
 
-Not built yet: the private Leaderboard and personal cross-device sync. See
+**Cross-device sync is half-built, and it is the correctness half.**
+`SnapshotMerge.merge(local, remote)` implements the chimahon model from
+[ADR 0002](docs/adr/0002-personal-sync-direction.md) as a pure function of two exported
+snapshots: reviews merge by set union on session, drafts and settings by last-write-wins,
+schedules are replayed from the merged log rather than merged, and the device identity is
+never merged. It is commutative and byte-deterministic, which is what makes the planned
+ETag compare-and-swap work at all. 18 tests, every rule mutation-checked. What is missing
+is a storage backend (WebDAV, a file, Drive) and the push loop — plumbing over a verified
+merge, rather than the part where data gets lost.
+
+Not built yet: the private Leaderboard, and sync's storage backends. See
 [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
@@ -107,7 +117,7 @@ fsrs-adapter/    BeeCode's review policy over bee-fsrs
 python-api/      Execution contracts and the shared Python harness
 persistence/     SQLite schema, migrations, exactly-once finalization
 content-tools/   Problem loading, validation, and pack compilation
-shared/          Study loop, statistics, achievements, export/restore
+shared/          Study loop, statistics, achievements, export/restore, sync merge
 androidApp/      Android client and the Chaquopy runner
 desktopApp/      Desktop client and the process runner
 content/packs/   The Problem pack: 16 Problems, 126 tests

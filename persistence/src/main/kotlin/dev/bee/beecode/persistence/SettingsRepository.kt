@@ -114,6 +114,31 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         }
     }
 
+    /**
+     * Every setting with the instant it was last written.
+     *
+     * Needed because a snapshot merge (ADR 0002) resolves settings by last-write-wins,
+     * and a value without its timestamp cannot be merged — only clobbered. The column
+     * has always been stored; this exposes it.
+     */
+    fun allStamped(): Map<String, StampedSetting> = database.read { connection ->
+        connection.createStatement().use { statement ->
+            statement.executeQuery("SELECT key, value, updated_at FROM settings").use { rows ->
+                buildMap {
+                    while (rows.next()) {
+                        put(
+                            rows.getString("key"),
+                            StampedSetting(
+                                value = rows.getString("value"),
+                                updatedAt = Instant.fromEpochMilliseconds(rows.getLong("updated_at")),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun readValue(connection: Connection, key: String): String? =
         connection.prepareStatement("SELECT value FROM settings WHERE key = ?").use { statement ->
             statement.setString(1, key)
@@ -144,3 +169,14 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_PYTHON_EXECUTABLE = "python.executable"
     }
 }
+
+/**
+ * One setting with the instant it was last written.
+ *
+ * The timestamp exists for snapshot merge: two devices that both changed a preference
+ * are resolved by whichever wrote last (ADR 0002 property 2).
+ */
+data class StampedSetting(
+    val value: String,
+    val updatedAt: Instant,
+)

@@ -1,6 +1,6 @@
 # ADR 0002 — Personal sync direction (snapshot merge, not activity outbox)
 
-- Status: accepted for planning; implementation deferred
+- Status: accepted; **merge implemented**, storage backends deferred
 - Date: 2026-07-29
 - Supersedes nothing; constrains `goals/08-leaderboards.md` and
   `docs/architecture.md`
@@ -72,30 +72,62 @@ properties of every syncable entity, and they are cheap now and expensive later:
    too — it makes sync trivial. Prefer append-only over mutable-plus-timestamp
    wherever the domain allows.
 
-A fourth property is deferred but must not be designed out:
+A fourth property, now also in place:
 
 4. **A device identity.** Chimahon's `SyncData.deviceId` exists so a device can
-   recognize its own writes. BeeCode reserves a local `deviceId` row in
-   settings, generated on first launch, unused until sync ships.
+   recognize its own writes. BeeCode stores a local `deviceId` row in settings,
+   generated on first launch. It is stamped onto every finalized review and
+   excluded from merge, so it is no longer merely reserved.
 
 ## Deliberate non-decisions
 
 - Which backends ship first. Drive needs OAuth; WebDAV needs almost nothing.
   WebDAV or a plain file is the likely first target because it is testable
   without a Google Cloud project.
-- Whether FSRS state merges by `updatedAt` or is **recomputed** from the merged
-  append-only review log. Recomputation is more obviously correct and is the
-  leading candidate, and it is only available because reviews are append-only
-  and every transition records its inputs. This is a strong argument for
-  property 3.
+- ~~Whether FSRS state merges by `updatedAt` or is **recomputed** from the merged
+  append-only review log.~~ **Resolved: recomputed.** See "What is built" below.
 - Whether sync lands before or after the Leaderboard. It is now plausibly
   *more* valuable to the owner than the Leaderboard, and it does not need a
   bespoke server.
+
+## What is built
+
+`SnapshotMerge.merge(local, remote)` in `:shared` implements the chimahon merge, as a
+pure function of two exported snapshots. No network, no storage backend, no clock — so
+the part of sync where data actually gets lost is verified before any backend exists.
+
+| Entity | Rule | Why that rule is available |
+|---|---|---|
+| Reviews | set union on `sessionId` | property 3: append-only, immutable, device-minted IDs |
+| Drafts | last-write-wins, ties to local | property 2: `updated_at` on every mutable row |
+| Settings | last-write-wins per key, ties to local | property 2, per key rather than per map |
+| Schedules | not merged — replayed from the merged log | recomputation, resolved above |
+| `deviceId` | never merged | property 4 |
+
+The merge is commutative on reviews and byte-deterministic on ties, which is what makes
+the planned ETag compare-and-swap meaningful: two devices merging the same pair must
+produce the same bytes, or each would read the other's push as a conflict and they would
+ping-pong indefinitely.
+
+Verified by 18 tests, and every rule is mutation-checked — inverting each comparison
+fails a named test. Two of those tests exist *because* mutation found the suite blind:
+`putIfAbsent` → `put` (remote clobbering local reviews) and `>` → `>=` (the settings
+tie-break) both passed originally, since the tests used identical content or distinct
+timestamps.
+
+**Schedule recomputation is now decided, not deferred.** The merged snapshot carries no
+schedules; restoring replays the merged review log to rebuild them, and
+`verifyScheduleIntegrity()` asserts the fold reproduces stored state exactly. This is
+the option the "deliberate non-decisions" section called the leading candidate, and it
+is only correct because reviews are append-only.
+
+Still deferred, and genuinely so: the storage backends (WebDAV, a plain file, Drive),
+the ETag/CAS push loop, and the UI. Those are plumbing over a verified merge.
 
 ## Status of the year-one plan
 
 `goals/YEAR-ONE.md` lists live personal sync as post-v1. That classification is
 now doubtful, but this ADR does not reschedule it. The commitment made here is
 narrow and immediate: **the local data model is built sync-ready** (properties
-1–3, and a reserved `deviceId`), so that adopting the chimahon model later is
-a feature addition rather than a migration.
+1–4), so that adopting the chimahon model is a feature addition rather than a
+migration. The merge itself is now built too; what remains is a storage backend.
