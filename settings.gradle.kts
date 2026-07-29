@@ -30,6 +30,10 @@ include(":fsrs-adapter")
 // Platform-neutral Python execution contracts and the shared harness.
 include(":python-api")
 
+// Local SQLite persistence: schema, migrations, and the exactly-once review
+// finalization transaction.
+include(":persistence")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.
