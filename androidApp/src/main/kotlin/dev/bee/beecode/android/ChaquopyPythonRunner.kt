@@ -127,6 +127,23 @@ class ChaquopyPythonRunner(
                 ?.toString()
                 ?.takeIf { it.isNotBlank() }
                 ?: return@withContext unavailable("Chaquopy started but reported no Python version.")
+
+            // Import the harness's own dependencies here, while the UI is showing a
+            // startup state, rather than inside the learner's first timed run.
+            //
+            // This is what pays the cold-start cost. Chaquopy's first entry into
+            // CPython unpacks and imports the standard library out of the APK, which
+            // takes tens of seconds on a cold emulator. Doing it lazily meant the
+            // first run of a session needed a large one-off allowance added to the
+            // Problem's deadline — and that allowance applied to a *timeout* as much
+            // as to a correct answer, so a learner whose first submission looped
+            // forever waited over a minute for a 5-second limit to be reported.
+            //
+            // Warming up here makes the deadline mean what it says on every run.
+            for (module in HARNESS_MODULES) {
+                python.getModule(module)
+            }
+
             RunnerProbe(
                 available = true,
                 pythonVersion = version,
@@ -308,11 +325,27 @@ class ChaquopyPythonRunner(
         /**
          * Extra time allowed for the very first run in a process.
          *
-         * Generous because it is paid at most once and the alternative is timing out
-         * a correct solution. Measured at roughly 29s on a cold x86_64 emulator, so
-         * 60s leaves headroom for slower hardware without being unbounded.
+         * Small, and no longer load-bearing. [probe] now imports the harness's
+         * modules up front, so the expensive cold start is paid before any learner
+         * code is timed rather than charged to the first run's deadline.
+         *
+         * A modest allowance remains because `probe` is not guaranteed to have run —
+         * a caller may reach `execute` first — and because the first *submit* to a
+         * fresh executor still costs thread creation. It is deliberately small
+         * enough that a timeout is still reported promptly: an earlier 60s value
+         * meant a learner whose first submission looped forever waited 72s to be
+         * told about a 5s limit, which is indistinguishable from the app hanging.
          */
-        const val WARM_UP_ALLOWANCE_MILLIS = 60_000L
+        const val WARM_UP_ALLOWANCE_MILLIS = 5_000L
+
+        /**
+         * The standard-library modules `beecode_harness` imports.
+         *
+         * Imported during [probe] so their cost is not charged to a learner's run.
+         * Kept in step with the harness's own import block; a missing entry only
+         * costs a slower first run, never a wrong result.
+         */
+        val HARNESS_MODULES = listOf("base64", "io", "json", "math", "sys", "traceback")
 
         /**
          * A fresh single-threaded executor for entering the interpreter.

@@ -216,14 +216,25 @@ class AndroidStudyJourneyTest {
             profile.study.open(problemId)
             val infinite = "def two_sum(nums, target):\n    while True:\n        pass\n"
 
+            // Probe first, explicitly. The runner pays CPython's cold start here, and
+            // this test previously passed only because another test in the class
+            // happened to run before it and warm the interpreter up. Run alone it
+            // failed, reporting a timeout after 72s against a 5s limit — a real defect
+            // for any learner whose first submission of a session loops forever, and
+            // one this test was structurally unable to catch.
+            profile.study.runnerStatus()
+
             val startedAt = System.nanoTime()
             val result = profile.study.run(problemId, infinite) as RunOutcome.Completed
             val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
 
             assertEquals(ExecutionOutcome.TIMEOUT, result.run.outcome)
-            // The Problem's limit is 5s; returning far beyond that would mean the
-            // deadline is not being enforced at all.
-            assertTrue("returned after ${elapsedMillis}ms", elapsedMillis < 20_000)
+            // The Problem's limit is 5s, plus the runner's small residual warm-up
+            // allowance. 15s is chosen to be comfortably above what a loaded,
+            // unaccelerated emulator needs while still failing the bug this caught:
+            // a 60s allowance reported this timeout after 72s. Keep this bound tight
+            // — its whole value is that a regression in the deadline path trips it.
+            assertTrue("returned after ${elapsedMillis}ms", elapsedMillis < 15_000)
             // The learner's code is still there to fix.
             assertEquals(infinite, requireNotNull(profile.drafts.draft(problemId)).source)
         }
