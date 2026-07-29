@@ -87,15 +87,27 @@ preserve/reschedule/recompute machinery is the path, not a relabel.
 Every BeeCode schedule transition records the algorithm label and the parameter hash,
 which is what keeps that door open: old rows stay interpretable under a future engine.
 
-### The plan's wording needs a decision
+### How the plan's wording was reconciled
 
-`goals/` still commits to "FSRS 7" in 12 places, including the year-one committed scope
-and the M0 gate. Those were written when "FSRS 7" was taken to mean "the user's
-current engine". Now that the two are known to be different algorithms, the plan is
-either promising a 35-parameter port nobody has released, or it means FSRS-6.x and
-should say so. **Shipped behaviour is FSRS-6.x**; the plan text is the part that is out
-of date, and reconciling it is deliberately left as an open decision rather than being
-silently rewritten to match what was built.
+`goals/` said "FSRS 7" in 12 places, including the year-one committed scope and the M0
+gate. Those were written when "FSRS 7" was taken to mean "the user's current engine".
+Once the two were known to be different algorithms, that wording either promised a
+35-parameter port nobody has released, or it meant FSRS-6.x.
+
+The version numbers were **removed** rather than changed to "6". Two reasons:
+
+- The plan's actual requirement is *FSRS scheduling* — a due queue, recorded
+  transitions, golden vectors. None of that depends on the revision number, and a plan
+  document is the wrong place to pin one.
+- The revision belongs where it can be tested. `FsrsAlgorithmInfo.ALGORITHM_LABEL` and
+  `FsrsProvenanceTest` state and enforce it, and every stored transition records it. A
+  number in prose cannot fail a build; those can.
+
+**Adopting FSRS-7 remains an open option, not an open ambiguity.** It would be an
+`SRS-009` migration needing its own goal: porting PyTorch/Rust research code, generating
+new reference vectors, and changing the shape of persisted memory state from 21
+parameters and integer days to 35 and fractional intervals. Nothing in the plan now
+implies it has been promised, and nothing prevents it being chosen.
 
 ## Consequences
 

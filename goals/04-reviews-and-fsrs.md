@@ -1,16 +1,20 @@
 # Target 04: reviews and FSRS
 
-> **Open decision: "FSRS 7" in this document is inaccurate.** The plan documents
-> under `goals/` still say "FSRS 7" in 12 places. The engine extracted from
-> `kanji_anki` is **FSRS-6.x, 21 parameters** — verified by parameter count and
-> by defaults byte-exact to py-fsrs `v6.3.1`, and self-labelled that way in
-> `FsrsAlgorithmInfo.kt`. FSRS-7 is a different algorithm that genuinely exists
-> (`models/fsrs_v7.py` in `open-spaced-repetition/srs-benchmark`): **35
-> parameters**, fractional intervals, an 8-parameter mixed-power forgetting
-> curve, and shipped in **no** scheduler library. So the plan is currently
-> either committing to porting unreleased research code, or it means FSRS-6.x.
-> Shipped behaviour is FSRS-6.x. The wording is not silently rewritten to match
-> the build; see [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
+> **Note on the algorithm revision.** This document used to say "FSRS 7". The
+> engine extracted from `kanji_anki` is **FSRS-6.x, 21 parameters** — verified by
+> parameter count and by defaults byte-exact to py-fsrs `v6.3.1`, and
+> self-labelled that way in `FsrsAlgorithmInfo.kt`. FSRS-7 is a real but
+> *different* algorithm (`models/fsrs_v7.py` in
+> `open-spaced-repetition/srs-benchmark`): **35 parameters**, fractional
+> intervals, an 8-parameter mixed-power forgetting curve, and shipped in **no**
+> scheduler library.
+>
+> The version numbers are removed rather than replaced, because "FSRS" names the
+> requirement and the revision is recorded in code where it can be tested. **If
+> adopting FSRS-7 is actually wanted, it is an `SRS-009` migration and needs its
+> own goal** — porting research code, new reference vectors, and a change to the
+> shape of persisted memory state. See
+> [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 
 This target turns a Problem attempt into durable study history and a future due
 date using the user's FSRS implementation from the planned reusable
@@ -77,9 +81,9 @@ that impossible combinations are rejected, not merely hidden by the UI.
 - **Acceptance:**
   - The repository is limited to generic `dev.bee.fsrs` memory math and the
     build, tests, documentation, and release machinery needed to publish it.
-  - The first release records the exact source commit/tree and persisted
-    algorithm identifier for `FSRS 7`; an artifact upgrade cannot silently
-    substitute another algorithm revision.
+  - The first release records the exact source commit/tree and the persisted
+    algorithm identifier for the engine's actual algorithm revision; an artifact
+    upgrade cannot silently substitute another revision.
   - No Android, UI, database, Kani ladder, deck, or promotion policy enters the
     package.
   - Source commit/tree hash and an explicit owner grant/license/SPDX record are
@@ -186,7 +190,7 @@ that impossible combinations are rejected, not merely hidden by the UI.
 - **Risks:** excessive policy copied from generic flashcard apps.
 - **Non-goals:** recreating Anki deck-option complexity in v1; v1 has no
   separate minute-based learning/relearning ladder. Pre-finalization retries
-  are execution attempts, while every finalized review uses FSRS 7 (including
+  are execution attempts, while every finalized review uses FSRS (including
   its supported zero-elapsed-day behavior) and a persisted due decision.
 
 ## SRS-006 — Make finalization exactly once

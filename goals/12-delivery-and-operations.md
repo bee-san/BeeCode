@@ -297,7 +297,7 @@ never motivate artificial churn.
 |---|---:|---:|---|
 | M0: Feasibility/contracts | Weeks 1–4 | 12–20 | Critical runtime, reusable FSRS package/provenance, editor, persistence, device, rights, and boundary decisions. |
 | M1: Thin desktop slice | Weeks 5–11 | 30–50 | One-folder Problem flow and bounded recoverable desktop run. |
-| M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS 7 due queue, replay, and restore baseline. |
+| M2: Review truth | Weeks 12–18 | 50–75 | Atomic reviews, FSRS due queue, replay, and restore baseline. |
 | **M3 / Test 1: playable desktop + Android alpha** | Weeks 19–27 | 70–105 | Owner installs both clients and completes the full offline Problem journey. |
 | **M4 / Test 2: complete local product** | Weeks 28–34 | 95–135 | Replayable achievements, reviewed content, daily-driver local features, recovery, accessibility, and offline acceptance on both clients. |
 | M5: Conditional Leaderboard beta | Weeks 35–38 | 105–145 | Only after Test 2 passes, owner tests a private self-hosted Leaderboard with two accounts and offline upload. |

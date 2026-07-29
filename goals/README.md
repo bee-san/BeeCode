@@ -39,10 +39,9 @@ live cross-device study-history synchronization.
 4. Scheduling uses the user's FSRS implementation from the dedicated
    `bee-san/bee-fsrs` GitHub repository/package. It is extracted once with
    provenance from `bee-san/kanji_anki`, released independently, pinned, and
-   tested separately from BeeCode policy. (What ships is **FSRS-6.x, 21
-   parameters**; where these documents say "FSRS 7" that is an open decision, not
-   a description of the build — see
-   [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).)
+   tested separately from BeeCode policy. The revision is **FSRS-6.x, 21
+   parameters**, recorded in code rather than here so a swap fails a test — see
+   [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 5. Learner source code, test output, and FSRS memory state stay local.
 6. A passing test run is evidence, not automatically a finalized review.
 7. Every finalized review is idempotent and traceable to one review session.
@@ -186,7 +185,7 @@ desktop and Android product passing by the end of week 34.
 |---|---|---|
 | Weeks 1–4 | M0: feasibility and contracts | Android Python, desktop worker, editor/IME, persistence, reusable FSRS package/provenance, device access, rights, and threat-boundary decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One-folder Problem authoring and a durable bounded local Python run. |
-| Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 scheduling, due queue, replay, and restore baseline. |
+| Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS scheduling, due queue, replay, and restore baseline. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Owner installs both clients and completes the answer–run–retry–finalize–restart journey. |
 | Weeks 28–34 | **M4 / Test 2: complete local product** | Achievements, reviewed content, local daily-driver features, recovery, accessibility, and offline acceptance pass on both clients. |
 | Weeks 35–38 | M5: conditional Leaderboard beta | Only after Test 2 passes, owner tests a private Leaderboard with two accounts, offline upload, stable counts, and no source transfer. |

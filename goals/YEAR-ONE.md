@@ -1,13 +1,14 @@
 # BeeCode year-one execution plan
 
-> **Open decision: the "FSRS 7" commitments below need reconciling.** This plan
-> says "FSRS 7" in the committed scope, the M0 gate, and the M2 milestone. The
-> engine that was built and shipped is **FSRS-6.x, 21 parameters**. FSRS-7 is a
-> real but different algorithm — **35 parameters**, fractional intervals, shipped
-> in no scheduler library, existing only as benchmark research code. Adopting it
-> would be an `SRS-009` migration, not a dependency bump. The plan text is the
-> out-of-date part; it is deliberately left standing rather than rewritten to
-> match what was built. See
+> **Note on the algorithm revision.** This plan used to say "FSRS 7" throughout.
+> The engine that was built and shipped is **FSRS-6.x, 21 parameters**. FSRS-7 is
+> a real but different algorithm — **35 parameters**, fractional intervals,
+> shipped in no scheduler library, existing only as benchmark research code.
+>
+> The version numbers are removed rather than corrected to "6", because the plan's
+> requirement is *FSRS scheduling*; the exact revision belongs in code, where
+> `FsrsProvenanceTest` pins it and a swap fails the build. **Adopting FSRS-7 is
+> not a relabel** — it is an `SRS-009` migration and would need its own goal. See
 > [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 
 The 164 target goals are the north-star product plan, not a claim that one
@@ -15,7 +16,8 @@ developer can verify all 164 in 52 weeks. Completing the entire plan to its
 written release gates is more plausibly an 18–30 month programme.
 
 Year one targets a strong private beta containing the complete local study loop
-on desktop and Android, FSRS 7, a small high-quality Problem pack, and 5am Club.
+on desktop and Android, FSRS scheduling, a small high-quality Problem pack, and 5am
+Club.
 A minimal private Leaderboard is a conditional follow-on that starts only after
 the complete local-product gate passes. Stable 1.0 at week 52 is conditional on
 the release gates; slipping to a well-tested private beta is preferable to
@@ -87,8 +89,8 @@ M5 only after this local gate passes; it cannot displace unfinished local work.
 - Local Python execution on desktop and Android with honest platform capability
   labels, timeout/cancellation, bounded output, and source recovery.
 - A versioned `bee-san/bee-fsrs` repository/package that BeeCode and clean
-  external consumers resolve as the same pinned FSRS 7 artifact.
-- Durable drafts, append-only reviews, exactly-once finalization, FSRS 7 due
+  external consumers resolve as the same pinned FSRS artifact.
+- Durable drafts, append-only reviews, exactly-once finalization, FSRS due
   scheduling, queue/history basics, and verified export/restore.
 - Local achievement projection, 5am Club, and two or three additional restrained
   achievements.
@@ -146,7 +148,7 @@ quality, security, beta, or reserve time.
 |---|---|---|
 | Weeks 1–4 | M0: feasibility and contracts | Toolchain shells plus Android Python, desktop worker, editor/IME, persistence, reusable FSRS package/provenance, KVM/device, and threat-model decisions. |
 | Weeks 5–11 | M1: thin desktop slice | One compiled Problem loads, source persists, Python runs, typed result displays; then generalize minimum content tooling. |
-| Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS 7 transition, due queue, replay/audit, backup baseline, desktop dogfooding. |
+| Weeks 12–18 | M2: review truth | Atomic selected-run finalization, FSRS transition, due queue, replay/audit, backup baseline, desktop dogfooding. |
 | Weeks 19–27 | **M3 / Test 1: playable desktop + Android alpha** | Install both clients and complete the same offline answer–run–retry–finalize–restart journey. |
 | Weeks 28–34 | **M4 / Test 2: complete local product** | Finish achievements, content, daily-driver local features, recovery, accessibility, and offline acceptance on desktop and Android. |
 | Weeks 35–38 | M5: conditional Leaderboard beta | Only after Test 2 passes, test a minimal private Leaderboard, outbox, server deployment, auth, period ranks, and restore with two accounts. |
@@ -180,7 +182,7 @@ architecture.
   committed product outcome is blocked and the entire plan is reforecast.
 - The chosen desktop baseline can kill a learner process tree.
 - The `bee-fsrs` repository, first tagged package, clean-consumer smoke,
-  FSRS 7 reuse authorization, and provenance are recorded.
+  FSRS reuse authorization, and provenance are recorded.
 - The first database transaction and editor input work on both platform shells.
 - A threat model covers the chosen boundaries.
 
@@ -212,7 +214,7 @@ runtime needs.
   worker-failure states are distinct.
 - Source survives UI/worker process death.
 
-## M2 — weeks 12–18: review truth and FSRS 7
+## M2 — weeks 12–18: review truth and FSRS
 
 Build:
 
@@ -220,7 +222,7 @@ Build:
 - failed-review `Again` path and unaided/reveal rating matrix;
 - `BEGIN IMMEDIATE` or equivalent schedule-version/CAS transaction;
 - pinned `bee-fsrs` release integration through the BeeCode scheduler adapter;
-- recorded FSRS 7 inputs/outputs and due projection;
+- recorded FSRS inputs/outputs and due projection;
 - no minute-based learning ladder in v1;
 - due queue and basic history;
 - idempotent post-commit achievement cursor;
