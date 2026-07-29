@@ -49,6 +49,18 @@ import java.io.File
  *
  * [AndroidStudyJourneyTest] carries no such requirement and is the behavioural gate
  * that always runs, on this host and in CI.
+ *
+ * ### These are not the only run of these assertions
+ *
+ * [BeeCodeUiRobolectricTest] asserts the same tree on the JVM, with no emulator, and
+ * runs on every push. That is where these assertions are actually verified today; this
+ * class is the stronger version for when a rendering-capable emulator exists, because
+ * it exercises real layout, real touch dispatch, and real Chaquopy.
+ *
+ * Several assertions here were *wrong* until the Robolectric run exposed them — nodes
+ * asserted as displayed while below the fold, and a `performScrollTo` on a node with no
+ * scrollable ancestor. Keep the two files in step: a fix found in one almost certainly
+ * applies to the other.
  */
 @RunWith(AndroidJUnit4::class)
 class BeeCodeUiTest {
@@ -151,7 +163,12 @@ class BeeCodeUiTest {
         // indentation is syntactically significant.
         launch()
         compose.onAllNodesWithText("Two Sum").onFirst().performClick()
-        compose.onNodeWithContentDescription("Insert indent").assertIsDisplayed()
+        // Below the fold of the Problem screen's scrolling column on a phone, so it
+        // needs scrolling to before it has layout bounds. Found by the Robolectric
+        // equivalent — this assertion was wrong for as long as it had never run.
+        compose.onNodeWithContentDescription("Insert indent")
+            .performScrollTo()
+            .assertIsDisplayed()
         compose.onNodeWithContentDescription("Insert :").assertIsDisplayed()
         compose.onNodeWithContentDescription("Insert (").assertIsDisplayed()
     }
@@ -163,13 +180,16 @@ class BeeCodeUiTest {
         launch()
         compose.onAllNodesWithText("Two Sum").onFirst().performClick()
         compose.onNodeWithText("Stuck?").performScrollTo().assertIsDisplayed()
-        compose.onNode(hasText("will not count", substring = true)).assertIsDisplayed()
+        compose.onNode(hasText("will not count", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
 
         compose.onNodeWithText("Show the explanation").performScrollTo().performClick()
         compose.onNodeWithText("Explanation").performScrollTo().assertIsDisplayed()
         // And the UI says the ceiling has dropped rather than silently disabling
-        // buttons.
-        compose.onNodeWithText("Answer revealed").assertIsDisplayed()
+        // buttons. The badge is in the header, so after scrolling down to the reveal
+        // control it is *above* the fold — scroll back to it.
+        compose.onNodeWithText("Answer revealed").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -219,9 +239,11 @@ class BeeCodeUiTest {
         compose.waitUntil(timeoutMillis = 180_000) {
             compose.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("All tests passed").assertIsDisplayed()
+        compose.onNodeWithText("All tests passed").performScrollTo().assertIsDisplayed()
 
-        // An unaided pass offers every rating.
+        // An unaided pass offers every rating. These live in the Scaffold's bottomBar,
+        // always on screen and outside the scroll — so unlike the banner above they
+        // must NOT be scrolled to; performScrollTo fails without a scrollable ancestor.
         compose.onNodeWithText("Good").assertIsDisplayed()
         compose.onNodeWithText("Easy").assertIsDisplayed()
         compose.onNodeWithText("Good").performClick()
