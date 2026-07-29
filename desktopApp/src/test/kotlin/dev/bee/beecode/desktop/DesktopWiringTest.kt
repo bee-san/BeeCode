@@ -55,6 +55,65 @@ class DesktopWiringTest {
     }
 
     @Test
+    fun theProfileDirectoryIsNotReadableByOtherUsers() {
+        // mkdirs uses the process umask, which is 022 on a typical account — so the profile
+        // directory would be created 0755 and any other user on the machine could read it.
+        // It holds every solution the learner has written and, on desktop, the WebDAV
+        // password in the clear.
+        //
+        // Skipped rather than failed where POSIX permissions do not exist (Windows, some
+        // network mounts): the production code is best-effort there by design, and asserting
+        // an unsupported capability would be a false failure.
+        val directory = kotlin.io.path.createTempDirectory("beecode-perms-").toFile()
+        try {
+            assumeTrue(
+                "this filesystem has no POSIX permissions",
+                java.nio.file.Files.getFileStore(directory.toPath()).supportsFileAttributeView("posix"),
+            )
+            assertTrue(Startup.restrictToOwner(directory), "permissions should have been applied")
+
+            val permissions = java.nio.file.Files.getPosixFilePermissions(directory.toPath())
+            val forbidden = permissions.filter { permission ->
+                permission.name.startsWith("GROUP_") || permission.name.startsWith("OTHERS_")
+            }
+            assertTrue(
+                forbidden.isEmpty(),
+                "no group or other permission may remain, found: $forbidden",
+            )
+            // And the owner can still use it, which is the point of 0700 rather than 0000.
+            assertTrue(directory.canRead() && directory.canWrite())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun openingAProfileTightensItsDirectory() {
+        // Through the real entry point, so this covers the wiring rather than only the helper.
+        val directory = kotlin.io.path.createTempDirectory("beecode-open-perms-").toFile()
+        try {
+            assumeTrue(
+                "this filesystem has no POSIX permissions",
+                java.nio.file.Files.getFileStore(directory.toPath()).supportsFileAttributeView("posix"),
+            )
+            // Deliberately loosened first, so passing cannot be an accident of the umask.
+            java.nio.file.Files.setPosixFilePermissions(
+                directory.toPath(),
+                java.nio.file.attribute.PosixFilePermissions.fromString("rwxr-xr-x"),
+            )
+            Startup.openProfile(directory).close()
+
+            val permissions = java.nio.file.Files.getPosixFilePermissions(directory.toPath())
+            assertTrue(
+                permissions.none { it.name.startsWith("GROUP_") || it.name.startsWith("OTHERS_") },
+                "opening a profile must tighten its directory, found: $permissions",
+            )
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun theProblemPackLoadsFromThePackagedResource() {
         // The production path. If the build task did not put the pack on the runtime
         // classpath, the app launches with nothing to study — so this failing is far

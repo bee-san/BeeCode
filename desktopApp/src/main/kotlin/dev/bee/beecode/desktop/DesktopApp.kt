@@ -1112,7 +1112,9 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "The password is stored in this profile's database, unencrypted, and is " +
+                    "The password is stored in this profile's database unencrypted — the " +
+                        "profile folder is readable only by your user account, but a backup " +
+                        "of it would expose the password. It is " +
                         "never included in an export or uploaded with your study data.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

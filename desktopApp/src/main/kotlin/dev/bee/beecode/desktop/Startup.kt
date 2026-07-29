@@ -26,6 +26,7 @@ internal object Startup {
      */
     fun openProfile(dataDirectory: File = profileDirectory()): BeeCodeProfile {
         dataDirectory.mkdirs()
+        restrictToOwner(dataDirectory)
         val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
         val databaseFile = File(dataDirectory, DATABASE_NAME)
 
@@ -43,6 +44,35 @@ internal object Startup {
             runner = ProcessPythonRunner(pythonExecutable = chosen),
         )
     }
+
+    /**
+     * Make [path] readable only by the user who owns it.
+     *
+     * `mkdirs` uses the process umask, which is `022` on a typical Linux or macOS account —
+     * so the profile directory is created `0755` and **any other user on the machine can read
+     * it**. That directory holds every solution the learner has written and, on desktop, the
+     * WebDAV password in the clear. On a shared machine or a multi-user server that is a real
+     * exposure, and it is invisible: nothing about the app suggests the files are readable.
+     *
+     * Android needs no equivalent — app-private storage is already per-UID — which is why
+     * this lives in `:desktopApp` rather than in the shared layer.
+     *
+     * Best-effort by design. A `FileSystem` without POSIX permissions (Windows, some network
+     * mounts) throws `UnsupportedOperationException`, and on Windows the equivalent ACL work
+     * is a different API with different semantics. Failing to tighten permissions must not
+     * stop a learner opening their profile, so this reports nothing and changes nothing on
+     * platforms it cannot help.
+     *
+     * @return true if the permissions were applied, for the test to distinguish "did it" from
+     *   "silently could not".
+     */
+    internal fun restrictToOwner(path: File): Boolean = runCatching {
+        java.nio.file.Files.setPosixFilePermissions(
+            path.toPath(),
+            java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"),
+        )
+        true
+    }.getOrDefault(false)
 
     const val DATABASE_NAME: String = "beecode.db"
 }
