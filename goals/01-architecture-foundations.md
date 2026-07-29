@@ -16,7 +16,7 @@ flowchart TD
     subgraph LocalCore["Offline local core"]
         Domain["Domain ports + events"]
         Store["Local database adapter"]
-        FSRS["Bee FSRS 7 adapter"]
+        FSRS["Bee FSRS adapter"]
         Runner["Python runner adapters"]
     end
     subgraph OptionalSocial["Optional social"]

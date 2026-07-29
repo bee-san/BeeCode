@@ -62,17 +62,40 @@ everything.
 ## On the "FSRS 7" label
 
 kanji_anki's README describes its scheduler as "FSRS 7". BeeCode and bee-fsrs both label
-it **FSRS-6.x, 21-parameter snapshot**, because:
+it **FSRS-6.x, 21-parameter snapshot**. That is correct, but an earlier revision of this
+ADR justified it with a false claim, and the correction matters more than the label.
 
-- upstream `open-spaced-repetition/py-fsrs` has published no v7; its latest release is
-  `v6.3.1`, which this ports;
-- kanji_anki's own planning notes say *"Algorithm label is FSRS-6-family 21-parameter
-  snapshot, not FSRS-7 unless upstream explicitly labels it that way"*;
-- 21 parameters matches the FSRS-6 family.
+**FSRS-7 exists.** It is `models/fsrs_v7.py` in
+[`open-spaced-repetition/srs-benchmark`](https://github.com/open-spaced-repetition/srs-benchmark),
+described there as "the newest version": 35 parameters, fractional interval lengths, and
+a forgetting curve mixing two power laws under eight optimizable parameters. This ADR
+previously stated that upstream "has published no v7". That was wrong.
 
-The kanji_anki README line is the inaccurate one. Every BeeCode schedule transition
-records the algorithm label and parameter hash, so if upstream does publish a v7, old
-rows stay interpretable and adopting it is a gated decision rather than a relabel.
+**The engine here is still FSRS-6.x**, and the evidence is the parameter vector rather
+than anyone's prose: `PARAMETER_COUNT` is 21, and the 21 defaults are byte-exact
+py-fsrs `v6.3.1`. FSRS-7's vector is 35 long and its first four initial-stability values
+differ. `FsrsProvenanceTest` now asserts both directions — that the count is 21, and that
+the defaults are *not* FSRS-7's — so the distinction is enforced by a number.
+
+**Adopting FSRS-7 is a project, not a version bump.** No published scheduler library
+ships it: not py-fsrs, fsrs-rs, ts-fsrs, or Anki. It exists only as PyTorch and Rust
+benchmark code, so there is no released artifact to vendor, and porting it would need
+its own reference vectors. It also changes the shape of persisted state — 35 parameters
+and fractional intervals rather than integer days — so `SRS-009`'s
+preserve/reschedule/recompute machinery is the path, not a relabel.
+
+Every BeeCode schedule transition records the algorithm label and the parameter hash,
+which is what keeps that door open: old rows stay interpretable under a future engine.
+
+### The plan's wording needs a decision
+
+`goals/` still commits to "FSRS 7" in 12 places, including the year-one committed scope
+and the M0 gate. Those were written when "FSRS 7" was taken to mean "the user's
+current engine". Now that the two are known to be different algorithms, the plan is
+either promising a 35-parameter port nobody has released, or it means FSRS-6.x and
+should say so. **Shipped behaviour is FSRS-6.x**; the plan text is the part that is out
+of date, and reconciling it is deliberately left as an open decision rather than being
+silently rewritten to match what was built.
 
 ## Consequences
 

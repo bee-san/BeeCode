@@ -1,5 +1,15 @@
 # BeeCode year-one execution plan
 
+> **Open decision: the "FSRS 7" commitments below need reconciling.** This plan
+> says "FSRS 7" in the committed scope, the M0 gate, and the M2 milestone. The
+> engine that was built and shipped is **FSRS-6.x, 21 parameters**. FSRS-7 is a
+> real but different algorithm — **35 parameters**, fractional intervals, shipped
+> in no scheduler library, existing only as benchmark research code. Adopting it
+> would be an `SRS-009` migration, not a dependency bump. The plan text is the
+> out-of-date part; it is deliberately left standing rather than rewritten to
+> match what was built. See
+> [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
+
 The 164 target goals are the north-star product plan, not a claim that one
 developer can verify all 164 in 52 weeks. Completing the entire plan to its
 written release gates is more plausibly an 18–30 month programme.

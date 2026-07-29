@@ -29,13 +29,36 @@ class FsrsProvenanceTest {
 
     @Test
     fun theAlgorithmIsTheFsrs6TwentyOneParameterSnapshot() {
-        // Deliberately FSRS-6.x, not "FSRS 7". Upstream py-fsrs has published no v7,
-        // and kanji_anki's own planning notes say the label should be the FSRS-6
-        // family unless upstream says otherwise. If upstream ever does publish a v7,
-        // this test is what forces the change to be a decision rather than a drift.
+        // FSRS-6.x, not FSRS-7. FSRS-7 is real — it is defined in
+        // open-spaced-repetition/srs-benchmark as models/fsrs_v7.py — but it carries
+        // 35 parameters and fractional intervals, so the parameter count below is
+        // what distinguishes the two, and it is checked rather than asserted in prose.
+        //
+        // No published scheduler library ships FSRS-7 (not py-fsrs, fsrs-rs, ts-fsrs,
+        // or Anki), so adopting it means porting research code and migrating stored
+        // memory state. This test is what forces that to be a decision with a visible
+        // fixture diff rather than a drift under an existing learner's history.
         assertEquals("FSRS-6.x 21-parameter snapshot", FsrsAlgorithmInfo.ALGORITHM_LABEL)
         assertEquals(21, FsrsAlgorithmInfo.PARAMETER_COUNT)
         assertEquals(21, FsrsParameters.PARAMETER_COUNT)
+    }
+
+    @Test
+    fun theEngineIsNotTheThirtyFiveParameterFsrs7() {
+        // Stated as its own assertion because the difference is a number, not a label.
+        // FSRS-7's parameter vector is 35 long (indices 0-34) and its first four
+        // initial-stability values differ from FSRS-6's, so either check separates
+        // them without trusting a README.
+        assertEquals(21, FsrsParameters.PARAMETER_COUNT)
+        val fsrs7FirstFour = doubleArrayOf(0.041, 2.4175, 4.1283, 11.9709)
+        val actual = FsrsDefaults.parameters()
+        fsrs7FirstFour.forEachIndexed { index, fsrs7Value ->
+            assertTrue(
+                actual[index] != fsrs7Value,
+                "parameter $index matches FSRS-7's default; the engine may have been " +
+                    "swapped without updating ALGORITHM_LABEL",
+            )
+        }
     }
 
     @Test

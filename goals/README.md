@@ -36,10 +36,13 @@ live cross-device study-history synchronization.
    work without an account or network.
 3. A Problem is repository-native content, not a row hand-authored in a central
    registry.
-4. Scheduling uses the user's FSRS 7 implementation from the dedicated
+4. Scheduling uses the user's FSRS implementation from the dedicated
    `bee-san/bee-fsrs` GitHub repository/package. It is extracted once with
    provenance from `bee-san/kanji_anki`, released independently, pinned, and
-   tested separately from BeeCode policy.
+   tested separately from BeeCode policy. (What ships is **FSRS-6.x, 21
+   parameters**; where these documents say "FSRS 7" that is an open decision, not
+   a description of the build — see
+   [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).)
 5. Learner source code, test output, and FSRS memory state stay local.
 6. A passing test run is evidence, not automatically a finalized review.
 7. Every finalized review is idempotent and traceable to one review session.

@@ -1,7 +1,19 @@
 # Target 04: reviews and FSRS
 
+> **Open decision: "FSRS 7" in this document is inaccurate.** The plan documents
+> under `goals/` still say "FSRS 7" in 12 places. The engine extracted from
+> `kanji_anki` is **FSRS-6.x, 21 parameters** — verified by parameter count and
+> by defaults byte-exact to py-fsrs `v6.3.1`, and self-labelled that way in
+> `FsrsAlgorithmInfo.kt`. FSRS-7 is a different algorithm that genuinely exists
+> (`models/fsrs_v7.py` in `open-spaced-repetition/srs-benchmark`): **35
+> parameters**, fractional intervals, an 8-parameter mixed-power forgetting
+> curve, and shipped in **no** scheduler library. So the plan is currently
+> either committing to porting unreleased research code, or it means FSRS-6.x.
+> Shipped behaviour is FSRS-6.x. The wording is not silently rewritten to match
+> the build; see [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
+
 This target turns a Problem attempt into durable study history and a future due
-date using the user's FSRS 7 implementation from the planned reusable
+date using the user's FSRS implementation from the planned reusable
 `bee-san/bee-fsrs` GitHub repository/package. Its initial source is extracted
 with provenance from
 [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki).
@@ -17,7 +29,7 @@ flowchart LR
     Rating["Learner rating"] --> Policy
     Previous["Persisted memory state"] --> Adapter["Scheduler adapter"]
     Policy --> Adapter
-    Adapter --> Engine["Bee FSRS 7 engine"]
+    Adapter --> Engine["Bee FSRS engine"]
     Engine --> Decision["Next state + interval"]
     Decision --> Transaction["Atomic review transaction"]
 ```

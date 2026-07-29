@@ -104,7 +104,7 @@ milestone. Personal sync is now planned along different lines — see
 - A shared KMP domain/application layer with platform adapter interfaces.
 - SQLite as local authority, with SQLDelight as the leading shared schema/
   migration candidate.
-- User's Kotlin FSRS 7 engine extracted with provenance from
+- User's Kotlin FSRS-6.x engine (21 parameters) extracted with provenance from
   [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki) into the
   independently versioned `bee-san/bee-fsrs` GitHub repository/package. BeeCode
   pins its released artifact and wraps it with a BeeCode-owned scheduler
@@ -206,7 +206,9 @@ alone never mutates FSRS, achievements, or Leaderboards.
 
 ## FSRS boundary
 
-The user's versioned `bee-fsrs` package owns FSRS 7 memory mathematics:
+The user's versioned `bee-fsrs` package owns FSRS-6.x memory mathematics — the
+21-parameter snapshot, not the 35-parameter FSRS-7; see
+[ADR 0004](adr/0004-bee-fsrs-is-its-own-repository.md):
 
 - initial state;
 - retrievability;
