@@ -30,10 +30,10 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Sync between devices | ✅ Settings → Sync | ✅ Settings → Sync |
-| Verified by | 11 Robolectric UI + 19 instrumented tests | 31 JVM tests, 8 of them UI |
+| Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
+| Verified by | 13 Robolectric UI + 19 instrumented tests | 34 JVM tests, 11 of them UI |
 
-**347 automated tests**: 328 JVM tests across nine modules and 19 Android
+**375 automated tests**: 356 JVM tests across nine modules and 19 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -112,8 +112,21 @@ verified now:
 `ActivityEvent` cannot carry source, output, test values, or FSRS state — the type has
 nowhere to put them, and a test asserts the exact field set so adding one is deliberate.
 
-Not built yet: the Leaderboard *server* and UI, and networked sync backends (WebDAV,
-Drive).
+**WebDAV works, on both clients.** A shared file is the zero-setup option; a WebDAV
+server — Nextcloud, ownCloud, Synology, `rclone serve webdav` — is the stronger one,
+because `If-Match` makes the *server* refuse a stale write. That closes the one limitation
+ADR 0002 recorded: the file store's compare-and-swap is a read-verify-write, which cannot
+be made atomic without file locking that behaves differently on every platform. 19 tests
+against a real HTTP server, and no new dependency — `HttpURLConnection` works on every
+Android version BeeCode supports, where `java.net.http` would raise minSdk from 26 to 34.
+
+Sync credentials never leave the device: not in an export, not in a sync payload, not
+merged from a remote one. That needed fixing rather than just adding — export and merge
+excluded exactly one key, so a password would have travelled by default into every backup
+and up to the server it authenticates to.
+
+Not built yet: the Leaderboard *server* and UI, and Google Drive sync (which needs OAuth,
+so WebDAV covers self-hosting without it).
 See [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
