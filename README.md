@@ -28,19 +28,33 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Verified by | 18 instrumented tests on an API 35 x86_64 emulator | 23 JVM tests |
+| Verified by | 9 Robolectric UI + 18 instrumented tests | 23 JVM tests |
 
-**240 automated tests**: 222 JVM tests across eight modules and 18 Android
+**250 automated tests**: 232 JVM tests across nine modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
-One caveat stated plainly: 9 of the Android tests are Compose UI tests that need an
-emulator which accepts injected touch input. They **skip** on the headless
-automated-test-device image this dev host is limited to without `/dev/kvm`, and CI's
-`-no-window` emulator refuses injection too — so **these 9 have not yet run
-anywhere**. They are written and building; whether they pass is unverified. The 9
-behavioural tests — which cover the full study journey, the timeout, and the
-no-network check — have no such requirement and run on every push.
+The Android UI is verified by **Robolectric on the JVM**, and that is a deliberate
+choice rather than a convenience. The equivalent instrumented Compose tests need an
+emulator that accepts injected touch input, and no emulator available to this project
+provides one: this dev host has no `/dev/kvm`, so only Google's automated-test-device
+images boot and they render nothing at all, while CI's `-no-window` emulator refuses
+injection. Those tests therefore skipped in both places — written, compiled, and never
+run. Robolectric removes the emulator from the question, so the 9 UI assertions now run
+on every push and every `./gradlew test`.
+
+Running them found real bugs in the tests themselves: assertions that a node was
+displayed when it sat below the fold of a scrolling column, and a `performScrollTo` on
+rating buttons that live in an always-visible bottom bar and have no scrollable
+ancestor. Both had been invisible precisely because nothing ever executed them.
+
+What Robolectric does **not** prove: real rendering, since its canvas is a no-op, and
+real Python, since these use a scripted runner. Both are covered elsewhere — the
+instrumented `AndroidStudyJourneyTest` runs the journey against Chaquopy and real SQLite
+on a device, and `:content-tools` runs every reference solution through a real
+interpreter. One assertion is also weaker under Robolectric than on a device: the symbol
+row is a horizontal scroller nested in a vertical one, whose children compose with a
+real size but are never placed, so it is asserted by existence rather than by display.
 
 Not built yet: the private Leaderboard, personal cross-device sync, and the wider
 Problem curriculum. See [the year-one plan](goals/YEAR-ONE.md).

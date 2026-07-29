@@ -37,6 +37,12 @@ jobs:
       # Runs every module's tests, including the end-to-end study journey against
       # real CPython and real SQLite, and the content gate that runs each
       # reference solution and requires each starter to fail.
+      #
+      # This also covers :androidApp:testDebugUnitTest — the Robolectric Compose UI
+      # tests. They live here rather than in the instrumented job because they need
+      # no emulator, which is the entire point: the instrumented UI tests skip on
+      # every emulator available to this project, so without these the UI assertions
+      # would run nowhere.
       - name: Test
         run: ./gradlew test --stacktrace
 

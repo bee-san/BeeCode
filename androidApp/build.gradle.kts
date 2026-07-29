@@ -85,6 +85,14 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs the real resources and manifest, not the stubbed
+            // android.jar, to inflate a Compose host activity.
+            isIncludeAndroidResources = true
+        }
+    }
+
     sourceSets {
         getByName("main") {
             java.srcDirs("src/main/kotlin")
@@ -97,6 +105,14 @@ android {
         }
         getByName("androidTest") {
             java.srcDirs("src/androidTest/kotlin")
+        }
+        // `src/testDebug`, not `src/test`. The Robolectric UI tests host content in
+        // ComposeTestHostActivity, which lives in `src/debug` so it never ships in a
+        // release APK. AGP compiles `src/test` into *every* unit-test variant, so
+        // putting them there breaks :compileReleaseUnitTestKotlin with an unresolved
+        // reference — the debug-only variant directory is what scopes them correctly.
+        getByName("testDebug") {
+            java.srcDirs("src/testDebug/kotlin")
         }
     }
 
@@ -145,6 +161,23 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // Robolectric needs the test manifest's host activity on the *unit* test
+    // classpath too; createAndroidComposeRule launches it there just as it does
+    // on a device.
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Local JVM Compose UI tests. These exist because the instrumented UI tests
+    // require an emulator that accepts injected touch input, and neither this dev
+    // host (no /dev/kvm, so only non-rendering ATD images boot) nor CI's -no-window
+    // emulator provides one. Robolectric runs the same assertions against a real
+    // composed tree on the JVM, so the UI is actually verified somewhere.
+    testImplementation(libs.robolectric)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.ext:junit:1.3.0")
+    testImplementation("androidx.test:core:1.7.0")
+    testImplementation(platform("androidx.compose:compose-bom:2025.09.01"))
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Compose UI tests assert the real composed tree, which on a headless test
     // device is stronger evidence than a screenshot: an ATD image renders no
