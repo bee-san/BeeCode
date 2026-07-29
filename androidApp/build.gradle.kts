@@ -213,9 +213,23 @@ val extractSqliteNatives by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/beecode-jniLibs"))
 }
 
+// Matched by name for the same reason as the native-lib wiring below: these are AGP
+// internals, and pointing a source set at a generated directory does not by itself
+// establish the task dependency Gradle requires. Lint's model writer reads the asset
+// directory too, so `./gradlew build` fails without this even though `assembleDebug`
+// succeeds.
 tasks.withType<com.android.build.gradle.tasks.MergeSourceSetFolders>().configureEach {
     dependsOn(bundleProblemPack)
 }
+
+tasks.matching { it.name.startsWith("generate") && it.name.contains("LintReportModel") }
+    .configureEach { dependsOn(bundleProblemPack, extractSqliteNatives) }
+
+tasks.matching { it.name.startsWith("generate") && it.name.contains("LintVitalReportModel") }
+    .configureEach { dependsOn(bundleProblemPack, extractSqliteNatives) }
+
+tasks.matching { it.name.startsWith("lint") }
+    .configureEach { dependsOn(bundleProblemPack, extractSqliteNatives) }
 
 // Matched by name rather than by type: the merge tasks are AGP internals that are
 // not on the buildscript classpath, and pointing a source set at a generated
