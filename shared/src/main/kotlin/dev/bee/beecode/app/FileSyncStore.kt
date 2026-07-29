@@ -73,6 +73,16 @@ class FileSyncStore(private val file: File) : SyncStore {
             // itself be interrupted half-written.
             val temporary = File(file.parentFile, "${file.name}.tmp")
             temporary.writeText(payloadText)
+            // The snapshot contains the learner's source code, and a default umask of 022
+            // makes it 0644 — readable by every other user on the machine. Applied to the
+            // temporary file *before* the rename, so the payload is never briefly readable
+            // under its final name.
+            //
+            // Best-effort: a filesystem without POSIX permissions throws, and the learner
+            // deliberately chose a folder something else syncs, so failing the write over a
+            // permission bit would be the wrong trade. Reported nowhere because there is
+            // nothing useful a learner could do about it.
+            restrictToOwner(temporary)
             if (!temporary.renameTo(file)) {
                 // Windows and some network filesystems refuse a rename onto an existing
                 // file. Falling back to delete-then-rename reopens a small window where
@@ -91,6 +101,20 @@ class FileSyncStore(private val file: File) : SyncStore {
             SyncOutcome.Unavailable("Not allowed to write ${file.name}: ${e.message}")
         }
     }
+
+    /**
+     * Make [target] readable only by its owner, where the platform supports it.
+     *
+     * Returns whether it worked, so a test can distinguish "applied" from "unsupported"
+     * rather than passing either way.
+     */
+    internal fun restrictToOwner(target: File): Boolean = runCatching {
+        java.nio.file.Files.setPosixFilePermissions(
+            target.toPath(),
+            java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"),
+        )
+        true
+    }.getOrDefault(false)
 
     private fun tokenFor(text: String): String =
         MessageDigest.getInstance("SHA-256")

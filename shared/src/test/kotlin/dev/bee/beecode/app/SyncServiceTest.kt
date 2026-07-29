@@ -257,6 +257,32 @@ class SyncServiceTest {
         }
     }
 
+    @Test
+    fun theSyncFileIsNotReadableByOtherUsers() {
+        // The snapshot contains the learner's source code, and a default umask of 022 would
+        // make it 0644 — readable by every other user on the machine. The learner chose a
+        // folder that something else replicates, which does not mean they chose to share it
+        // with everyone logged into the same box.
+        //
+        // Skipped where POSIX permissions do not exist, because the production code is
+        // best-effort there and asserting an absent capability would be a false failure.
+        org.junit.Assume.assumeTrue(
+            "this filesystem has no POSIX permissions",
+            java.nio.file.Files.getFileStore(directory.toPath()).supportsFileAttributeView("posix"),
+        )
+        val phone = device()
+        solve(phone, "two-sum", ReviewRating.GOOD)
+        assertIs<SyncReport.Completed>(sync(phone))
+
+        val permissions = java.nio.file.Files.getPosixFilePermissions(remote.toPath())
+        assertTrue(
+            permissions.none { it.name.startsWith("GROUP_") || it.name.startsWith("OTHERS_") },
+            "the sync file must not be readable by others, found: $permissions",
+        )
+        // And the owner can still read it back, which is the point.
+        assertIs<SyncOutcome.Success<SyncSnapshot?>>(runBlocking { FileSyncStore(remote).pull() })
+    }
+
     // ---- Fixtures ------------------------------------------------------------
 
     /** A fresh device: its own in-memory database over the real Problem pack. */
