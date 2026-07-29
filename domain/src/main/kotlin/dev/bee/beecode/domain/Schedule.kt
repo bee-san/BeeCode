@@ -83,36 +83,43 @@ fun formatIntervalDays(intervalDays: Double): String {
         "intervalDays must be finite and positive"
     }
 
-    val minutes = intervalDays * MINUTES_PER_DAY
-    if (minutes < 1.0) {
-        // Rounded up, not to zero: "in 0 minutes" would read as a bug, and the
+    // Each unit is rounded *before* being compared against its own ceiling. Comparing
+    // the unrounded value would let a unit's top edge round up into a quantity of
+    // itself that the next unit already names: 0.99 days is 23.76 hours, which rounds
+    // to 24, and "24 hours" is a worse way to say "1 day".
+    val minutes = Math.round(intervalDays * MINUTES_PER_DAY)
+    if (minutes < 1L) {
+        // Not "0 minutes", which would read as a bug rather than a schedule. The
         // honest statement about a sub-minute interval is that it is due now.
         return "less than a minute"
     }
     if (minutes < MINUTES_PER_HOUR) {
-        return pluralize(Math.round(minutes), "minute")
+        return pluralize(minutes, "minute")
     }
 
-    val hours = intervalDays * HOURS_PER_DAY
+    val hours = Math.round(intervalDays * HOURS_PER_DAY)
     if (hours < HOURS_PER_DAY) {
-        return pluralize(Math.round(hours), "hour")
+        return pluralize(hours, "hour")
     }
 
     val days = Math.round(intervalDays)
     if (days < DAYS_PER_MONTH) {
         return pluralize(days, "day")
     }
-    if (days < DAYS_PER_YEAR) {
-        return pluralize(Math.round(intervalDays / DAYS_PER_MONTH), "month")
+
+    val months = Math.round(intervalDays / DAYS_PER_MONTH)
+    if (months < MONTHS_PER_YEAR) {
+        return pluralize(months, "month")
     }
     return pluralize(Math.round(intervalDays / DAYS_PER_YEAR), "year")
 }
 
 private const val MINUTES_PER_DAY = 1_440.0
-private const val MINUTES_PER_HOUR = 60.0
-private const val HOURS_PER_DAY = 24.0
-private const val DAYS_PER_MONTH = 30L
-private const val DAYS_PER_YEAR = 365L
+private const val MINUTES_PER_HOUR = 60L
+private const val HOURS_PER_DAY = 24L
+private const val DAYS_PER_MONTH = 30.0
+private const val DAYS_PER_YEAR = 365.0
+private const val MONTHS_PER_YEAR = 12L
 
 private fun pluralize(count: Long, unit: String): String =
     if (count == 1L) "1 $unit" else "$count ${unit}s"

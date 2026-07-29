@@ -1,6 +1,7 @@
 package dev.bee.beecode.persistence
 
 import dev.bee.beecode.domain.ProblemId
+import dev.bee.beecode.fsrs.BeeCodeScheduler
 import dev.bee.beecode.domain.ReviewSessionId
 import java.io.File
 import java.sql.Connection
@@ -33,10 +34,11 @@ class SchemaMigrationTest {
 
             BeeCodeDatabase.open(path).use { database ->
                 assertEquals(2, database.schemaVersion())
+                val repository = ReviewRepository(database, BeeCodeScheduler())
 
                 // The schedule row survived, and its whole-day interval reads back
                 // as the same number now that the column is fractional.
-                val schedule = assertNotNull(ScheduleRepository(database).schedule(ProblemId("two-sum")))
+                val schedule = assertNotNull(repository.schedule(ProblemId("two-sum")))
                 assertEquals(7.0, schedule.intervalDays)
                 assertEquals(4.5, schedule.stability)
                 assertEquals(6.25, schedule.difficulty)
@@ -47,10 +49,7 @@ class SchemaMigrationTest {
                 // The append-only review log survived with its FSRS audit intact.
                 // This is the part that must not be lost: it is what makes an old
                 // row explainable after the engine changed underneath it.
-                val review = assertNotNull(
-                    ReviewRepository(database, dev.bee.beecode.fsrs.BeeCodeScheduler())
-                        .review(ReviewSessionId("session-1")),
-                )
+                val review = assertNotNull(repository.review(ReviewSessionId("session-1")))
                 assertEquals("FSRS-6.x 21-parameter snapshot", review.transition.algorithmId)
                 assertEquals("bee-fsrs-0.1.0", review.transition.engineVersion)
                 assertEquals(5.0, review.transition.elapsedDays)
@@ -79,7 +78,9 @@ class SchemaMigrationTest {
                     }
                 }
 
-                val schedule = assertNotNull(ScheduleRepository(database).schedule(ProblemId("two-sum")))
+                val schedule = assertNotNull(
+                    ReviewRepository(database, BeeCodeScheduler()).schedule(ProblemId("two-sum")),
+                )
                 assertEquals(10.0 / 1_440.0, schedule.intervalDays)
                 assertTrue(schedule.intervalDays > 0.0, "a ten-minute interval must not round to zero")
             }
@@ -123,7 +124,7 @@ class SchemaMigrationTest {
             // from no longer exists, so a re-run would fail rather than no-op.
             BeeCodeDatabase.open(path).use { database ->
                 assertEquals(2, database.schemaVersion())
-                assertNotNull(ScheduleRepository(database).schedule(ProblemId("two-sum")))
+                assertNotNull(ReviewRepository(database, BeeCodeScheduler()).schedule(ProblemId("two-sum")))
             }
         }
     }
