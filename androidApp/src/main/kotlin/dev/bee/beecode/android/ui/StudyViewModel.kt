@@ -250,6 +250,26 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         profile.settings.setSyncFilePath(uri, kotlinx.datetime.Clock.System.now())
     }
 
+    /** The WebDAV file URL this device syncs through, or null when unset. */
+    fun webDavUrl(): String? = profile.settings.syncWebDavUrl()
+
+    fun webDavUsername(): String? = profile.settings.syncWebDavUsername()
+
+    fun webDavPassword(): String? = profile.settings.syncWebDavPassword()
+
+    /**
+     * Remember WebDAV settings so a learner does not retype them.
+     *
+     * Blank values clear to null rather than storing an empty string, which would read as
+     * "configured" everywhere else in the app.
+     */
+    fun setWebDav(url: String?, username: String?, password: String?) {
+        val now = kotlinx.datetime.Clock.System.now()
+        profile.settings.setSyncWebDavUrl(url?.ifBlank { null }, now)
+        profile.settings.setSyncWebDavUsername(username?.ifBlank { null }, now)
+        profile.settings.setSyncWebDavPassword(password?.ifBlank { null }, now)
+    }
+
     /**
      * Run one sync against [store], then refresh every derived view.
      *

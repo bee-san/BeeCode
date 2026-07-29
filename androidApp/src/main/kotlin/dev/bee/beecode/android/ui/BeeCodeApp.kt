@@ -27,6 +27,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,6 +59,7 @@ import dev.bee.beecode.android.DocumentSyncStore
 import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.SyncReport
+import dev.bee.beecode.app.WebDavSyncStore
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.domain.ProblemDefinition
@@ -512,6 +516,9 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncTarget by remember { mutableStateOf(viewModel.syncTarget()) }
+    var webDavUrl by remember { mutableStateOf(viewModel.webDavUrl() ?: "") }
+    var webDavUser by remember { mutableStateOf(viewModel.webDavUsername() ?: "") }
+    var webDavPassword by remember { mutableStateOf(viewModel.webDavPassword() ?: "") }
     var syncMessage by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
@@ -733,6 +740,84 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                         }) { Text("Turn off") }
                     }
                 }
+                HorizontalDivider(Modifier.padding(vertical = 14.dp))
+
+                Text("Or a WebDAV server", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Stronger if you have one — Nextcloud, ownCloud, Synology. The server " +
+                        "checks for a conflicting write itself, so two devices syncing at " +
+                        "the same moment cannot overwrite each other; a shared file relies " +
+                        "on the two syncs not overlapping.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The address must point at a file, not a folder. https is required: the " +
+                        "password is sent with every request, and so are your solutions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = webDavUrl,
+                    onValueChange = { webDavUrl = it },
+                    label = { Text("WebDAV file URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = webDavUser,
+                    onValueChange = { webDavUser = it },
+                    label = { Text("Username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = webDavPassword,
+                    onValueChange = { webDavPassword = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    // Masked so it is not readable over a shoulder. That does not change
+                    // where it is stored, which is why the note below says so plainly.
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The password is stored on this device unencrypted, and is never " +
+                        "included in an export or uploaded with your study data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    enabled = webDavUrl.isNotBlank() && !syncing,
+                    onClick = {
+                        syncing = true
+                        syncMessage = null
+                        viewModel.setWebDav(webDavUrl, webDavUser, webDavPassword)
+                        settingsScope.launch {
+                            val built = WebDavSyncStore.create(
+                                url = webDavUrl,
+                                username = webDavUser.ifBlank { null },
+                                password = webDavPassword.ifBlank { null },
+                            )
+                            syncMessage = built.fold(
+                                onSuccess = { viewModel.sync(it).describe() },
+                                // A rejected configuration is a message, not a crash: the
+                                // learner needs to know it was the https rule or the folder
+                                // address rather than watching a sync fail obscurely.
+                                onFailure = { it.message ?: "That WebDAV address cannot be used." },
+                            )
+                            syncing = false
+                        }
+                    },
+                ) { Text(if (syncing) "Syncing…" else "Sync with WebDAV") }
+
                 syncMessage?.let { message ->
                     Spacer(Modifier.height(10.dp))
                     Text(

@@ -304,6 +304,42 @@ class BeeCodeUiRobolectricTest {
     }
 
     @Test
+    fun theWebDavOptionIsOfferedAndStatesItsRequirements() {
+        // Mirrors the desktop assertion deliberately: where the two clients make the same
+        // promise, a divergence should fail on one and not the other. Both constraints must
+        // be visible before a learner types a credential, not discovered afterwards.
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Or a WebDAV server").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("WebDAV file URL").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("https is required", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText("unencrypted", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText("cannot overwrite each other", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun webDavSettingsArePersistedSoTheyAreNotRetyped() {
+        // Written through the ViewModel rather than by driving three text fields: the
+        // assertion worth making is that blank clears to null instead of storing an empty
+        // string, which would read as "configured" everywhere else in the app.
+        launch()
+        val model = StudyViewModel(profile)
+        model.setWebDav("https://cloud.example.com/beecode-sync.json", "someone", "hunter2")
+        assertEquals("https://cloud.example.com/beecode-sync.json", profile.settings.syncWebDavUrl())
+        assertEquals("someone", profile.settings.syncWebDavUsername())
+
+        model.setWebDav("https://cloud.example.com/beecode-sync.json", "", "")
+        assertEquals(null, profile.settings.syncWebDavUsername())
+        assertEquals(null, profile.settings.syncWebDavPassword())
+    }
+
+    @Test
     fun theDailyLimitCanBeChangedFromSettings() {
         launch()
         compose.onNodeWithText("Settings").performClick()
