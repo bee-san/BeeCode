@@ -100,6 +100,11 @@ object SnapshotMerge {
             settingsFromRemote = settings.count { (key, value) ->
                 remote.settings[key] == value.first && local.settings[key] != value.first
             },
+            localOnlyReviews = reviews.localOnly,
+            localOnlyDrafts = drafts.localOnly,
+            localOnlySettings = settings.count { (key, value) ->
+                local.settings[key] == value.first && remote.settings[key] != value.first
+            },
         )
     }
 
@@ -121,6 +126,7 @@ object SnapshotMerge {
         for (review in remote) {
             if (bySession.putIfAbsent(review.sessionId, review) == null) fromRemote++ else alreadyPresent++
         }
+        val remoteSessions = remote.mapTo(HashSet()) { it.sessionId }
         return ReviewMerge(
             // Sorted by finalization instant so the merged log reads chronologically and
             // two devices merging the same pair produce byte-identical output — which is
@@ -128,6 +134,7 @@ object SnapshotMerge {
             merged = bySession.values.sortedWith(compareBy({ it.finalizedAtEpochMillis }, { it.sessionId })),
             fromRemote = fromRemote,
             alreadyPresent = alreadyPresent,
+            localOnly = local.count { it.sessionId !in remoteSessions },
         )
     }
 
@@ -150,10 +157,19 @@ object SnapshotMerge {
                 else -> keptLocal++
             }
         }
+        val remoteByProblem = remote.associateBy { it.problemId }
         return DraftMerge(
             merged = byProblem.values.sortedBy { it.problemId },
             fromRemote = fromRemote,
             keptLocal = keptLocal,
+            // Strictly newer, not `>=`. A draft the remote already has at the same
+            // timestamp is not something this device needs to contribute, and counting
+            // it as such made every idle sync push — bumping the remote's token for no
+            // reason and giving every other device a spurious conflict.
+            localOnly = local.count { draft ->
+                val counterpart = remoteByProblem[draft.problemId]
+                counterpart == null || draft.updatedAtEpochMillis > counterpart.updatedAtEpochMillis
+            },
         )
     }
 
@@ -189,12 +205,16 @@ object SnapshotMerge {
         val merged: List<WireReview>,
         val fromRemote: Int,
         val alreadyPresent: Int,
+        /** Present locally and absent remotely — i.e. this device has work to push. */
+        val localOnly: Int,
     )
 
     private data class DraftMerge(
         val merged: List<WireDraft>,
         val fromRemote: Int,
         val keptLocal: Int,
+        /** Newer locally, or absent remotely — i.e. this device has work to push. */
+        val localOnly: Int,
     )
 
     /**
@@ -225,6 +245,16 @@ sealed interface MergeResult {
         val draftsFromRemote: Int,
         val draftsKeptLocal: Int,
         val settingsFromRemote: Int,
+        /**
+         * How much this device holds that the remote does not.
+         *
+         * Used by [SyncService] to decide whether a push is worth making: pushing when
+         * the remote is already a superset only bumps its concurrency token, which makes
+         * every *other* device see a spurious conflict on its next sync.
+         */
+        val localOnlyReviews: Int = 0,
+        val localOnlyDrafts: Int = 0,
+        val localOnlySettings: Int = 0,
     ) : MergeResult {
         /** Whether the merge changed anything relative to the local snapshot. */
         val changedAnything: Boolean

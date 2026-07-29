@@ -1,6 +1,6 @@
 # ADR 0002 — Personal sync direction (snapshot merge, not activity outbox)
 
-- Status: accepted; **merge implemented**, storage backends deferred
+- Status: accepted; **merge and loop implemented over a file store**; networked backends deferred
 - Date: 2026-07-29
 - Supersedes nothing; constrains `goals/08-leaderboards.md` and
   `docs/architecture.md`
@@ -81,9 +81,9 @@ A fourth property, now also in place:
 
 ## Deliberate non-decisions
 
-- Which backends ship first. Drive needs OAuth; WebDAV needs almost nothing.
-  WebDAV or a plain file is the likely first target because it is testable
-  without a Google Cloud project.
+- ~~Which backends ship first.~~ **Resolved: a plain file first**, for exactly the
+  reason given — testable with no Google Cloud project and no credentials. WebDAV and
+  Drive remain deferred.
 - ~~Whether FSRS state merges by `updatedAt` or is **recomputed** from the merged
   append-only review log.~~ **Resolved: recomputed.** See "What is built" below.
 - Whether sync lands before or after the Leaderboard. It is now plausibly
@@ -121,8 +121,35 @@ schedules; restoring replays the merged review log to rebuild them, and
 the option the "deliberate non-decisions" section called the leading candidate, and it
 is only correct because reviews are append-only.
 
-Still deferred, and genuinely so: the storage backends (WebDAV, a plain file, Drive),
-the ETag/CAS push loop, and the UI. Those are plumbing over a verified merge.
+`SyncService.sync()` is the loop: export local, pull remote, merge, **restore locally,
+then push** under the compare-and-swap. That order is deliberate — if the push fails the
+local profile has already absorbed the remote's work, so nothing is lost and the next
+sync sends it. Reversed, a crash between push and restore would leave the remote holding
+reviews this device never applied. The pushed snapshot is always the *merged* one; pushing
+local-only would discard the other device's reviews on every sync, which is the classic
+way a sync feature eats data. A lost CAS re-pulls and retries up to
+`MAX_ATTEMPTS`; a push is never forced.
+
+`FileSyncStore` is the first backend, exactly as this ADR predicted: a file in a folder
+Dropbox, Syncthing, or a network share already replicates, giving working sync with no
+credentials and no BeeCode server. Its concurrency token is a **SHA-256 of the contents**
+rather than a modification time — stable across coarse-resolution filesystems, and it
+gives two devices that computed the same merge the same token, which is precisely what the
+merge's determinism was for. Writes go via a sibling temp file and a rename, because a
+truncated snapshot looks valid and a stale one does not.
+
+Verified by 11 loop tests over two real profiles and a real file, including a genuine
+lost race (a second device's full sync interposed before the push). Both dangerous
+mutations are caught: pushing local instead of merged, and skipping the local restore.
+
+**Known limitation.** `FileSyncStore`'s compare-and-swap is a read-verify-write, not an
+atomic one. It closes the realistic window — two devices minutes apart — but not a truly
+simultaneous write, and it cannot without file locking that behaves differently on every
+platform and network filesystem. A real HTTP backend with a genuine ETag is the better
+long-term target for that reason.
+
+Still deferred: networked backends (WebDAV, Drive), and the sync UI. Those are plumbing
+over a verified merge and a verified loop.
 
 ## Status of the year-one plan
 

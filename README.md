@@ -7,7 +7,9 @@ and run Python solutions inside each review.
 
 Python is what you *write* — the scheduling engine is Kotlin.
 
-Everything is local. There is no account, no server, and no network access.
+Everything is local. There is no account and no BeeCode server — studying needs no
+network at all, and the Android app declares no permissions. Optional cross-device sync
+writes a snapshot to a file *you* choose, in storage you already own.
 
 The product is built around **Problems**, not generic cards:
 
@@ -30,7 +32,7 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Verified by | 9 Robolectric UI + 18 instrumented tests | 29 JVM tests, 6 of them UI |
 
-**274 automated tests**: 256 JVM tests across nine modules and 18 Android
+**285 automated tests**: 267 JVM tests across nine modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -67,18 +69,25 @@ of them hidden. That meets the year-one target of 12–20, and it covers all fou
 comparators; `any_of` and `approximate_numeric` had been implemented but unused by any
 Problem, so those code paths shipped untested.
 
-**Cross-device sync is half-built, and it is the correctness half.**
-`SnapshotMerge.merge(local, remote)` implements the chimahon model from
-[ADR 0002](docs/adr/0002-personal-sync-direction.md) as a pure function of two exported
-snapshots: reviews merge by set union on session, drafts and settings by last-write-wins,
-schedules are replayed from the merged log rather than merged, and the device identity is
-never merged. It is commutative and byte-deterministic, which is what makes the planned
-ETag compare-and-swap work at all. 18 tests, every rule mutation-checked. What is missing
-is a storage backend (WebDAV, a file, Drive) and the push loop — plumbing over a verified
-merge, rather than the part where data gets lost.
+**Cross-device sync works, over a file you own.** It follows the chimahon model in
+[ADR 0002](docs/adr/0002-personal-sync-direction.md): pull, merge, apply locally, then
+push under a compare-and-swap. Point two devices at the same file in a Dropbox,
+Syncthing, or network-share folder and they converge — no account, no BeeCode server, no
+OAuth.
 
-Not built yet: the private Leaderboard, and sync's storage backends. See
-[the year-one plan](goals/YEAR-ONE.md).
+The merge is where data would be lost, so it is a pure function of two snapshots: reviews
+by set union on session, drafts and settings by last-write-wins, schedules **replayed**
+from the merged log rather than merged, and the device identity never merged. It is
+commutative and byte-deterministic, which is what makes the compare-and-swap meaningful —
+two devices computing the same merge must agree on its token. A lost race re-pulls and
+retries; a push is never forced.
+
+29 tests over the merge and the loop, with both mutation-checked: inverting any merge
+comparison, pushing the local snapshot instead of the merged one, or skipping the local
+restore each fail named tests.
+
+Not built yet: the private Leaderboard, sync UI, and networked backends (WebDAV, Drive).
+See [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
 
