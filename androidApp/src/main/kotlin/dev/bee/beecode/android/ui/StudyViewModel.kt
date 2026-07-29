@@ -6,6 +6,8 @@ import dev.bee.beecode.app.AchievementProjection
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
+import dev.bee.beecode.app.ProfileTransfer
+import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * UI state for the study loop.
@@ -213,6 +216,34 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun dailyLimit(): Int? = profile.settings.dailyReviewLimit()
+
+    /**
+     * Serialize the whole profile for the learner to save.
+     *
+     * The caller writes the bytes wherever the learner chose. This returns the
+     * payload rather than taking a path because file access on Android goes through
+     * a document picker the Activity owns.
+     *
+     * The payload contains the learner's source code, so whatever writes it must
+     * treat it as sensitive.
+     */
+    fun exportProfile(): String =
+        ProfileTransfer.export(profile, kotlinx.datetime.Clock.System.now())
+
+    /** Restore a payload the learner picked, then refresh every derived view. */
+    fun restoreProfile(payload: String): RestoreResult {
+        val result = ProfileTransfer.restore(profile, payload, kotlinx.datetime.Clock.System.now())
+        refresh()
+        return result
+    }
+
+    /** A suggested file name, so exports are self-describing on disk. */
+    fun suggestedExportName(): String {
+        val today = kotlinx.datetime.Clock.System.now()
+            .toLocalDateTime(profile.settings.streakZone())
+            .date
+        return "beecode-$today.json"
+    }
 
     override fun onCleared() {
         persistDraft()

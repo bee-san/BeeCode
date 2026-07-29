@@ -30,8 +30,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bee.beecode.app.AchievementState
+import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.domain.ProblemDefinition
@@ -498,6 +505,46 @@ private fun AchievementRow(state: AchievementState) {
 @Composable
 private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
+    var transferMessage by remember { mutableStateOf<String?>(null) }
+    // Captured once here: LocalContext is a composable read and cannot be called
+    // from inside the picker callbacks, which run outside composition.
+    val contentResolver = LocalContext.current.contentResolver
+
+    // Document pickers rather than direct file paths: Android's storage model means
+    // the learner chooses the location, and BeeCode never needs a storage permission
+    // as a result. That is why the manifest declares none.
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        transferMessage = if (uri == null) {
+            null
+        } else {
+            runCatching {
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(viewModel.exportProfile().encodeToByteArray())
+                } ?: error("could not open the chosen file for writing")
+                "Exported. This file contains your solutions, so keep it somewhere private."
+            }.getOrElse { "Export failed: ${it.message}" }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        transferMessage = if (uri == null) {
+            null
+        } else {
+            runCatching {
+                val payload = contentResolver.openInputStream(uri)
+                    ?.use { it.readBytes().decodeToString() }
+                    ?: error("could not open the chosen file")
+                when (val result = viewModel.restoreProfile(payload)) {
+                    is RestoreResult.Restored -> result.describe()
+                    is RestoreResult.Failed -> result.reason
+                }
+            }.getOrElse { "Restore failed: ${it.message}" }
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -567,6 +614,37 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Backup", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Export everything to one file you keep: your solutions, review " +
+                        "history, schedule, and settings. Restoring merges into this " +
+                        "profile rather than replacing it, so importing twice is safe.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { exportLauncher.launch(viewModel.suggestedExportName()) }) {
+                        Text("Export")
+                    }
+                    OutlinedButton(onClick = { restoreLauncher.launch(arrayOf("application/json", "*/*")) }) {
+                        Text("Restore")
+                    }
+                }
+                transferMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
 

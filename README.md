@@ -1,82 +1,137 @@
 # BeeCode
 
-BeeCode is an offline-first spaced-repetition app for practising
-LeetCode-style algorithm Problems. It targets Android phones and desktop
-computers, schedules reviews with the user's FSRS 7 engine through the planned
-reusable `bee-san/bee-fsrs` package, and lets a learner write and run Python
-solutions inside each review. The package is extracted with provenance from
-[`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki).
+BeeCode is an offline-first spaced-repetition app for practising LeetCode-style
+algorithm Problems. It runs on Android and desktop, schedules reviews with FSRS,
+and lets you write and run Python solutions inside each review.
 
-The product is intentionally built around **Problems**, not generic cards:
+Everything is local. There is no account, no server, and no network access.
+
+The product is built around **Problems**, not generic cards:
 
 - a Problem contains its prompt, starter code, examples, executable tests, and
   stable identity;
 - solving and reviewing a Problem is one continuous flow;
-- successful reviews feed the scheduler, achievements, and an optional private
-  Leaderboard;
-- solution source stays on the learner's device.
-
-## Product commitments
-
-- **Desktop and Android are first-class.** The core behavior and data model are
-  shared, while each platform owns the runtime and security details it needs.
-- **Offline comes first.** Studying, scheduling, achievements, and local
-  statistics do not require a server.
-- **FSRS is a shared package.** The generic engine lives in its own versioned
-  GitHub repository/package so BeeCode and other apps use the same tested
-  artifact; BeeCode keeps only its review-policy adapter.
-- **The local product ships first.** The complete desktop and Android study
-  experience is gated before any Leaderboard implementation begins.
-- **Problem authoring is repository-native.** A contributor adds one
-  self-contained directory; validation and indexing are automated.
-- **Execution has an honest capability contract.** Python code receives bounded
-  time/output and is kept outside the UI process where the platform design
-  permits, but v1 is not claimed to be a hardened hostile-code sandbox.
-- **Social is optional and small.** Private custom Leaderboards synchronize
-  activity metadata, never source code or FSRS state.
+- successful reviews feed the scheduler, statistics, and achievements;
+- your source code stays on your device.
 
 ## Status
 
-This repository currently contains the **planning baseline only**. It does not
-contain an application scaffold or claim that any feature has been built.
+The complete local study loop works on both platforms today.
 
-- [High-level architecture](docs/architecture.md)
-- [North-star catalogue: 164 goals across all targets](goals/README.md)
-- [Realistic year-one execution roadmap](goals/YEAR-ONE.md)
+| | Android | Desktop |
+|---|---|---|
+| Study loop: read, write Python, run, rate, schedule | ✅ | ✅ |
+| Python execution | Chaquopy, CPython 3.12, in-process | `python3` child process |
+| Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
+| Local statistics and achievements | ✅ | ✅ |
+| Export and restore | ✅ | ✅ |
+| Verified by | 9 instrumented tests on an API 35 x86_64 emulator | 21 JVM tests |
+
+**223 automated tests pass**: 214 JVM tests across eight modules and 9 Android
+instrumented tests, including the complete answer → fail → fix → pass → finalize →
+restart journey against real CPython and real SQLite on both platforms.
+
+Not built yet: the private Leaderboard, personal cross-device sync, and the wider
+Problem curriculum. See [the year-one plan](goals/YEAR-ONE.md).
+
+## What is honest about this build
+
+- **The Android runner is not a sandbox.** Chaquopy embeds CPython in the app
+  process, so BeeCode cannot forcibly kill a runaway loop — it stops waiting and
+  tells you to restart if running code stops working. The app declares *no
+  Android permissions at all*, so your code has no network access and no file
+  access beyond BeeCode's own storage. The Settings screen says all of this.
+- **The desktop runner is stronger but still not a sandbox.** Learner code runs in
+  a killable child process with a cleaned environment and a fresh temporary
+  directory, but with your own user account's privileges.
+- **An export contains your source code.** That is the point of a backup, and it
+  is why the file should be kept somewhere private.
+
+## Running it
+
+Requires JDK 17 and Python 3 on desktop; the Android APK bundles its own CPython.
+
+```bash
+# Desktop
+./gradlew :desktopApp:run
+
+# Android, to a connected device or emulator
+./gradlew :androidApp:installDebug
+
+# Everything
+./gradlew test
+```
+
+## Repository layout
+
+```text
+bee-fsrs/        FSRS-6.x memory mathematics, vendored with provenance
+domain/          Pure models, review state machine, and the rating policy
+fsrs-adapter/    BeeCode's review policy over bee-fsrs
+python-api/      Execution contracts and the shared Python harness
+persistence/     SQLite schema, migrations, exactly-once finalization
+content-tools/   Problem loading, validation, and pack compilation
+shared/          Study loop, statistics, achievements, export/restore
+androidApp/      Android client and the Chaquopy runner
+desktopApp/      Desktop client and the process runner
+content/packs/   The Problem pack: 12 Problems, 83 tests
+```
+
+The domain does not import Compose, Android, SQL, HTTP, or any Python-provider
+class, and both clients drive the same shared study service — which is how the two
+platforms are kept from disagreeing about what a review means.
+
+## Adding a Problem
+
+One self-contained directory under `content/packs/core/problems/`, and no registry
+to edit:
+
+```text
+two-sum/
+├── problem.yaml      metadata, entry point, examples, provenance, limits
+├── statement.md      what the learner reads
+├── starter.py        what the editor is pre-filled with
+├── tests.yaml        the official suite
+├── reference.py      a working solution — excluded from the shipped pack
+└── explanation.md    revealable; revealing it caps the rating at Hard
+```
+
+`./gradlew :content-tools:test` runs every reference solution through real Python
+and requires every starter to fail, so a wrong expected value or an unsolvable
+Problem fails the build rather than reaching a learner.
+
+## How reviews stay honest
+
+Three rules, enforced in pure code and covered by tests:
+
+- **Ratings are bounded by evidence.** A non-pass permits only *Again*. A pass
+  after revealing the explanation is capped at *Hard*, because that is
+  recognition rather than recall. Only an unaided pass counts as solved — which is
+  what stops the 5am Club being farmed by reading the answer.
+- **BeeCode's own failures are never your fault.** A cancelled run or a crashed
+  worker cannot become a review, so they cannot damage your schedule.
+- **Finalizing credits the code that actually ran**, not whatever the editor
+  happens to contain.
+
+Finalization is exactly-once: idempotent on the review session, and guarded by a
+schedule-version compare-and-swap under `BEGIN IMMEDIATE`. Eight threads
+finalizing the same session produce exactly one review, and that is a test.
+
+## Documentation
+
+- [Architecture overview](docs/architecture.md)
 - [Architecture decisions](docs/adr/README.md)
-
-The plan contains 164 stable goals across product, architecture, Problem
-authoring, Python execution, FSRS reviews, desktop, Android, achievements,
-Leaderboards, data recovery, security, testing, release operations, and
-accessibility. Each goal defines acceptance evidence and non-goals so later
-implementation can proceed in verified vertical slices.
-
-## First hands-on milestones
-
-1. **Test 1 — Answer a Problem on desktop and Android:** at the end of M3,
-   install both tester builds, open a bundled Problem, write Python, run tests,
-   correct a failure, finalize the review, and confirm the draft/history/due
-   date survive restart. This works offline and needs no account, achievements,
-   or Leaderboard.
-2. **Test 2 — Complete the local product:** at the end of M4, use both clients
-   offline with the reviewed LeetCode-style Problem pack, reviews and FSRS,
-   history and local statistics, achievements including 5am Club, settings,
-   export/restore, and accessibility basics. No account, server, or Leaderboard
-   is required.
-
-M0–M2 are engineering gates that make Test 1 trustworthy; they are not being
-presented as finished user-test milestones. Conditional Leaderboard work
-follows in M5 only after Test 2 passes.
-
-- i want it to be able to swap in more language support like rust / js in the future
-- social features are big
+- [Year-one execution plan](goals/YEAR-ONE.md)
+- [North-star catalogue: 164 goals](goals/README.md)
+- [FSRS provenance](bee-fsrs/PROVENANCE.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Naming
 
 - **BeeCode** — the application.
 - **Problem** — a study item and coding challenge.
 - **Review** — one scheduled attempt at a Problem.
-- **Leaderboard** — a private group in which friends compare activity.
+- **Leaderboard** — a planned private group in which friends compare activity.
 
-Avoid calling individual Problems “BeeCodes”; that term belongs to the product
+Avoid calling individual Problems "BeeCodes"; that term belongs to the product
 name only.

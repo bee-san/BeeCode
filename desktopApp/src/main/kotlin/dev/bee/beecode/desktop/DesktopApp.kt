@@ -878,6 +878,7 @@ private fun AchievementRow(state: AchievementState) {
 @Composable
 private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
+    var transferMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -951,6 +952,37 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Backup", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Export everything to one file you keep: your solutions, review " +
+                        "history, schedule, and settings. Restoring merges into this " +
+                        "profile rather than replacing it, so importing twice is safe.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        transferMessage = ProfileFiles.exportTo(profile)
+                    }) { Text("Export…") }
+                    OutlinedButton(onClick = {
+                        transferMessage = ProfileFiles.restoreFrom(profile)
+                    }) { Text("Restore…") }
+                }
+                transferMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
 

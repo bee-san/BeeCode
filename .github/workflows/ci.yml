@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jvm:
+    name: JVM tests and content validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # The Python runner and the content validator both execute real CPython.
+      # Pinned to a version in Chaquopy's supported range so desktop CI and the
+      # Android runtime agree on interpreter behaviour.
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Runs every module's tests, including the end-to-end study journey against
+      # real CPython and real SQLite, and the content gate that runs each
+      # reference solution and requires each starter to fail.
+      - name: Test
+        run: ./gradlew test --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+          if-no-files-found: ignore
+
+  android:
+    name: Android build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Assembling is a meaningful gate on its own: it proves the Chaquopy build
+      # resolves, both ABIs' CPython is packaged, the Problem pack compiles into
+      # assets, and sqlite-jdbc's native libraries land in lib/<abi>/ — the last
+      # of which failed silently once already.
+      - name: Assemble debug APK
+        run: ./gradlew :androidApp:assembleDebug --stacktrace
+
+      - name: Verify the APK carries its native libraries and pack
+        run: |
+          set -euo pipefail
+          apk=androidApp/build/outputs/apk/debug/androidApp-debug.apk
+          contents=$(unzip -l "$apk")
+          for entry in \
+            "lib/x86_64/libpython3.12.so" \
+            "lib/arm64-v8a/libpython3.12.so" \
+            "lib/x86_64/libsqlitejdbc.so" \
+            "lib/arm64-v8a/libsqlitejdbc.so" \
+            "assets/problems.json"
+          do
+            if ! grep -q "$entry" <<<"$contents"; then
+              echo "::error::$entry is missing from the APK"
+              exit 1
+            fi
+            echo "ok: $entry"
+          done
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: beecode-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+
+  # Instrumented tests are the real Android evidence, but an emulator needs KVM,
+  # which GitHub's standard runners provide only on some images. Kept as a
+  # separate job so a flaky emulator cannot block the JVM and build gates.
+  android-instrumented:
+    name: Android instrumented tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          # A software-rendered, animation-free emulator: the tests assert
+          # behaviour, not pixels.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: ./gradlew :androidApp:connectedDebugAndroidTest --stacktrace
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: androidApp/build/reports/androidTests/**
+          if-no-files-found: ignore
+
+  desktop:
+    name: Desktop distributable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create distributable
+        run: ./gradlew :desktopApp:createDistributable --stacktrace
+
+      - name: Upload distributable
+        uses: actions/upload-artifact@v4
+        with:
+          name: beecode-desktop-linux
+          path: desktopApp/build/compose/binaries/main/app/**
