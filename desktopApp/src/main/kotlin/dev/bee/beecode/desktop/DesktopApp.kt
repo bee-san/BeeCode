@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bee.beecode.app.AchievementState
 import dev.bee.beecode.app.BeeCodeProfile
+import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
@@ -889,6 +890,9 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
     var webDavUrl by remember { mutableStateOf(profile.settings.syncWebDavUrl() ?: "") }
     var webDavUser by remember { mutableStateOf(profile.settings.syncWebDavUsername() ?: "") }
     var webDavPassword by remember { mutableStateOf(profile.settings.syncWebDavPassword() ?: "") }
+    var linkedAt by remember { mutableStateOf(profile.settings.leaderboardLinkedAt()) }
+    var boardStatus by remember { mutableStateOf(LeaderboardService(profile).status()) }
+    var boardMessage by remember { mutableStateOf<String?>(null) }
     var syncMessage by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
@@ -1141,6 +1145,96 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                 ) { Text(if (syncing) "Syncing…" else "Sync with WebDAV") }
 
                 syncMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Leaderboard", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Optional, off by default, and it needs a server that does not exist " +
+                        "yet — so joining now only records what your device would share once " +
+                        "one does. Nothing leaves this machine.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "A board sees counts and streaks: which day you solved something, and " +
+                        "whether it was an unaided pass. Never your code, your test output, " +
+                        "or your schedule. Activity from before you join is never shared.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                if (linkedAt == null) {
+                    Labelled("Status", "Not joined")
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(onClick = {
+                        val now = Clock.System.now()
+                        profile.settings.setLeaderboardLinkedAt(now, now)
+                        linkedAt = now
+                        // Refresh immediately so the count is honest rather than showing zero
+                        // until something happens to trigger it.
+                        profile.refreshLeaderboardActivity(now)
+                        boardStatus = LeaderboardService(profile).status()
+                        boardMessage = "Joined. Solves from now on will be shared once a " +
+                            "server exists; everything before now stays private."
+                    }) { Text("Join a Leaderboard") }
+                } else {
+                    Labelled("Waiting to send", "${boardStatus.pending}")
+                    Labelled("Sent", "${boardStatus.acknowledged}")
+                    if (boardStatus.parked > 0) {
+                        Labelled("Stuck", "${boardStatus.parked}")
+                    }
+                    if (boardStatus.rejected > 0) {
+                        // Named separately from "stuck": a refusal is final and a learner
+                        // should not be invited to retry it forever.
+                        Labelled("Refused by the server", "${boardStatus.rejected}")
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            val added = profile.refreshLeaderboardActivity(Clock.System.now())
+                            boardStatus = LeaderboardService(profile).status()
+                            boardMessage = if (added > 0) {
+                                "Queued $added new ${if (added == 1) "solve" else "solves"}."
+                            } else {
+                                "Nothing new to queue."
+                            }
+                        }) { Text("Check for new activity") }
+
+                        if (boardStatus.parked > 0) {
+                            OutlinedButton(onClick = {
+                                val revived = LeaderboardService(profile).retryParked(Clock.System.now())
+                                boardStatus = LeaderboardService(profile).status()
+                                boardMessage = "Will try $revived again."
+                            }) { Text("Try stuck items again") }
+                        }
+
+                        TextButton(onClick = {
+                            val now = Clock.System.now()
+                            profile.settings.setLeaderboardLinkedAt(null, now)
+                            LeaderboardService(profile).forget()
+                            linkedAt = null
+                            boardStatus = LeaderboardService(profile).status()
+                            boardMessage = "Left. Your reviews, schedule, and achievements " +
+                                "are untouched — a board is a view of your study, never " +
+                                "where it lives."
+                        }) { Text("Leave") }
+                    }
+                }
+
+                boardMessage?.let { message ->
                     Spacer(Modifier.height(10.dp))
                     Text(
                         message,

@@ -16,9 +16,13 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import dev.bee.beecode.app.BeeCodeProfile
+import kotlinx.coroutines.runBlocking
+import dev.bee.beecode.app.RunOutcome
+import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.ProblemCatalogue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -240,6 +244,86 @@ class DesktopUiTest {
             .assertIsDisplayed()
         // The address is still remembered, so a learner fixing the scheme does not retype it.
         assertEquals("http://cloud.example.com/s.json", profile.settings.syncWebDavUrl())
+    }
+
+    @Test
+    fun theLeaderboardIsOffByDefaultAndSaysWhatABoardWouldSee() = withUi { ui, profile ->
+        // Off by default, and the privacy terms are stated *before* the join button rather
+        // than after. A learner deciding whether to share needs to know what is shared.
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Leaderboard").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Not joined").performScrollTo().assertIsDisplayed()
+        ui.onNode(hasText("counts and streaks", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        ui.onNode(hasText("Never your code", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        // And that pre-join history stays private, which is the rule most easily assumed
+        // away.
+        ui.onNode(hasText("before you join is never shared", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertEquals(null, profile.settings.leaderboardLinkedAt())
+    }
+
+    @Test
+    fun theCardSaysThereIsNoServerYetRatherThanImplyingOne() = withUi { ui, _ ->
+        // Honesty about an unfinished feature. A "Join" button with no server behind it
+        // would otherwise read as working, and a learner would wonder why nothing appears.
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNode(hasText("does not exist yet", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun joiningRecordsTheCutoffAndSharesNoEarlierWork() = withUi { ui, profile ->
+        // The pre-link rule, driven through the real button: a solve from before joining
+        // must not be queued by the join itself.
+        solveTwoSum(profile)
+
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Join a Leaderboard").performScrollTo().performClick()
+
+        ui.waitUntil(timeoutMillis = 10_000) { profile.settings.leaderboardLinkedAt() != null }
+        // The earlier solve is not queued, and the UI says so rather than showing a count.
+        assertEquals(0, LeaderboardService(profile).status().pending)
+        ui.onNode(hasText("stays private", substring = true)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun leavingClearsTheQueueAndKeepsEveryReview() = withUi { ui, profile ->
+        val now = NOW
+        profile.settings.setLeaderboardLinkedAt(now, now)
+        solveTwoSum(profile)
+        profile.refreshLeaderboardActivity()
+        assertTrue(LeaderboardService(profile).status().pending > 0)
+
+        ui.onNodeWithText("Settings").performClick()
+        // Recompose so the pane reads the linked state written above.
+        ui.onNodeWithText("Study").performClick()
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Leave").performScrollTo().performClick()
+
+        ui.waitUntil(timeoutMillis = 10_000) { profile.settings.leaderboardLinkedAt() == null }
+        assertEquals(0, LeaderboardService(profile).status().pending)
+        // Leaving a board never costs a learner their study.
+        assertEquals(1, profile.allReviews().size)
+        assertEquals(1, profile.statistics().distinctProblemsSolved)
+        ui.onNode(hasText("never where it lives", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    /** Solve two-sum through the real study service, so countsAsSolved is the domain's. */
+    private fun solveTwoSum(profile: BeeCodeProfile) = runBlocking {
+        val problemId = dev.bee.beecode.domain.ProblemId("two-sum")
+        profile.study.open(problemId)
+        val run = assertIs<RunOutcome.Completed>(
+            profile.study.run(problemId, ScriptedPythonRunner.PASS_MARKER),
+        )
+        profile.study.finalize(problemId, run.run.id, dev.bee.beecode.domain.ReviewRating.GOOD)
     }
 
     private companion object {
