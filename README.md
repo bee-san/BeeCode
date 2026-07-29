@@ -25,9 +25,9 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Verified by | 18 instrumented tests on an API 35 x86_64 emulator | 21 JVM tests |
+| Verified by | 18 instrumented tests on an API 35 x86_64 emulator | 23 JVM tests |
 
-**232 automated tests**: 214 JVM tests across eight modules and 18 Android
+**234 automated tests**: 216 JVM tests across eight modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
