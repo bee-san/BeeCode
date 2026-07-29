@@ -31,9 +31,10 @@ The complete local study loop works on both platforms today.
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
+| Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
 | Verified by | 13 Robolectric UI + 19 instrumented tests | 34 JVM tests, 11 of them UI |
 
-**402 automated tests**: 383 JVM tests across nine modules and 19 Android
+**409 automated tests**: 390 JVM tests across nine modules and 19 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -132,8 +133,14 @@ merged from a remote one. That needed fixing rather than just adding — export 
 excluded exactly one key, so a password would have travelled by default into every backup
 and up to the server it authenticates to.
 
-Not built yet: the Leaderboard *server* and its UI — the client half is complete and its
-transport is a parameter, so the server is separable work — and Google Drive sync (which
+Both clients surface the queue under Settings → Leaderboard, with identical wording,
+because where two clients make the same privacy promise the wording *is* the product. The
+card says plainly that **the server does not exist yet** — a Join button with nothing
+behind it would otherwise read as working — and states what a board would see (counts and
+streaks, never code or output or schedule) before the join button rather than after.
+
+Not built yet: the Leaderboard **server** — the client half is complete and its transport
+is a lambda parameter, so the server is separable work — and Google Drive sync (which
 needs OAuth, where WebDAV covers self-hosting without it).
 See [the year-one plan](goals/YEAR-ONE.md).
 
