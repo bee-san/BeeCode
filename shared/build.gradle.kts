@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Application services shared by desktop and Android: the study loop, statistics,
@@ -24,6 +25,8 @@ dependencies {
     api(project(":content-tools"))
     api(project(":fsrs-adapter"))
     api(libs.kotlinx.coroutines.core)
+    // Export and restore serialize the whole profile.
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit)

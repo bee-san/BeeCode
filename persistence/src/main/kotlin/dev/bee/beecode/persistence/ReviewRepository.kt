@@ -226,6 +226,62 @@ class ReviewRepository(
         }.toMap()
     }
 
+    /**
+     * The source that produced each review's selected result, keyed by session id.
+     *
+     * Read separately from the reviews because the source lives alongside the review
+     * row rather than on the domain event — it is evidence, not part of what
+     * happened. Used by export, so a restored profile shows what the learner wrote
+     * and not merely when they wrote it.
+     */
+    fun selectedSources(): Map<String, String> = database.read { connection ->
+        connection.createStatement().use { statement ->
+            statement.executeQuery("SELECT review_session_id, selected_source FROM problem_review")
+                .use { rows ->
+                    buildMap {
+                        while (rows.next()) {
+                            put(rows.getString("review_session_id"), rows.getString("selected_source"))
+                        }
+                    }
+                }
+        }
+    }
+
+    /**
+     * Insert a review that happened elsewhere, without scheduling anything.
+     *
+     * Used only by restore, and deliberately separate from [finalizeReview]: an
+     * imported review must not advance a schedule, because the caller replays the
+     * whole merged log afterwards. Scheduling here would double-count.
+     *
+     * Idempotent by primary key, so importing the same backup twice has one effect.
+     */
+    fun importReview(review: ProblemReviewFinalized, selectedSource: String) {
+        database.transaction { connection ->
+            if (readReview(connection, review.sessionId) != null) return@transaction
+            writeReview(connection, review, selectedSource)
+        }
+    }
+
+    /**
+     * Overwrite every schedule with a rebuilt set.
+     *
+     * The second half of restore. Runs in one transaction so a profile is never left
+     * with some schedules rebuilt and others stale — a half-rebuilt set would give
+     * wrong due dates with no way to tell which.
+     *
+     * Versions restart at 1 because the rebuilt schedules are a new projection; the
+     * counter guards concurrent live finalization, not historical continuity.
+     */
+    fun replaceSchedules(schedules: Map<ProblemId, ProblemSchedule>) {
+        database.transaction { connection ->
+            connection.createStatement().use { it.execute("DELETE FROM problem_schedule") }
+            for (schedule in schedules.values) {
+                writeSchedule(connection, schedule, expectedVersion = null)
+            }
+        }
+    }
+
     // ---- SQL ------------------------------------------------------------
 
     private fun readSchedule(connection: Connection, problemId: ProblemId): ProblemSchedule? =
