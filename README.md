@@ -32,7 +32,7 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
-| Verified by | 13 Robolectric UI + 19 instrumented tests | 34 JVM tests, 11 of them UI |
+| Verified by | 16 Robolectric UI + 26 instrumented tests | 38 JVM tests, 15 of them UI |
 
 **416 automated tests**: 390 JVM tests across nine modules and 26 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
