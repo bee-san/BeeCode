@@ -303,6 +303,51 @@ class LeaderboardServiceTest {
         }
     }
 
+    @Test
+    fun theProfileHookIsANoOpUntilAnAccountIsLinked() {
+        // Default off, so a client can call it unconditionally on every launch and after
+        // every finalize rather than checking first — and a learner who never joins a board
+        // never accumulates a queue.
+        withProfile { profile ->
+            solve(profile, "two-sum")
+            assertEquals(0, profile.refreshLeaderboardActivity(NOW))
+            assertEquals(0, LeaderboardService(profile).status().pending)
+        }
+    }
+
+    @Test
+    fun linkingThenStudyingQueuesThroughTheProfileHook() {
+        // The path a client actually takes: link, solve, call the hook, activity is queued.
+        withProfile { profile ->
+            profile.settings.setLeaderboardLinkedAt(NOW, NOW)
+            solve(profile, "two-sum", at = NOW + 1.hours)
+
+            assertEquals(1, profile.refreshLeaderboardActivity(NOW + 2.hours))
+            assertEquals(1, LeaderboardService(profile).status().pending)
+            // Idempotent, so calling it on every launch costs nothing.
+            assertEquals(0, profile.refreshLeaderboardActivity(NOW + 3.hours))
+        }
+    }
+
+    @Test
+    fun unlinkingStopsQueueingAndLeavesStudyIntact() {
+        withProfile { profile ->
+            profile.settings.setLeaderboardLinkedAt(NOW, NOW)
+            solve(profile, "two-sum", at = NOW + 1.hours)
+            profile.refreshLeaderboardActivity(NOW + 2.hours)
+
+            profile.settings.setLeaderboardLinkedAt(null, NOW + 3.hours)
+            LeaderboardService(profile).forget()
+
+            solve(profile, "binary-search", at = NOW + 4.hours)
+            assertEquals(0, profile.refreshLeaderboardActivity(NOW + 5.hours))
+            assertEquals(0, LeaderboardService(profile).status().pending)
+            // Leaving a board never costs a learner their history.
+            assertEquals(2, profile.allReviews().size)
+            assertEquals(2, profile.statistics().distinctProblemsSolved)
+        }
+    }
+
     // ---- Fixtures ------------------------------------------------------------
 
     private fun tempFile(): File {

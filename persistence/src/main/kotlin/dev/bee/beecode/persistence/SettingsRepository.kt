@@ -145,6 +145,28 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         }
     }
 
+    /**
+     * When this profile was linked to a Leaderboard account, or null if it never was.
+     *
+     * The cutoff for uploadable activity: reviews finalized before it are never shared,
+     * because a learner who studied for months and then joins a board must not arrive with
+     * months of history. Absent means the Leaderboard is off, which is the default.
+     *
+     * Stored rather than derived so it survives a reinstall-and-restore, and *not* carried
+     * in an export — see [DEVICE_ONLY_KEYS]. A restored backup must not silently re-link an
+     * account or move someone else's cutoff onto this device.
+     */
+    fun leaderboardLinkedAt(): Instant? =
+        get(KEY_LEADERBOARD_LINKED_AT)?.toLongOrNull()?.let { Instant.fromEpochMilliseconds(it) }
+
+    fun setLeaderboardLinkedAt(at: Instant?, now: Instant) {
+        if (at == null) {
+            remove(KEY_LEADERBOARD_LINKED_AT)
+        } else {
+            put(KEY_LEADERBOARD_LINKED_AT, at.toEpochMilliseconds().toString(), now)
+        }
+    }
+
     /** Path to a Python interpreter chosen by the learner, if any. */
     fun pythonExecutable(): String? = get(KEY_PYTHON_EXECUTABLE)?.takeIf { it.isNotBlank() }
 
@@ -235,6 +257,7 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_SYNC_WEBDAV_URL = "sync.webdav.url"
         const val KEY_SYNC_WEBDAV_USER = "sync.webdav.username"
         const val KEY_SYNC_WEBDAV_PASSWORD = "sync.webdav.password"
+        const val KEY_LEADERBOARD_LINKED_AT = "leaderboard.linkedAt"
 
         /**
          * Settings that must never leave this device.
@@ -249,6 +272,7 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
             KEY_SYNC_WEBDAV_URL,
             KEY_SYNC_WEBDAV_USER,
             KEY_SYNC_WEBDAV_PASSWORD,
+            KEY_LEADERBOARD_LINKED_AT,
         )
     }
 }

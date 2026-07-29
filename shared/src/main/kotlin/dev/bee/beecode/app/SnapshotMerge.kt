@@ -245,6 +245,7 @@ object SnapshotMerge {
         "sync.webdav.url",
         "sync.webdav.username",
         "sync.webdav.password",
+        "leaderboard.linkedAt",
     )
 }
 

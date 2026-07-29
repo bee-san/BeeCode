@@ -11,6 +11,7 @@ import dev.bee.beecode.persistence.SettingsRepository
 import dev.bee.beecode.fsrs.BeeCodeScheduler
 import dev.bee.beecode.python.PythonRunner
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.io.Closeable
 
 /**
@@ -47,6 +48,25 @@ class BeeCodeProfile private constructor(
             today = now.dateIn(zone),
             now = now,
         )
+    }
+
+    /**
+     * Queue any Leaderboard activity the review log has produced but not yet shared.
+     *
+     * Called by a client after finalizing, and again on launch. Deliberately *not* wired
+     * into `StudyService.finalize`: the review path must not acquire a Leaderboard
+     * dependency, because "review finalization never waits for network" is only credible if
+     * finalization cannot fail for a Leaderboard reason. This runs after the commit, reads
+     * the durable log, and its worst failure is a delayed count.
+     *
+     * A no-op when the Leaderboard is off, which is the default — so a client can call it
+     * unconditionally rather than checking first.
+     *
+     * @return how many events were newly queued, or 0 when there is nothing to share.
+     */
+    fun refreshLeaderboardActivity(now: Instant = clock.now()): Int {
+        val linkedAt = settings.leaderboardLinkedAt() ?: return 0
+        return LeaderboardService(this).refresh(linkedAt = linkedAt, now = now).eventsAdded
     }
 
     /** Achievement state, projected fresh from the review log. */
