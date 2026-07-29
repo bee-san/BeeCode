@@ -63,8 +63,10 @@ class AndroidStudyJourneyTest {
 
     @Test
     fun theBundledPackLoadsFromAssets() {
-        // A client that cannot read its own pack has nothing to study.
-        assertEquals(12, catalogue.size)
+        // A client that cannot read its own pack has nothing to study. A lower bound
+        // rather than an equality: the claim is that the pack reached the APK's assets,
+        // and adding a Problem should not fail a packaging test.
+        assertTrue("expected the full pack, got ${catalogue.size}", catalogue.size >= 12)
         assertNotNull(catalogue.problem(ProblemId("two-sum")))
         // And it must not carry the answers.
         val problem = catalogue.problem(ProblemId("two-sum"))!!

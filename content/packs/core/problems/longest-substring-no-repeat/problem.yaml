@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Longest Substring Without Repeating Characters
+difficulty: medium
+topics:
+  - strings
+  - sliding-window
+  - hash-map
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: longest_unique_substring
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: 's = "abcabcbb"'
+    output: "3"
+    explanation: '"abc" is the longest window with no repeat.'
+  - input: 's = "bbbbb"'
+    output: "1"
+    explanation: "Every character is the same, so the best window is one character."
+  - input: 's = "pwwkew"'
+    output: "3"
+    explanation: >
+      "wke" has length 3. Note that "pwke" is not an answer: it is a
+      subsequence, not a contiguous substring.
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic interview
+    question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

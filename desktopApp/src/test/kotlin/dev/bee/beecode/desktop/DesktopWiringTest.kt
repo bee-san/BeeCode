@@ -60,7 +60,11 @@ class DesktopWiringTest {
         // classpath, the app launches with nothing to study — so this failing is far
         // better than shipping it.
         val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
-        assertEquals(12, catalogue.size)
+        // A lower bound, not an equality. The claim being made is "the pack reached the
+        // classpath and is non-trivial"; pinning the exact count made adding a Problem
+        // fail this test, which says nothing about packaging. The pack's own contents
+        // are validated by :content-tools against real Python.
+        assertTrue(catalogue.size >= 12, "expected the full pack, got ${catalogue.size}")
         assertNotNull(catalogue.problem(ProblemId("two-sum")))
         assertTrue(catalogue.topics().isNotEmpty())
     }
@@ -181,7 +185,10 @@ class DesktopWiringTest {
                     "startup must create the profile database",
                 )
                 // The packaged pack loaded.
-                assertEquals(12, profile.catalogue.size)
+                assertTrue(
+                    profile.catalogue.size >= 12,
+                    "expected the full pack, got ${profile.catalogue.size}",
+                )
                 // And the study loop is immediately usable.
                 assertTrue(profile.study.queue().new.isNotEmpty())
                 assertTrue(profile.study.runnerStatus().available)

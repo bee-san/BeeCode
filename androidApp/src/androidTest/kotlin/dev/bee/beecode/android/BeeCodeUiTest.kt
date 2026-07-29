@@ -255,7 +255,10 @@ class BeeCodeUiTest {
         compose.onNodeWithText("Back to queue").performScrollTo().performClick()
 
         // The queue reflects the solve.
-        compose.onNode(hasText("1 of 12 solved", substring = true)).assertIsDisplayed()
+        // Derived from the catalogue rather than hard-coded: a literal "1 of 12" turns
+        // adding a Problem into a UI test failure, which teaches the wrong lesson.
+        val total = requireNotNull(profile).catalogue.allProblems().size
+        compose.onNode(hasText("1 of $total solved", substring = true)).assertIsDisplayed()
     }
 
     @Test

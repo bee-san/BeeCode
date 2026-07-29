@@ -41,7 +41,7 @@ Download the `.tar.gz`, extract it, and run `BeeCode/bin/BeeCode`. Needs `python
   the review.
 - FSRS scheduling: better ratings mean longer intervals, and a lapse brings a Problem
   back sooner.
-- 12 Problems with 83 tests, 24 of them hidden.
+- 16 Problems with 126 tests, 30 of them hidden.
 - Local statistics, a solve streak, and four achievements including the 5am Club.
 - Export your whole profile to a file and restore it — merging rather than
   overwriting, so importing twice is safe.

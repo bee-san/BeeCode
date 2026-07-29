@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-abcabcbb
+    arguments: ["abcabcbb"]
+    expected: 3
+    comparator: exact
+
+  - name: example-all-same
+    arguments: ["bbbbb"]
+    expected: 1
+    comparator: exact
+
+  # The substring-vs-subsequence case. Answering 4 means "pwke" was accepted.
+  - name: example-pwwkew
+    arguments: ["pwwkew"]
+    expected: 3
+    comparator: exact
+
+  - name: empty-string
+    arguments: [""]
+    expected: 0
+    comparator: exact
+
+  - name: single-character
+    arguments: ["z"]
+    expected: 1
+    comparator: exact
+
+  - name: all-distinct-takes-everything
+    arguments: ["abcdef"]
+    expected: 6
+    comparator: exact
+
+  # The case that catches a left edge moving backwards. When the second 'a' is
+  # reached, 'b' was last seen at index 1 — before the window started — so a
+  # solution that jumps to `last_seen['b'] + 1` unconditionally will shrink the
+  # window wrongly and report 2.
+  - name: stale-index-must-not-move-the-window-back
+    arguments: ["abba"]
+    expected: 2
+    comparator: exact
+
+  # A space is an ordinary character and can itself be the repeat: "a 1 b" has two
+  # spaces, so no window longer than "a 1" survives.
+  - name: spaces-and-digits-count
+    arguments: ["a 1 b"]
+    expected: 3
+    comparator: exact
+
+  - name: repeat-at-the-very-end
+    arguments: ["abcdefa"]
+    expected: 6
+    comparator: exact
+
+  # A large input so an O(n^2) solution exceeds the wall-clock limit. 2000 repeats
+  # of "abcd" never allow a window longer than 4.
+  - name: large-input-rejects-quadratic
+    arguments: ["abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd"]
+    expected: 4
+    comparator: exact
+    hidden: true

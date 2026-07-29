@@ -62,8 +62,13 @@ interpreter. One assertion is also weaker under Robolectric than on a device: th
 row is a horizontal scroller nested in a vertical one, whose children compose with a
 real size but are never placed, so it is asserted by existence rather than by display.
 
-Not built yet: the private Leaderboard, personal cross-device sync, and the wider
-Problem curriculum. See [the year-one plan](goals/YEAR-ONE.md).
+The Problem pack holds **16 Problems** — 10 easy, 5 medium, 1 hard — with 126 tests, 30
+of them hidden. That meets the year-one target of 12–20, and it covers all four
+comparators; `any_of` and `approximate_numeric` had been implemented but unused by any
+Problem, so those code paths shipped untested.
+
+Not built yet: the private Leaderboard and personal cross-device sync. See
+[the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
 
@@ -105,7 +110,7 @@ content-tools/   Problem loading, validation, and pack compilation
 shared/          Study loop, statistics, achievements, export/restore
 androidApp/      Android client and the Chaquopy runner
 desktopApp/      Desktop client and the process runner
-content/packs/   The Problem pack: 12 Problems, 83 tests
+content/packs/   The Problem pack: 16 Problems, 126 tests
 ```
 
 The domain does not import Compose, Android, SQL, HTTP, or any Python-provider
