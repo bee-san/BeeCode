@@ -33,7 +33,7 @@ The complete local study loop works on both platforms today.
 | Sync between devices | ✅ Settings → Sync | ✅ Settings → Sync |
 | Verified by | 11 Robolectric UI + 19 instrumented tests | 31 JVM tests, 8 of them UI |
 
-**290 automated tests**: 271 JVM tests across nine modules and 19 Android
+**347 automated tests**: 328 JVM tests across nine modules and 19 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -96,7 +96,24 @@ source transferred. Android still
 declares **no storage permission** — it holds a persisted URI grant for the one file you
 chose, which the system gives and you can revoke.
 
-Not built yet: the private Leaderboard, and networked backends (WebDAV, Drive).
+**The Leaderboard's client half is built, without a server.** Its two hard problems are
+not networking — they are never double-counting a solve, and never uploading what a
+learner did not consent to share. Both are pure state machines, so both are done and
+verified now:
+
+- `ActivityOutbox` — pending → in-flight → acknowledged, with parked and rejected kept
+  distinct because the difference is whether a *server* decided. A duplicate counts as
+  success, since a client that timed out cannot tell "accepted" from "already had it".
+  A process kill mid-upload recovers; repeated outages park rather than drain a battery.
+- `ActivityProjection` — no pre-link backfill, and only unaided passes count. Events are
+  *derived* from the append-only log with the review's own session id as the idempotency
+  key, so an outbox lost to a reinstall rebuilds identically instead of double-counting.
+
+`ActivityEvent` cannot carry source, output, test values, or FSRS state — the type has
+nowhere to put them, and a test asserts the exact field set so adding one is deliberate.
+
+Not built yet: the Leaderboard *server* and UI, and networked sync backends (WebDAV,
+Drive).
 See [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
