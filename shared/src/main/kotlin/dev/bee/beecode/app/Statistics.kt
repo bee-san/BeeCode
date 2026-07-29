@@ -80,7 +80,10 @@ object Statistics {
             reviewsPerDay = reviewsPerDay(reviews, today, DEFAULT_HISTORY_DAYS),
             averageIntervalDays = schedules.values
                 .takeIf { it.isNotEmpty() }
-                ?.let { s -> s.sumOf { it.intervalDays.toLong() }.toDouble() / s.size },
+                // Averaged as fractional days, not truncated to whole ones: FSRS-7
+                // schedules sub-day intervals, and summing them as Longs would floor
+                // every one of them to zero.
+                ?.let { s -> s.sumOf { it.intervalDays } / s.size },
             leeches = schedules.values
                 .filter { it.lapseCount >= LEECH_LAPSE_THRESHOLD }
                 .sortedByDescending { it.lapseCount }

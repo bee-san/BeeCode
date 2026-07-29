@@ -243,9 +243,9 @@ class ReviewRepositoryTest {
 
         val stored = assertNotNull(reviews.review(ReviewSessionId("session-2")))
         assertEquals(second.review.transition, stored.transition)
-        assertEquals("FSRS-6.x 21-parameter snapshot", stored.transition.algorithmId)
-        assertEquals("bee-fsrs-0.1.0", stored.transition.engineVersion)
-        assertEquals(5, stored.transition.elapsedDays)
+        assertEquals("FSRS-7 35-parameter snapshot", stored.transition.algorithmId)
+        assertEquals("bee-fsrs-0.2.0", stored.transition.engineVersion)
+        assertEquals(5.0, stored.transition.elapsedDays)
         assertNotNull(stored.transition.previousStability)
         assertNotNull(stored.transition.previousDifficulty)
     }

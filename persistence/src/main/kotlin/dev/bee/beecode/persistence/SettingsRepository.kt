@@ -51,7 +51,10 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
     /** The learner's scheduling preferences. */
     fun schedulerPolicy(): SchedulerPolicy {
         val retention = get(KEY_DESIRED_RETENTION)?.toDoubleOrNull()
-        val maxInterval = get(KEY_MAX_INTERVAL_DAYS)?.toIntOrNull()
+        // Double, not Int: FSRS-7's intervals are fractional. Reading with
+        // toIntOrNull would also reject a value this same class had written, since
+        // a Double's toString carries a decimal point.
+        val maxInterval = get(KEY_MAX_INTERVAL_DAYS)?.toDoubleOrNull()
         val parameters = get(KEY_FSRS_PARAMETERS)?.let { encoded ->
             val values = encoded.split(',').mapNotNull { it.trim().toDoubleOrNull() }
             values.takeIf { it.size == SchedulerPolicy.PARAMETER_COUNT }?.toDoubleArray()

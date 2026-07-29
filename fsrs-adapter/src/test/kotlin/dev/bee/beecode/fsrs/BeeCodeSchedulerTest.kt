@@ -26,7 +26,7 @@ class BeeCodeSchedulerTest {
         assertTrue(t.record.isFirstReview)
         assertNull(t.record.previousStability)
         assertNull(t.record.previousDifficulty)
-        assertEquals(0, t.record.elapsedDays)
+        assertEquals(0.0, t.record.elapsedDays)
         assertEquals(BeeCodeScheduler.NO_PREVIOUS_STATE_HASH, t.record.previousStateHash)
         // Nothing was retained, so nothing could be retrieved.
         assertEquals(0.0, t.record.retrievability)
@@ -35,7 +35,11 @@ class BeeCodeSchedulerTest {
     @Test
     fun theDueDateIsTheIntervalAfterTheReview() {
         val t = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0)
-        val expected = Instant.fromEpochSeconds(T0.epochSeconds + t.schedule.intervalDays * 86_400L)
+        // Millisecond arithmetic, because a fractional interval does not land on a
+        // whole second and the schedule must equal what persistence reads back.
+        val expected = Instant.fromEpochMilliseconds(
+            T0.toEpochMilliseconds() + Math.round(t.schedule.intervalDays * 86_400_000.0),
+        )
         assertEquals(expected, t.schedule.dueAt)
         assertEquals(t.schedule.dueAt, t.record.dueAt)
     }
@@ -59,18 +63,18 @@ class BeeCodeSchedulerTest {
         val first = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).schedule
         assertEquals(0, first.lapseCount)
 
-        val lapsed = scheduler.schedule(PROBLEM, first, ReviewRating.AGAIN, T0.plusDays(10)).schedule
+        val lapsed = scheduler.schedule(PROBLEM, first, ReviewRating.AGAIN, T0.plusDays(10.0)).schedule
         assertEquals(1, lapsed.lapseCount)
 
         // Lapses accumulate rather than reset, so a leech stays visible.
-        val recovered = scheduler.schedule(PROBLEM, lapsed, ReviewRating.GOOD, T0.plusDays(11)).schedule
+        val recovered = scheduler.schedule(PROBLEM, lapsed, ReviewRating.GOOD, T0.plusDays(11.0)).schedule
         assertEquals(1, recovered.lapseCount)
     }
 
     @Test
     fun versionIncrementsAndCarriesThePreviousValueForCompareAndSwap() {
         val first = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).schedule
-        val second = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(3))
+        val second = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(3.0))
 
         assertEquals(2L, second.schedule.version)
         assertEquals(1L, second.previousVersion)
@@ -80,11 +84,11 @@ class BeeCodeSchedulerTest {
     @Test
     fun aRepeatReviewRecordsThePreviousStateItTransitionedFrom() {
         val first = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).schedule
-        val second = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(5))
+        val second = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(5.0))
 
         assertEquals(first.stability, second.record.previousStability)
         assertEquals(first.difficulty, second.record.previousDifficulty)
-        assertEquals(5, second.record.elapsedDays)
+        assertEquals(5.0, second.record.elapsedDays)
         assertNotEquals(BeeCodeScheduler.NO_PREVIOUS_STATE_HASH, second.record.previousStateHash)
         assertTrue(second.record.retrievability > 0.0)
     }
@@ -95,11 +99,11 @@ class BeeCodeSchedulerTest {
         // compute, without the historical engine binary present.
         val record = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).record
 
-        assertEquals("FSRS-6.x 21-parameter snapshot", record.algorithmId)
-        assertEquals("bee-fsrs-0.1.0", record.engineVersion)
+        assertEquals("FSRS-7 35-parameter snapshot", record.algorithmId)
+        assertEquals("bee-fsrs-0.2.0", record.engineVersion)
         assertEquals(16, record.parametersHash.length)
         assertEquals(0.9, record.desiredRetention)
-        assertEquals(36_500, record.maximumIntervalDays)
+        assertEquals(36_500.0, record.maximumIntervalDays)
         assertEquals(3, record.ratingValue, "GOOD must map to the engine's rating 3")
     }
 
@@ -117,15 +121,23 @@ class BeeCodeSchedulerTest {
     }
 
     @Test
-    fun aReviewDoneEarlyElapsesZeroDays() {
-        // 23 hours is not a day. Rounding up would inflate stability for reviews
-        // the learner did ahead of schedule.
+    fun aReviewDoneEarlyElapsesTheRealFractionOfADay() {
+        // Under FSRS-6 this floored: 23 hours elapsed "0 days" and 25 hours elapsed
+        // "1 day", so two reviews two hours apart were credited differently while
+        // everything within a day was identical. FSRS-7 takes the real duration, and
+        // that is the point of the revision rather than an incidental change.
         val first = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).schedule
+
         val early = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusHours(23))
-        assertEquals(0, early.record.elapsedDays)
+        assertEquals(23.0 / 24.0, early.record.elapsedDays, 1.0e-12)
 
         val justOver = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusHours(25))
-        assertEquals(1, justOver.record.elapsedDays)
+        assertEquals(25.0 / 24.0, justOver.record.elapsedDays, 1.0e-12)
+
+        // A same-day review is a real elapsed duration, not zero.
+        val tenMinutes = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusMinutes(10))
+        assertEquals(10.0 / 1_440.0, tenMinutes.record.elapsedDays, 1.0e-12)
+        assertTrue(tenMinutes.record.elapsedDays > 0.0)
     }
 
     @Test
@@ -134,20 +146,20 @@ class BeeCodeSchedulerTest {
         // clock backwards. The engine rejects negative elapsed days, so the
         // adapter clamps rather than crashing mid-finalization.
         val first = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, T0).schedule
-        val backwards = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(-5))
-        assertEquals(0, backwards.record.elapsedDays)
-        assertTrue(backwards.schedule.intervalDays >= 1)
+        val backwards = scheduler.schedule(PROBLEM, first, ReviewRating.GOOD, T0.plusDays(-5.0))
+        assertEquals(0.0, backwards.record.elapsedDays)
+        assertTrue(backwards.schedule.intervalDays > 0.0)
     }
 
     @Test
     fun intervalsAreCappedByPolicy() {
-        val capped = BeeCodeScheduler(SchedulerPolicy(maximumIntervalDays = 7))
+        val capped = BeeCodeScheduler(SchedulerPolicy(maximumIntervalDays = 7.0))
         var schedule = capped.schedule(PROBLEM, null, ReviewRating.EASY, T0).schedule
         var at = T0
         repeat(20) {
             at = at.plusDays(schedule.intervalDays)
             schedule = capped.schedule(PROBLEM, schedule, ReviewRating.EASY, at).schedule
-            assertTrue(schedule.intervalDays <= 7, "interval ${schedule.intervalDays} exceeded the cap")
+            assertTrue(schedule.intervalDays <= 7.0, "interval ${schedule.intervalDays} exceeded the cap")
         }
     }
 
@@ -194,9 +206,9 @@ class BeeCodeSchedulerTest {
         // so a shuffled union must still produce the same schedule.
         val history = listOf(
             ReplayEntry(ReviewRating.GOOD, T0),
-            ReplayEntry(ReviewRating.AGAIN, T0.plusDays(2)),
-            ReplayEntry(ReviewRating.GOOD, T0.plusDays(3)),
-            ReplayEntry(ReviewRating.EASY, T0.plusDays(9)),
+            ReplayEntry(ReviewRating.AGAIN, T0.plusDays(2.0)),
+            ReplayEntry(ReviewRating.GOOD, T0.plusDays(3.0)),
+            ReplayEntry(ReviewRating.EASY, T0.plusDays(9.0)),
         )
         assertEquals(scheduler.replay(PROBLEM, history), scheduler.replay(PROBLEM, history.reversed()))
     }
@@ -252,7 +264,7 @@ class BeeCodeSchedulerTest {
             schedule = scheduler.schedule(PROBLEM, schedule, cycle[i % cycle.size], at).schedule
             assertTrue(schedule.stability > 0.0)
             assertTrue(schedule.difficulty in 1.0..10.0)
-            assertTrue(schedule.intervalDays >= 1)
+            assertTrue(schedule.intervalDays > 0.0)
         }
         assertEquals(201, schedule.reviewCount)
     }
@@ -273,15 +285,18 @@ class BeeCodeSchedulerTest {
             runCatching { SchedulerPolicy(desiredRetention = retention) }
                 .onSuccess { error("desiredRetention $retention must be rejected") }
         }
-        runCatching { SchedulerPolicy(maximumIntervalDays = 0) }
+        runCatching { SchedulerPolicy(maximumIntervalDays = 0.0) }
             .onSuccess { error("maximumIntervalDays 0 must be rejected") }
         runCatching { SchedulerPolicy(parameters = DoubleArray(3)) }
             .onSuccess { error("a 3-value parameter set must be rejected") }
     }
 }
 
-private fun Instant.plusDays(days: Int): Instant =
-    Instant.fromEpochSeconds(epochSeconds + days.toLong() * 86_400L)
+private fun Instant.plusDays(days: Double): Instant =
+    Instant.fromEpochMilliseconds(toEpochMilliseconds() + Math.round(days * 86_400_000.0))
+
+private fun Instant.plusMinutes(minutes: Long): Instant =
+    Instant.fromEpochMilliseconds(toEpochMilliseconds() + minutes * 60_000L)
 
 private fun Instant.plusHours(hours: Int): Instant =
     Instant.fromEpochSeconds(epochSeconds + hours.toLong() * 3_600L)

@@ -58,6 +58,7 @@ import dev.bee.beecode.domain.ExecutionOutcome
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.TestCaseResult
+import dev.bee.beecode.domain.formatIntervalDays
 
 /**
  * The Problem view: statement, editor, results, and finalize.
@@ -594,8 +595,7 @@ private fun FinalizedCard(finalized: FinalizedUiState, onClose: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             finalized.schedule?.let { schedule ->
                 Text(
-                    "Next review in ${schedule.intervalDays} " +
-                        if (schedule.intervalDays == 1) "day" else "days",
+                    "Next review in ${formatIntervalDays(schedule.intervalDays)}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(

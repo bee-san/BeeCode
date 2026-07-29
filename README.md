@@ -31,9 +31,9 @@ The complete local study loop works on both platforms today.
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
 | Sync between devices | ✅ Settings → Sync | ✅ Settings → Sync |
-| Verified by | 11 Robolectric UI + 18 instrumented tests | 31 JVM tests, 8 of them UI |
+| Verified by | 11 Robolectric UI + 19 instrumented tests | 31 JVM tests, 8 of them UI |
 
-**289 automated tests**: 271 JVM tests across nine modules and 18 Android
+**290 automated tests**: 271 JVM tests across nine modules and 19 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -90,7 +90,9 @@ named tests.
 
 Both clients expose it under Settings → Sync between devices, and they interoperate: the
 desktop uses a file path, Android a document you pick with the system picker, and the
-token is a content hash on both so they agree on what "unchanged" means. Android still
+token is a content hash on both so they agree on what "unchanged" means. Verified on a
+real device: two profiles converge through one file, with the schedule replayed and the
+source transferred. Android still
 declares **no storage permission** — it holds a persisted URI grant for the one file you
 chose, which the system gives and you can revoke.
 

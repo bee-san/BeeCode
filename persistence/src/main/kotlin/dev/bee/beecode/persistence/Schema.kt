@@ -31,7 +31,7 @@ internal object Schema {
      * existing migration: an installed client has already run it, and changing it
      * would leave the two databases silently different.
      */
-    const val VERSION: Int = 1
+    const val VERSION: Int = 2
 
     /**
      * Migrations, indexed by the version they produce.
@@ -193,6 +193,122 @@ internal object Schema {
                 updated_at       INTEGER NOT NULL
             )
             """,
+        ),
+
+        // ---- Version 2: fractional intervals, for FSRS-7 -------------------
+        //
+        // FSRS-7 schedules in fractional days: a same-day review can legitimately
+        // be due in ten minutes (0.00694 days). These columns were INTEGER, which
+        // does not merely lose precision — SQLite would coerce every sub-day
+        // interval toward zero, so the exact case the algorithm exists to handle
+        // would be the case that broke.
+        //
+        // `fsrs_elapsed_days` widens for the same reason on the input side: an
+        // elapsed time floored to whole days feeds FSRS-7 an FSRS-6-shaped
+        // question and gets back FSRS-6-shaped behaviour.
+        //
+        // Widening INTEGER to REAL is value-preserving in both directions that
+        // matter here: existing whole-day values read back identically, and
+        // SQLite's dynamic typing means already-stored integers need no rewrite.
+        // Done with ALTER TABLE ... RENAME plus a copy rather than in place
+        // because SQLite cannot change a column's declared type, and the copy is
+        // also what lets the NOT NULL constraints carry over.
+        listOf(
+            "ALTER TABLE problem_schedule RENAME TO problem_schedule_v1",
+            """
+            CREATE TABLE problem_schedule (
+                problem_id        TEXT    NOT NULL PRIMARY KEY,
+                stability         REAL    NOT NULL,
+                difficulty        REAL    NOT NULL,
+                due_at            INTEGER NOT NULL,
+                last_reviewed_at  INTEGER NOT NULL,
+                interval_days     REAL    NOT NULL,
+                review_count      INTEGER NOT NULL,
+                lapse_count       INTEGER NOT NULL,
+                version           INTEGER NOT NULL,
+                updated_at        INTEGER NOT NULL
+            )
+            """,
+            """
+            INSERT INTO problem_schedule (
+                problem_id, stability, difficulty, due_at, last_reviewed_at,
+                interval_days, review_count, lapse_count, version, updated_at
+            )
+            SELECT
+                problem_id, stability, difficulty, due_at, last_reviewed_at,
+                CAST(interval_days AS REAL), review_count, lapse_count, version, updated_at
+            FROM problem_schedule_v1
+            """,
+            "DROP TABLE problem_schedule_v1",
+            // Recreated because dropping the old table takes its index with it.
+            "CREATE INDEX idx_problem_schedule_due ON problem_schedule (due_at)",
+
+            // The review log is append-only, but that constrains INSERT and DELETE
+            // of *rows*; widening a column's type preserves every recorded fact,
+            // and each row keeps naming the algorithm that produced it.
+            "ALTER TABLE problem_review RENAME TO problem_review_v1",
+            """
+            CREATE TABLE problem_review (
+                review_session_id      TEXT    NOT NULL PRIMARY KEY,
+                event_id               TEXT    NOT NULL UNIQUE,
+                problem_id             TEXT    NOT NULL,
+                problem_revision_id    TEXT    NOT NULL,
+                execution_run_id       TEXT    NOT NULL,
+                outcome                TEXT    NOT NULL,
+                rating                 TEXT    NOT NULL,
+                aided                  INTEGER NOT NULL,
+                counts_as_solved       INTEGER NOT NULL,
+                finalized_at           INTEGER NOT NULL,
+                device_id              TEXT    NOT NULL,
+                selected_source        TEXT    NOT NULL,
+                local_date             TEXT    NOT NULL,
+                local_hour             INTEGER NOT NULL,
+                streak_zone_id         TEXT    NOT NULL,
+                fsrs_algorithm_id      TEXT    NOT NULL,
+                fsrs_engine_version    TEXT    NOT NULL,
+                fsrs_parameters_hash   TEXT    NOT NULL,
+                fsrs_prev_state_hash   TEXT    NOT NULL,
+                fsrs_prev_stability    REAL,
+                fsrs_prev_difficulty   REAL,
+                fsrs_elapsed_days      REAL    NOT NULL,
+                fsrs_rating_value      INTEGER NOT NULL,
+                fsrs_desired_retention REAL    NOT NULL,
+                fsrs_max_interval_days REAL    NOT NULL,
+                fsrs_next_stability    REAL    NOT NULL,
+                fsrs_next_difficulty   REAL    NOT NULL,
+                fsrs_next_interval     REAL    NOT NULL,
+                fsrs_retrievability    REAL    NOT NULL,
+                fsrs_due_at            INTEGER NOT NULL
+            )
+            """,
+            """
+            INSERT INTO problem_review (
+                review_session_id, event_id, problem_id, problem_revision_id,
+                execution_run_id, outcome, rating, aided, counts_as_solved,
+                finalized_at, device_id, selected_source, local_date, local_hour,
+                streak_zone_id, fsrs_algorithm_id, fsrs_engine_version,
+                fsrs_parameters_hash, fsrs_prev_state_hash, fsrs_prev_stability,
+                fsrs_prev_difficulty, fsrs_elapsed_days, fsrs_rating_value,
+                fsrs_desired_retention, fsrs_max_interval_days, fsrs_next_stability,
+                fsrs_next_difficulty, fsrs_next_interval, fsrs_retrievability,
+                fsrs_due_at
+            )
+            SELECT
+                review_session_id, event_id, problem_id, problem_revision_id,
+                execution_run_id, outcome, rating, aided, counts_as_solved,
+                finalized_at, device_id, selected_source, local_date, local_hour,
+                streak_zone_id, fsrs_algorithm_id, fsrs_engine_version,
+                fsrs_parameters_hash, fsrs_prev_state_hash, fsrs_prev_stability,
+                fsrs_prev_difficulty, CAST(fsrs_elapsed_days AS REAL), fsrs_rating_value,
+                fsrs_desired_retention, CAST(fsrs_max_interval_days AS REAL), fsrs_next_stability,
+                fsrs_next_difficulty, CAST(fsrs_next_interval AS REAL), fsrs_retrievability,
+                fsrs_due_at
+            FROM problem_review_v1
+            """,
+            "DROP TABLE problem_review_v1",
+            "CREATE INDEX idx_problem_review_problem ON problem_review (problem_id, finalized_at)",
+            "CREATE INDEX idx_problem_review_finalized ON problem_review (finalized_at)",
+            "CREATE INDEX idx_problem_review_solved_date ON problem_review (counts_as_solved, local_date)",
         ),
     )
 

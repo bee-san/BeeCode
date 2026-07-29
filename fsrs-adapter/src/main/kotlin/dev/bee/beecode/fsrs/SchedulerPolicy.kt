@@ -15,14 +15,14 @@ data class SchedulerPolicy(
      */
     val desiredRetention: Double = DEFAULT_DESIRED_RETENTION,
     /**
-     * Cap on any single interval.
+     * Cap on any single interval, in fractional days.
      *
      * Ten years, not infinity: an interval beyond a decade is indistinguishable
      * from "never" and makes the schedule impossible to reason about.
      */
-    val maximumIntervalDays: Int = DEFAULT_MAXIMUM_INTERVAL_DAYS,
+    val maximumIntervalDays: Double = DEFAULT_MAXIMUM_INTERVAL_DAYS,
     /**
-     * The 21 FSRS parameters, or null for the engine's pinned defaults.
+     * The 35 FSRS-7 parameters, or null for the engine's pinned defaults.
      *
      * Overridable because a learner's own optimized parameters are the main
      * reason to keep FSRS rather than a fixed ladder.
@@ -33,7 +33,9 @@ data class SchedulerPolicy(
         require(desiredRetention.isFinite() && desiredRetention > 0.0 && desiredRetention < 1.0) {
             "desiredRetention must be in (0, 1), was $desiredRetention"
         }
-        require(maximumIntervalDays >= 1) { "maximumIntervalDays must be at least 1" }
+        require(maximumIntervalDays.isFinite() && maximumIntervalDays > 0.0) {
+            "maximumIntervalDays must be finite and positive, was $maximumIntervalDays"
+        }
         require(parameters == null || parameters.size == PARAMETER_COUNT) {
             "parameters must contain exactly $PARAMETER_COUNT values"
         }
@@ -52,7 +54,7 @@ data class SchedulerPolicy(
 
     override fun hashCode(): Int {
         var result = desiredRetention.hashCode()
-        result = 31 * result + maximumIntervalDays
+        result = 31 * result + maximumIntervalDays.hashCode()
         result = 31 * result + (parameters?.contentHashCode() ?: 0)
         return result
     }
@@ -61,9 +63,10 @@ data class SchedulerPolicy(
         const val DEFAULT_DESIRED_RETENTION: Double = 0.9
 
         /** Ten years. */
-        const val DEFAULT_MAXIMUM_INTERVAL_DAYS: Int = 36_500
+        const val DEFAULT_MAXIMUM_INTERVAL_DAYS: Double = 36_500.0
 
-        const val PARAMETER_COUNT: Int = 21
+        /** FSRS-7's parameter count, not FSRS-6's 21. */
+        const val PARAMETER_COUNT: Int = 35
 
         val DEFAULT: SchedulerPolicy = SchedulerPolicy()
     }

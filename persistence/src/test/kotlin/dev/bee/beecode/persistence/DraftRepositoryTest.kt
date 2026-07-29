@@ -3,6 +3,7 @@ package dev.bee.beecode.persistence
 import dev.bee.beecode.domain.DeviceId
 import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ProblemRevisionId
+import dev.bee.beecode.fsrs.FsrsDefaults
 import dev.bee.beecode.fsrs.SchedulerPolicy
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -187,10 +188,13 @@ class SettingsRepositoryTest {
 
     @Test
     fun theSchedulerPolicyRoundTripsIncludingParameters() {
+        // A real parameter vector, nudged, rather than a synthetic ramp: FSRS-7
+        // validates against upstream's clipper bounds, so an arbitrary ramp is
+        // rejected at construction and would test nothing about round-tripping.
         val custom = SchedulerPolicy(
             desiredRetention = 0.85,
-            maximumIntervalDays = 3_650,
-            parameters = DoubleArray(SchedulerPolicy.PARAMETER_COUNT) { 0.5 + it * 0.01 },
+            maximumIntervalDays = 3_650.0,
+            parameters = FsrsDefaults.parameters().also { it[4] = it[4] - 0.5 },
         )
         settings.setSchedulerPolicy(custom, T0)
         assertEquals(custom, settings.schedulerPolicy())

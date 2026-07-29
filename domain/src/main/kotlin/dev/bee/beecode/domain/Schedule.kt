@@ -24,8 +24,14 @@ data class ProblemSchedule(
     /** When this Problem next becomes due. */
     val dueAt: Instant,
     val lastReviewedAt: Instant,
-    /** The interval FSRS chose, retained for display and audit. */
-    val intervalDays: Int,
+    /**
+     * The interval FSRS chose, retained for display and audit.
+     *
+     * Fractional, because FSRS-7 schedules in fractional days: a same-day review
+     * can legitimately be due in ten minutes. An `Int` here would floor exactly
+     * the case the algorithm exists to handle.
+     */
+    val intervalDays: Double,
     val reviewCount: Int,
     /** Consecutive non-lapse reviews; reset to zero by an AGAIN. */
     val lapseCount: Int,
@@ -42,7 +48,10 @@ data class ProblemSchedule(
         require(difficulty.isFinite() && difficulty in MIN_DIFFICULTY..MAX_DIFFICULTY) {
             "difficulty must be finite and in [$MIN_DIFFICULTY, $MAX_DIFFICULTY]"
         }
-        require(intervalDays >= 1) { "intervalDays must be at least 1" }
+        // Positive, not at-least-one: a sub-day interval is valid under FSRS-7.
+        require(intervalDays.isFinite() && intervalDays > 0.0) {
+            "intervalDays must be finite and positive"
+        }
         require(reviewCount >= 0) { "reviewCount must not be negative" }
         require(lapseCount >= 0) { "lapseCount must not be negative" }
         require(version >= 0) { "version must not be negative" }
@@ -55,6 +64,58 @@ data class ProblemSchedule(
         const val MAX_DIFFICULTY: Double = 10.0
     }
 }
+
+/**
+ * A learner-facing description of an interval, e.g. "10 minutes" or "3 days".
+ *
+ * Lives in the domain, and is shared by the desktop and Android clients, because
+ * FSRS-7's intervals are fractional and a raw one reads as nonsense: "next review
+ * in 0.00694 days" is technically the schedule and tells nobody anything. Two
+ * clients formatting it independently would drift, and the unit choice is a
+ * property of the number rather than of either UI.
+ *
+ * Chooses the largest unit that leaves the value legible, and rounds rather than
+ * truncating — an interval of 0.99 days is "1 day", not "23 hours", because that is
+ * what a learner would say.
+ */
+fun formatIntervalDays(intervalDays: Double): String {
+    require(intervalDays.isFinite() && intervalDays > 0.0) {
+        "intervalDays must be finite and positive"
+    }
+
+    val minutes = intervalDays * MINUTES_PER_DAY
+    if (minutes < 1.0) {
+        // Rounded up, not to zero: "in 0 minutes" would read as a bug, and the
+        // honest statement about a sub-minute interval is that it is due now.
+        return "less than a minute"
+    }
+    if (minutes < MINUTES_PER_HOUR) {
+        return pluralize(Math.round(minutes), "minute")
+    }
+
+    val hours = intervalDays * HOURS_PER_DAY
+    if (hours < HOURS_PER_DAY) {
+        return pluralize(Math.round(hours), "hour")
+    }
+
+    val days = Math.round(intervalDays)
+    if (days < DAYS_PER_MONTH) {
+        return pluralize(days, "day")
+    }
+    if (days < DAYS_PER_YEAR) {
+        return pluralize(Math.round(intervalDays / DAYS_PER_MONTH), "month")
+    }
+    return pluralize(Math.round(intervalDays / DAYS_PER_YEAR), "year")
+}
+
+private const val MINUTES_PER_DAY = 1_440.0
+private const val MINUTES_PER_HOUR = 60.0
+private const val HOURS_PER_DAY = 24.0
+private const val DAYS_PER_MONTH = 30L
+private const val DAYS_PER_YEAR = 365L
+
+private fun pluralize(count: Long, unit: String): String =
+    if (count == 1L) "1 $unit" else "$count ${unit}s"
 
 /**
  * An immutable record of one finalized review.
@@ -126,29 +187,41 @@ data class ProblemReviewFinalized(
  * is recorded alongside its result.
  */
 data class FsrsTransitionRecord(
-    /** e.g. "FSRS-6.x 21-parameter snapshot". */
+    /**
+     * Which mathematics produced this row, e.g. "FSRS-7 35-parameter snapshot".
+     *
+     * The reason a row stays interpretable after the engine changes. Stability and
+     * difficulty computed under FSRS-6's 21 parameters do not mean the same thing
+     * under FSRS-7's 35, so a stored transition is only explainable if it names the
+     * algorithm alongside its numbers.
+     */
     val algorithmId: String,
     /** Version of the pinned bee-fsrs artifact. */
     val engineVersion: String,
-    /** Hash of the 21-value parameter set actually used. */
+    /** Hash of the parameter set actually used. */
     val parametersHash: String,
     /** Hash of the previous memory state, to detect a broken fold. */
     val previousStateHash: String,
     val previousStability: Double?,
     val previousDifficulty: Double?,
-    val elapsedDays: Int,
+    /** Fractional days since the previous review, as FSRS-7 takes them. */
+    val elapsedDays: Double,
     val ratingValue: Int,
     val desiredRetention: Double,
-    val maximumIntervalDays: Int,
+    val maximumIntervalDays: Double,
     val nextStability: Double,
     val nextDifficulty: Double,
-    val nextIntervalDays: Int,
+    val nextIntervalDays: Double,
     val retrievability: Double,
     val dueAt: Instant,
 ) {
     init {
-        require(elapsedDays >= 0) { "elapsedDays must not be negative" }
-        require(nextIntervalDays >= 1) { "nextIntervalDays must be at least 1" }
+        require(elapsedDays.isFinite() && elapsedDays >= 0.0) {
+            "elapsedDays must be finite and non-negative"
+        }
+        require(nextIntervalDays.isFinite() && nextIntervalDays > 0.0) {
+            "nextIntervalDays must be finite and positive"
+        }
         require(retrievability.isFinite() && retrievability in 0.0..1.0) {
             "retrievability must be finite and in [0, 1]"
         }

@@ -67,6 +67,7 @@ import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.ReviewRatingPolicy
 import dev.bee.beecode.domain.TestCaseResult
+import dev.bee.beecode.domain.formatIntervalDays
 import dev.bee.beecode.python.RunnerCapability
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -576,8 +577,7 @@ private fun ProblemPane(
                             )
                             result.schedule?.let { schedule ->
                                 Text(
-                                    "Next review in ${schedule.intervalDays} " +
-                                        if (schedule.intervalDays == 1) "day" else "days",
+                                    "Next review in ${formatIntervalDays(schedule.intervalDays)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }

@@ -4,13 +4,12 @@ import dev.bee.beecode.domain.FsrsTransitionRecord
 import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ProblemSchedule
 import dev.bee.beecode.domain.ReviewRating
-import dev.bee.fsrs.FsrsAlgorithmInfo
-import dev.bee.fsrs.FsrsEngine
+import dev.bee.fsrs.Fsrs7AlgorithmInfo
+import dev.bee.fsrs.Fsrs7Engine
+import dev.bee.fsrs.Fsrs7Parameters
 import dev.bee.fsrs.FsrsMemoryState
-import dev.bee.fsrs.FsrsParameters
 import dev.bee.fsrs.FsrsRating
 import kotlinx.datetime.Instant
-import kotlin.math.floor
 import kotlin.math.roundToLong
 
 /**
@@ -32,10 +31,10 @@ import kotlin.math.roundToLong
 class BeeCodeScheduler(
     private val policy: SchedulerPolicy = SchedulerPolicy.DEFAULT,
 ) {
-    private val parameters: FsrsParameters =
-        policy.parameters?.let { FsrsParameters.of(it) } ?: FsrsParameters.latestDefault()
+    private val parameters: Fsrs7Parameters =
+        policy.parameters?.let { Fsrs7Parameters.of(it) } ?: Fsrs7Parameters.latestDefault()
 
-    private val engine: FsrsEngine = FsrsEngine.create(parameters)
+    private val engine: Fsrs7Engine = Fsrs7Engine.create(parameters)
 
     /** Hash of the parameter set in use, recorded on every transition. */
     private val parametersHash: String = hashDoubles(parameters.toArray())
@@ -57,12 +56,15 @@ class BeeCodeScheduler(
     ): ScheduleTransition {
         val engineRating = rating.toEngineRating()
 
-        // Elapsed days floor, not round: a Problem reviewed 23 hours early has
-        // elapsed 0 days, and crediting it with 1 would inflate stability for
-        // reviews the learner did ahead of schedule.
+        // Fractional, not floored. FSRS-6 took whole days, so this used to floor —
+        // a Problem reviewed 23 hours early had "elapsed 0 days". FSRS-7 takes the
+        // real duration, and flooring it here would hand an FSRS-7 engine an
+        // FSRS-6-shaped question: every same-day review would collapse onto zero
+        // and the sub-day resolution the revision exists for would be discarded at
+        // the boundary rather than in the engine.
         val elapsedDays = previous
             ?.let { elapsedDaysBetween(it.lastReviewedAt, reviewedAt) }
-            ?: 0
+            ?: 0.0
 
         val previousMemory = previous?.let { FsrsMemoryState(it.stability, it.difficulty) }
 
@@ -91,7 +93,7 @@ class BeeCodeScheduler(
         val dueAt = reviewedAtMillis.plusDays(intervalDays)
 
         val record = FsrsTransitionRecord(
-            algorithmId = FsrsAlgorithmInfo.ALGORITHM_LABEL,
+            algorithmId = Fsrs7AlgorithmInfo.ALGORITHM_LABEL,
             engineVersion = ENGINE_VERSION,
             parametersHash = parametersHash,
             previousStateHash = hashState(previousMemory),
@@ -163,23 +165,36 @@ class BeeCodeScheduler(
          * vendored module has no published version to read and a wrong-but-quiet
          * value is worse than an explicit constant.
          */
-        const val ENGINE_VERSION: String = "bee-fsrs-0.1.0"
+        const val ENGINE_VERSION: String = "bee-fsrs-0.2.0"
 
-        /** Whole days elapsed, truncated toward zero. */
-        internal fun elapsedDaysBetween(from: Instant, to: Instant): Int {
-            val seconds = to.epochSeconds - from.epochSeconds
+        /**
+         * Fractional days elapsed, at millisecond resolution.
+         *
+         * Milliseconds rather than seconds because that is what persistence stores,
+         * so this cannot claim precision a reloaded schedule would not reproduce.
+         */
+        internal fun elapsedDaysBetween(from: Instant, to: Instant): Double {
+            val millis = to.toEpochMilliseconds() - from.toEpochMilliseconds()
             // Clocks move backwards: NTP corrections, timezone-naive edits,
             // restored backups. A negative elapsed count would make the engine
-            // throw, so it is clamped to 0 — treated as a same-day review.
-            if (seconds <= 0) return 0
-            val days = floor(seconds.toDouble() / SECONDS_PER_DAY)
-            return days.coerceAtMost(Int.MAX_VALUE.toDouble()).roundToLong().toInt()
+            // throw, so it is clamped to 0 — treated as an immediate re-review.
+            if (millis <= 0L) return 0.0
+            return millis.toDouble() / MILLIS_PER_DAY
         }
 
-        private const val SECONDS_PER_DAY = 86_400L
+        private const val MILLIS_PER_DAY = 86_400_000.0
 
-        private fun Instant.plusDays(days: Int): Instant =
-            Instant.fromEpochSeconds(epochSeconds + days.toLong() * SECONDS_PER_DAY, nanosecondsOfSecond)
+        /**
+         * Advance by a fractional day count, rounded to the stored millisecond.
+         *
+         * Rounded rather than truncated so a due instant is the nearest
+         * representable one, and rounded *here* so the value written to the
+         * schedule is exactly the value persistence will read back.
+         */
+        private fun Instant.plusDays(days: Double): Instant =
+            Instant.fromEpochMilliseconds(
+                toEpochMilliseconds() + (days * MILLIS_PER_DAY).roundToLong(),
+            )
 
         /**
          * Drop precision finer than a millisecond.

@@ -1,7 +1,7 @@
 package dev.bee.beecode.fsrs
 
-import dev.bee.fsrs.FsrsAlgorithmInfo
-import dev.bee.fsrs.FsrsParameters
+import dev.bee.fsrs.Fsrs7AlgorithmInfo
+import dev.bee.fsrs.Fsrs7Parameters
 
 /**
  * The engine's defaults and identity, re-exposed as plain values.
@@ -12,16 +12,16 @@ import dev.bee.fsrs.FsrsParameters
  * makes the engine replaceable.
  */
 object FsrsDefaults {
-    const val PARAMETER_COUNT: Int = FsrsParameters.PARAMETER_COUNT
+    const val PARAMETER_COUNT: Int = Fsrs7Parameters.PARAMETER_COUNT
 
     /** Human-readable algorithm label, recorded in every transition. */
-    const val ALGORITHM_LABEL: String = FsrsAlgorithmInfo.ALGORITHM_LABEL
+    const val ALGORITHM_LABEL: String = Fsrs7AlgorithmInfo.ALGORITHM_LABEL
 
     /** The upstream reference this engine is a snapshot of. */
-    val upstreamReference: String = FsrsAlgorithmInfo.upstreamReference()
+    val upstreamReference: String = Fsrs7AlgorithmInfo.upstreamReference()
 
-    /** A fresh copy of the 21 default parameters. Never the engine's own array. */
-    fun parameters(): DoubleArray = FsrsParameters.latestDefaultValues()
+    /** A fresh copy of the 35 default parameters. Never the engine's own array. */
+    fun parameters(): DoubleArray = Fsrs7Parameters.latestDefaultValues()
 
     /**
      * Validate a candidate parameter set, returning null when it is usable and a
@@ -31,7 +31,7 @@ object FsrsDefaults {
      * a learner types into, where an exception is the wrong shape.
      */
     fun validateParameters(values: DoubleArray): String? = try {
-        FsrsParameters.of(values)
+        Fsrs7Parameters.of(values)
         null
     } catch (e: IllegalArgumentException) {
         e.message ?: "The parameter set is not valid"

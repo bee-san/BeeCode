@@ -42,8 +42,19 @@ import kotlinx.serialization.json.Json
  */
 object ProfileTransfer {
 
-    /** Bumped when the payload shape changes incompatibly. */
-    const val FORMAT_VERSION: Int = 1
+    /**
+     * Bumped when the payload shape changes incompatibly.
+     *
+     * 2: FSRS-7's fractional intervals. `elapsedDays`, `maximumIntervalDays`, and
+     * `nextIntervalDays` widened from integer to fractional days.
+     *
+     * Reading *older* exports still works, because JSON does not distinguish the
+     * two and `3` decodes into a fractional field as `3.0`. The bump is for the
+     * other direction: a version-1 build reading this payload would fail to parse
+     * `0.00694` as an integer, and the check below turns that into an explicit
+     * "upgrade BeeCode" rather than a corrupt restore.
+     */
+    const val FORMAT_VERSION: Int = 2
 
     internal val json = Json {
         prettyPrint = true
@@ -343,13 +354,13 @@ internal data class WireReview(
     val previousStateHash: String,
     val previousStability: Double? = null,
     val previousDifficulty: Double? = null,
-    val elapsedDays: Int,
+    val elapsedDays: Double,
     val ratingValue: Int,
     val desiredRetention: Double,
-    val maximumIntervalDays: Int,
+    val maximumIntervalDays: Double,
     val nextStability: Double,
     val nextDifficulty: Double,
-    val nextIntervalDays: Int,
+    val nextIntervalDays: Double,
     val retrievability: Double,
     val dueAtEpochMillis: Long,
 )

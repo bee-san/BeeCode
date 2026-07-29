@@ -1,9 +1,11 @@
 package dev.bee.beecode.fsrs
 
-import dev.bee.fsrs.FsrsAlgorithmInfo
+import dev.bee.fsrs.Fsrs7AlgorithmInfo
+import dev.bee.fsrs.Fsrs7Parameters
 import dev.bee.fsrs.FsrsParameters
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -15,82 +17,99 @@ import kotlin.test.assertTrue
  * upstreaming, and nothing notices.
  *
  * These assertions are what notices. They are not testing FSRS; the engine's own
- * 38-vector fixture does that. They are testing that BeeCode is scheduling with the
- * mathematics it says it is, because every stored schedule transition records these
- * values and a learner's history is only interpretable if they are true.
+ * fixtures do that, with 38 FSRS-6 vectors and 384 FSRS-7 ones. They are testing that
+ * BeeCode is scheduling with the mathematics it says it is, because every stored
+ * schedule transition records these values and a learner's history is only
+ * interpretable if they are true.
+ *
+ * BeeCode schedules with **FSRS-7**. An earlier version of this file asserted the
+ * opposite — that the engine was FSRS-6 and specifically *not* the 35-parameter
+ * FSRS-7 — which was true when written and is precisely the gate the adoption had to
+ * come through. The checks are inverted here rather than deleted: that the two
+ * algorithms are distinguishable by number is still the useful property, and it now
+ * runs in the other direction.
  */
 class FsrsProvenanceTest {
 
     @Test
     fun theVendoredEngineIsTheVersionBeeCodeClaims() {
         // Recorded in every transition, so it must match what fsrs-adapter writes.
-        assertEquals("bee-fsrs-0.1.0", BeeCodeScheduler.ENGINE_VERSION)
+        assertEquals("bee-fsrs-0.2.0", BeeCodeScheduler.ENGINE_VERSION)
     }
 
     @Test
-    fun theAlgorithmIsTheFsrs6TwentyOneParameterSnapshot() {
-        // FSRS-6.x, not FSRS-7. FSRS-7 is real — it is defined in
-        // open-spaced-repetition/srs-benchmark as models/fsrs_v7.py — but it carries
-        // 35 parameters and fractional intervals, so the parameter count below is
-        // what distinguishes the two, and it is checked rather than asserted in prose.
-        //
-        // No published scheduler library ships FSRS-7 (not py-fsrs, fsrs-rs, ts-fsrs,
-        // or Anki), so adopting it means porting research code and migrating stored
-        // memory state. This test is what forces that to be a decision with a visible
-        // fixture diff rather than a drift under an existing learner's history.
-        assertEquals("FSRS-6.x 21-parameter snapshot", FsrsAlgorithmInfo.ALGORITHM_LABEL)
-        assertEquals(21, FsrsAlgorithmInfo.PARAMETER_COUNT)
-        assertEquals(21, FsrsParameters.PARAMETER_COUNT)
+    fun theAlgorithmIsTheFsrs7ThirtyFiveParameterSnapshot() {
+        // FSRS-7, not FSRS-6. The parameter count is what distinguishes them, so it is
+        // checked rather than asserted in prose: a swap that changed the label but not
+        // the mathematics, or the reverse, fails here.
+        assertEquals("FSRS-7 35-parameter snapshot", Fsrs7AlgorithmInfo.ALGORITHM_LABEL)
+        assertEquals(35, Fsrs7AlgorithmInfo.PARAMETER_COUNT)
+        assertEquals(35, Fsrs7Parameters.PARAMETER_COUNT)
+        assertEquals(35, FsrsDefaults.PARAMETER_COUNT)
+        assertEquals(35, SchedulerPolicy.PARAMETER_COUNT)
     }
 
     @Test
-    fun theEngineIsNotTheThirtyFiveParameterFsrs7() {
+    fun theEngineIsNotTheTwentyOneParameterFsrs6() {
         // Stated as its own assertion because the difference is a number, not a label.
-        // FSRS-7's parameter vector is 35 long (indices 0-34) and its first four
-        // initial-stability values differ from FSRS-6's, so either check separates
-        // them without trusting a README.
+        // The FSRS-6 engine is still vendored — old rows must stay replayable — so
+        // "BeeCode uses FSRS-7" is a claim about which engine the adapter reaches for,
+        // and that is what this checks.
         assertEquals(21, FsrsParameters.PARAMETER_COUNT)
-        val fsrs7FirstFour = doubleArrayOf(0.041, 2.4175, 4.1283, 11.9709)
+        assertNotEquals(FsrsParameters.PARAMETER_COUNT, Fsrs7Parameters.PARAMETER_COUNT)
+
+        val fsrs6FirstFour = doubleArrayOf(0.212, 1.2931, 2.3065, 8.2956)
         val actual = FsrsDefaults.parameters()
-        fsrs7FirstFour.forEachIndexed { index, fsrs7Value ->
-            assertTrue(
-                actual[index] != fsrs7Value,
-                "parameter $index matches FSRS-7's default; the engine may have been " +
-                    "swapped without updating ALGORITHM_LABEL",
+        fsrs6FirstFour.forEachIndexed { index, fsrs6Value ->
+            assertNotEquals(
+                fsrs6Value,
+                actual[index],
+                "parameter $index matches FSRS-6's default; the adapter may have been " +
+                    "pointed back at the older engine without updating ALGORITHM_LABEL",
             )
         }
     }
 
     @Test
     fun theUpstreamSourceIsPinnedExactly() {
-        // Commit and blob, not just a tag: a tag can be moved, a commit cannot.
-        assertEquals("open-spaced-repetition/py-fsrs", FsrsAlgorithmInfo.UPSTREAM_REPOSITORY)
-        assertEquals("v6.3.1", FsrsAlgorithmInfo.UPSTREAM_RELEASE)
+        // Commit and blob, not a tag or a branch. FSRS-7 has no release to pin: it
+        // lives in a research repository whose main moves, so "the FSRS-7 in
+        // srs-benchmark" is not a reproducible statement without a hash.
+        assertEquals("open-spaced-repetition/srs-benchmark", Fsrs7AlgorithmInfo.UPSTREAM_REPOSITORY)
         assertEquals(
-            "3abe686e9c058d3f3c00bbeb92e68b71211b2b31",
-            FsrsAlgorithmInfo.UPSTREAM_COMMIT,
+            "70cc4387f573ff20b13ac9c106333a335c8a4cb8",
+            Fsrs7AlgorithmInfo.UPSTREAM_COMMIT,
         )
         assertEquals(
-            "6d42ecb259bbaaa02101f13c5e1b2ec7cdc77eae",
-            FsrsAlgorithmInfo.UPSTREAM_SCHEDULER_BLOB,
+            "33893c3fed0f7dbe28c2b55874a50d9b3fa77df5",
+            Fsrs7AlgorithmInfo.UPSTREAM_MODEL_BLOB,
         )
+        assertEquals("models/fsrs_v7.py", Fsrs7AlgorithmInfo.UPSTREAM_MODEL_PATH)
     }
 
     @Test
-    fun theDefaultParametersAreExactlyTheExpectedTwentyOneValues() {
+    fun theDefaultParametersAreExactlyTheExpectedThirtyFiveValues() {
         // The most consequential possible regression: changing a parameter silently
-        // reschedules every existing learner's entire queue. Pinned by value.
+        // reschedules every existing learner's entire queue. Pinned by value, and
+        // byte-exact to upstream's FSRS7.init_w.
         val expected = doubleArrayOf(
-            0.212, 1.2931, 2.3065, 8.2956, 6.4133,
-            0.8334, 3.0194, 0.001, 1.8722, 0.1666,
-            0.796, 1.4835, 0.0614, 0.2629, 1.6483,
-            0.6014, 1.8729, 0.5425, 0.0912, 0.0658,
-            0.1542,
+            // Initial stability
+            0.041, 2.4175, 4.1283, 11.9709,
+            // Difficulty
+            5.6385, 0.4468, 3.262,
+            // Stability, long-term
+            2.3054, 0.1688, 1.3325, 0.3524, 0.0049, 0.7503, 0.0896, 0.6625, 1.3,
+            // Stability, short-term
+            0.882, 0.3072, 3.5875, 0.303, 0.0107, 0.2279, 2.6413, 0.5594, 1.3,
+            // Long-short term transition
+            2.5, 1.0,
+            // Forgetting curve
+            0.0723, 0.1634, 0.5, 0.9555, 0.2245, 0.6232, 0.1362, 0.3862,
         )
         val actual = FsrsDefaults.parameters()
         assertEquals(expected.size, actual.size)
         expected.forEachIndexed { index, value ->
-            assertEquals(value, actual[index], 0.0, "FSRS parameter $index")
+            assertEquals(value, actual[index], 0.0, "FSRS-7 parameter $index")
         }
     }
 
@@ -103,18 +122,20 @@ class FsrsProvenanceTest {
             rating = dev.bee.beecode.domain.ReviewRating.GOOD,
             reviewedAt = kotlinx.datetime.Instant.parse("2026-07-29T12:00:00Z"),
         )
-        assertEquals(FsrsAlgorithmInfo.ALGORITHM_LABEL, transition.record.algorithmId)
+        assertEquals(Fsrs7AlgorithmInfo.ALGORITHM_LABEL, transition.record.algorithmId)
         assertEquals(BeeCodeScheduler.ENGINE_VERSION, transition.record.engineVersion)
         assertTrue(transition.record.parametersHash.isNotEmpty())
     }
 
     @Test
     fun theUpstreamReferenceReadsAsAUsableCitation() {
-        // Surfaced in the UI and in exports, so it has to be legible to a human
-        // trying to reproduce a schedule years later.
-        val citation = FsrsAlgorithmInfo.upstreamReference()
-        assertTrue(citation.contains("py-fsrs"), citation)
-        assertTrue(citation.contains("v6.3.1"), citation)
+        // Surfaced in the UI and in exports, so it has to be legible to a human trying
+        // to reproduce a schedule years later — which for FSRS-7 means carrying the
+        // commit, since there is no version number to quote.
+        val citation = Fsrs7AlgorithmInfo.upstreamReference()
+        assertTrue(citation.contains("srs-benchmark"), citation)
+        assertTrue(citation.contains("fsrs_v7.py"), citation)
+        assertTrue(citation.contains(Fsrs7AlgorithmInfo.UPSTREAM_COMMIT), citation)
         assertEquals(FsrsDefaults.upstreamReference, citation)
     }
 }

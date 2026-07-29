@@ -320,7 +320,7 @@ class ReviewRepository(
                 statement.setDouble(3, schedule.difficulty)
                 statement.setLong(4, schedule.dueAt.toEpochMilliseconds())
                 statement.setLong(5, schedule.lastReviewedAt.toEpochMilliseconds())
-                statement.setInt(6, schedule.intervalDays)
+                statement.setDouble(6, schedule.intervalDays)
                 statement.setInt(7, schedule.reviewCount)
                 statement.setInt(8, schedule.lapseCount)
                 statement.setLong(9, schedule.version)
@@ -342,7 +342,7 @@ class ReviewRepository(
             statement.setDouble(2, schedule.difficulty)
             statement.setLong(3, schedule.dueAt.toEpochMilliseconds())
             statement.setLong(4, schedule.lastReviewedAt.toEpochMilliseconds())
-            statement.setInt(5, schedule.intervalDays)
+            statement.setDouble(5, schedule.intervalDays)
             statement.setInt(6, schedule.reviewCount)
             statement.setInt(7, schedule.lapseCount)
             statement.setLong(8, schedule.version)
@@ -404,13 +404,13 @@ class ReviewRepository(
             statement.setString(19, record.previousStateHash)
             record.previousStability?.let { statement.setDouble(20, it) } ?: statement.setNull(20, java.sql.Types.REAL)
             record.previousDifficulty?.let { statement.setDouble(21, it) } ?: statement.setNull(21, java.sql.Types.REAL)
-            statement.setInt(22, record.elapsedDays)
+            statement.setDouble(22, record.elapsedDays)
             statement.setInt(23, record.ratingValue)
             statement.setDouble(24, record.desiredRetention)
-            statement.setInt(25, record.maximumIntervalDays)
+            statement.setDouble(25, record.maximumIntervalDays)
             statement.setDouble(26, record.nextStability)
             statement.setDouble(27, record.nextDifficulty)
-            statement.setInt(28, record.nextIntervalDays)
+            statement.setDouble(28, record.nextIntervalDays)
             statement.setDouble(29, record.retrievability)
             statement.setLong(30, record.dueAt.toEpochMilliseconds())
             statement.executeUpdate()
@@ -462,7 +462,7 @@ internal fun ResultSet.toSchedule(): ProblemSchedule = ProblemSchedule(
     difficulty = getDouble("difficulty"),
     dueAt = Instant.fromEpochMilliseconds(getLong("due_at")),
     lastReviewedAt = Instant.fromEpochMilliseconds(getLong("last_reviewed_at")),
-    intervalDays = getInt("interval_days"),
+    intervalDays = getDouble("interval_days"),
     reviewCount = getInt("review_count"),
     lapseCount = getInt("lapse_count"),
     version = getLong("version"),
@@ -489,13 +489,13 @@ internal fun ResultSet.toReview(): ProblemReviewFinalized = ProblemReviewFinaliz
         previousStateHash = getString("fsrs_prev_state_hash"),
         previousStability = getNullableDouble("fsrs_prev_stability"),
         previousDifficulty = getNullableDouble("fsrs_prev_difficulty"),
-        elapsedDays = getInt("fsrs_elapsed_days"),
+        elapsedDays = getDouble("fsrs_elapsed_days"),
         ratingValue = getInt("fsrs_rating_value"),
         desiredRetention = getDouble("fsrs_desired_retention"),
-        maximumIntervalDays = getInt("fsrs_max_interval_days"),
+        maximumIntervalDays = getDouble("fsrs_max_interval_days"),
         nextStability = getDouble("fsrs_next_stability"),
         nextDifficulty = getDouble("fsrs_next_difficulty"),
-        nextIntervalDays = getInt("fsrs_next_interval"),
+        nextIntervalDays = getDouble("fsrs_next_interval"),
         retrievability = getDouble("fsrs_retrievability"),
         dueAt = Instant.fromEpochMilliseconds(getLong("fsrs_due_at")),
     ),
