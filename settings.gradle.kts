@@ -23,6 +23,10 @@ include(":bee-fsrs")
 // Pure domain: models, state machines, and policy. No UI, SQL, HTTP, or Python.
 include(":domain")
 
+// BeeCode's review policy wrapped around the bee-fsrs engine. The only module
+// that depends on dev.bee.fsrs.
+include(":fsrs-adapter")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.
