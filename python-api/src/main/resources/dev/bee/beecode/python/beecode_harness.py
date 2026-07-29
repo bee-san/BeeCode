@@ -50,6 +50,61 @@ RUNTIME_ERROR = "RUNTIME_ERROR"
 # million-element list should still produce a readable diff.
 MAX_VALUE_CHARS = 2000
 
+# Fallback cap on captured learner output when the request does not state one.
+DEFAULT_MAX_OUTPUT_CHARS = 65536
+
+
+class BoundedWriter(io.TextIOBase):
+    """Captures at most the last `limit` characters written.
+
+    Learner output must be bounded *here*, not only on the Kotlin side. Two
+    reasons, both learned from a failing test:
+
+    - An unbounded StringIO lets `while True: print(x)` exhaust the interpreter's
+      memory, so the harness dies before it can report anything.
+    - The captured output is embedded in the response, and the response is framed
+      at the very end of stdout. An unbounded capture makes the response larger
+      than the reader's own buffer, so the frame is evicted and a *passing* run
+      is misreported as a worker failure.
+
+    The tail is kept rather than the head: when a program prints in a loop and
+    then crashes, the informative part is what it said last.
+    """
+
+    def __init__(self, limit):
+        super().__init__()
+        self._limit = max(1, limit)
+        self._chunks = []
+        self._length = 0
+        self.truncated = False
+
+    def writable(self):
+        return True
+
+    def write(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self._chunks.append(text)
+        self._length += len(text)
+        if self._length > self._limit * 2:
+            self._compact()
+        return len(text)
+
+    def _compact(self):
+        joined = "".join(self._chunks)
+        if len(joined) > self._limit:
+            joined = joined[-self._limit:]
+            self.truncated = True
+        self._chunks = [joined]
+        self._length = len(joined)
+
+    def flush(self):
+        pass
+
+    def getvalue(self):
+        self._compact()
+        return self._chunks[0] if self._chunks else ""
+
 # Relative tolerance for APPROXIMATE_NUMERIC, matching the Kotlin comparator ID.
 APPROX_REL_TOL = 1e-9
 APPROX_ABS_TOL = 1e-12
@@ -261,11 +316,14 @@ def main():
     raw = sys.stdin.read()
     # Learner output and the harness result share one stream, so capture stdout
     # while the learner's code runs and emit the result after a sentinel line.
-    captured = io.StringIO()
+    # The capture is bounded so runaway printing can neither exhaust memory nor
+    # push the framed result out of the reader's buffer.
+    captured = BoundedWriter(DEFAULT_MAX_OUTPUT_CHARS)
     real_stdout = sys.stdout
     real_stderr = sys.stderr
     try:
         request = json.loads(raw)
+        captured = BoundedWriter(int(request.get("maxOutputChars") or DEFAULT_MAX_OUTPUT_CHARS))
         if request.get("harnessVersion") != HARNESS_VERSION:
             response = {
                 "outcome": RUNTIME_ERROR,
@@ -282,6 +340,7 @@ def main():
                 sys.stdout = real_stdout
                 sys.stderr = real_stderr
         response["output"] = captured.getvalue()
+        response["outputTruncated"] = captured.truncated
         response["pythonVersion"] = "%d.%d.%d" % sys.version_info[:3]
     except BaseException:
         sys.stdout = real_stdout

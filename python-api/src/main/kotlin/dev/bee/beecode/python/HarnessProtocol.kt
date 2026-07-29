@@ -49,6 +49,11 @@ object HarnessProtocol {
             harnessVersion = request.harnessVersion,
             source = request.source,
             entryPoint = request.entryPoint,
+            // The harness must bound its own capture. Doing it only on this side
+            // is too late: an unbounded capture is embedded in the response, and
+            // the response is framed at the end of stdout, so a runaway print
+            // evicts the frame and a passing run looks like a worker failure.
+            maxOutputChars = request.limits.maxOutputBytes,
             tests = request.tests.map {
                 HarnessTest(
                     name = it.name,
@@ -125,7 +130,10 @@ object HarnessProtocol {
             )
         }
 
-        val (output, truncated) = truncateOutput(decoded.output, limits)
+        // Bound again here as a belt-and-braces measure, and treat the result as
+        // truncated if either side had to trim.
+        val (output, truncatedHere) = truncateOutput(decoded.output, limits)
+        val truncated = truncatedHere || decoded.outputTruncated
 
         return RunResult(
             runId = request.runId,
@@ -229,6 +237,7 @@ private data class HarnessRequest(
     val harnessVersion: Int,
     val source: String,
     val entryPoint: String,
+    val maxOutputChars: Int,
     val tests: List<HarnessTest>,
 )
 
@@ -247,6 +256,7 @@ private data class HarnessResponse(
     @SerialName("testResults")
     val testResults: List<HarnessTestResult> = emptyList(),
     val output: String = "",
+    val outputTruncated: Boolean = false,
     val pythonVersion: String = "unknown",
     val diagnostic: String? = null,
 )
