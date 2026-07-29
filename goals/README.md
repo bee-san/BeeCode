@@ -39,7 +39,7 @@ live cross-device study-history synchronization.
 4. Scheduling uses the user's FSRS implementation from the dedicated
    `bee-san/bee-fsrs` GitHub repository/package. It is extracted once with
    provenance from `bee-san/kanji_anki`, released independently, pinned, and
-   tested separately from BeeCode policy. The revision is **FSRS-6.x, 21
+   tested separately from BeeCode policy. The revision is **FSRS-7, 35
    parameters**, recorded in code rather than here so a swap fails a test — see
    [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 5. Learner source code, test output, and FSRS memory state stay local.

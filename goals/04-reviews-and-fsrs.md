@@ -1,19 +1,18 @@
 # Target 04: reviews and FSRS
 
-> **Note on the algorithm revision.** This document used to say "FSRS 7". The
-> engine extracted from `kanji_anki` is **FSRS-6.x, 21 parameters** — verified by
-> parameter count and by defaults byte-exact to py-fsrs `v6.3.1`, and
-> self-labelled that way in `FsrsAlgorithmInfo.kt`. FSRS-7 is a real but
-> *different* algorithm (`models/fsrs_v7.py` in
-> `open-spaced-repetition/srs-benchmark`): **35 parameters**, fractional
-> intervals, an 8-parameter mixed-power forgetting curve, and shipped in **no**
-> scheduler library.
+> **Note on the algorithm revision.** This document used to say "FSRS 7" while the
+> engine extracted from `kanji_anki` was FSRS-6.x. That gap is closed: BeeCode now
+> schedules with **FSRS-7, 35 parameters** — an 8-parameter mixed-power forgetting
+> curve and fractional intervals, ported from `models/fsrs_v7.py` in
+> `open-spaced-repetition/srs-benchmark` and pinned by commit and blob in
+> `Fsrs7AlgorithmInfo.kt`, because upstream has no release to pin. FSRS-6.x is
+> retained so pre-migration rows stay replayable.
 >
-> The version numbers are removed rather than replaced, because "FSRS" names the
-> requirement and the revision is recorded in code where it can be tested. **If
-> adopting FSRS-7 is actually wanted, it is an `SRS-009` migration and needs its
-> own goal** — porting research code, new reference vectors, and a change to the
-> shape of persisted memory state. See
+> The version numbers stay removed from the text below, because "FSRS" names the
+> requirement and the revision is recorded in code where it can be tested. The
+> migration this note used to defer has happened: fractional intervals widened
+> four persisted columns (schema version 2) and the export payload (format
+> version 2). See
 > [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 
 This target turns a Problem attempt into durable study history and a future due

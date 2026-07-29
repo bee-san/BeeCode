@@ -60,6 +60,7 @@ class ProfileTransferTest {
 
         // ---- Build a profile worth recovering -----------------------------
         val expectedDueAt: Instant
+        val expectedIntervalDays: Double
         openOriginal().use { profile ->
             profile.study.open(problemId)
             val run = assertIs<RunOutcome.Completed>(profile.study.run(problemId, source))
@@ -68,6 +69,7 @@ class ProfileTransferTest {
                 profile.study.finalize(problemId, run.run.id, ReviewRating.GOOD),
             )
             expectedDueAt = assertNotNull(finalized.schedule).dueAt
+            expectedIntervalDays = assertNotNull(finalized.schedule).intervalDays
 
             profile.settings.setDailyReviewLimit(15, exportedAt)
         }
@@ -101,6 +103,16 @@ class ProfileTransferTest {
             val schedule = assertNotNull(profile.reviews.schedule(problemId))
             assertEquals(expectedDueAt, schedule.dueAt)
             assertEquals(1, schedule.reviewCount)
+
+            // The interval survives with its fractional part intact. FSRS-7 returns
+            // fractional days, so an export that serialised this as an integer — or a
+            // restore that read it as one — would round it away and still report
+            // success, having quietly moved the learner's due date.
+            assertEquals(expectedIntervalDays, schedule.intervalDays, 1.0e-9)
+            assertTrue(
+                schedule.intervalDays % 1.0 != 0.0,
+                "the fixture must exercise a fractional interval, got ${schedule.intervalDays}",
+            )
 
             // Statistics and achievements follow from the log.
             assertEquals(1, profile.statistics().totalSolved)

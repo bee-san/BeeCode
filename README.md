@@ -2,7 +2,7 @@
 
 BeeCode is an offline-first spaced-repetition app for practising LeetCode-style
 algorithm Problems. It runs on Android and desktop, schedules reviews with
-[bee-fsrs](https://github.com/bee-san/bee-fsrs) (FSRS-6.x, Kotlin), and lets you write
+[bee-fsrs](https://github.com/bee-san/bee-fsrs) (FSRS-7, Kotlin), and lets you write
 and run Python solutions inside each review.
 
 Python is what you *write* — the scheduling engine is Kotlin.

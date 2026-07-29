@@ -363,6 +363,20 @@ class SnapshotMergeTest {
         }
     """.trimIndent()
 
+    /**
+     * A review as an **FSRS-6 era export** wrote it.
+     *
+     * Deliberately left in its original form after the FSRS-7 migration: the
+     * algorithm label and engine version are the old ones, and `elapsedDays`,
+     * `maximumIntervalDays`, and `nextIntervalDays` are bare JSON integers rather
+     * than the fractional values a current export emits.
+     *
+     * That makes every test using this fixture a check that an older export still
+     * restores. Widening those fields to fractional days would have been a silent
+     * data-loss bug if JSON distinguished `3` from `3.0`, and the whole point of
+     * bumping `ProfileTransfer.FORMAT_VERSION` was to make the *other* direction —
+     * an old build reading a new payload — fail loudly instead.
+     */
     private fun review(
         sessionId: String,
         problemId: String,

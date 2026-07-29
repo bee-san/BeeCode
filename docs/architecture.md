@@ -54,7 +54,7 @@ As built:
 
 ```text
 BeeCode/
-├── bee-fsrs/         FSRS-6.x memory mathematics, vendored with provenance
+├── bee-fsrs/         FSRS-7 and FSRS-6.x memory mathematics, vendored with provenance
 ├── domain/           Pure models, review state machine, rating policy
 ├── fsrs-adapter/     BeeCode policy around bee-fsrs; the only module that imports it
 ├── python-api/       Execution contracts and the shared Python harness
@@ -87,8 +87,9 @@ milestone. Personal sync is now planned along different lines — see
 - Compose (Material 3) per client, over a shared UI-free application layer.
 - Kotlin 2.2.20, AGP 8.13, JVM target 17, Android `minSdk` 26 / `compileSdk` 36.
 - SQLite through `sqlite-jdbc` on both platforms, WAL and `synchronous = FULL`.
-- FSRS-6.x vendored into `bee-fsrs/` from `bee-san/kanji_anki` with full
-  provenance, dependency-free and clock-free.
+- FSRS-7 (35 parameters, fractional intervals) vendored into `bee-fsrs/` with full
+  provenance, dependency-free and clock-free. FSRS-6.x ships alongside it so
+  pre-migration rows stay replayable.
 - Desktop Python: `python3` child process under a supervisor, killable, cleaned
   environment, fresh temporary workspace.
 - Android Python: Chaquopy 17, CPython 3.12, `x86_64` and `arm64-v8a`.
@@ -104,11 +105,11 @@ milestone. Personal sync is now planned along different lines — see
 - A shared KMP domain/application layer with platform adapter interfaces.
 - SQLite as local authority, with SQLDelight as the leading shared schema/
   migration candidate.
-- User's Kotlin FSRS-6.x engine (21 parameters) extracted with provenance from
+- User's Kotlin FSRS engine extracted with provenance from
   [`bee-san/kanji_anki`](https://github.com/bee-san/kanji_anki) into the
-  independently versioned `bee-san/bee-fsrs` GitHub repository/package. BeeCode
-  pins its released artifact and wraps it with a BeeCode-owned scheduler
-  adapter.
+  independently versioned `bee-san/bee-fsrs` GitHub repository/package, then
+  extended there with an FSRS-7 port. BeeCode pins its released artifact and wraps
+  it with a BeeCode-owned scheduler adapter.
 - Platform-neutral `PythonRunner`; out-of-process worker on desktop and an
   isolated Android service/process if the provider spike proves the boundary.
 - Ktor/PostgreSQL/Docker Compose/Caddy for the optional self-hosted server.
@@ -206,8 +207,10 @@ alone never mutates FSRS, achievements, or Leaderboards.
 
 ## FSRS boundary
 
-The user's versioned `bee-fsrs` package owns FSRS-6.x memory mathematics — the
-21-parameter snapshot, not the 35-parameter FSRS-7; see
+The user's versioned `bee-fsrs` package owns the memory mathematics. BeeCode
+schedules with **FSRS-7**, the 35-parameter revision with fractional intervals;
+the 21-parameter FSRS-6.x engine ships alongside it because a schedule stored
+under 21 parameters is not reinterpretable under 35. See
 [ADR 0004](adr/0004-bee-fsrs-is-its-own-repository.md):
 
 - initial state;
@@ -226,8 +229,9 @@ BeeCode owns:
 
 Every schedule transition records the FSRS algorithm ID, `bee-fsrs` package
 version/checksum and source commit, previous-state hash, elapsed/rating inputs,
-immutable 21-value parameter set/hash, resulting memory state, interval, and due
-decision.
+immutable parameter set/hash, resulting memory state, interval, and due
+decision. Recording the algorithm ID per row is what let BeeCode move from
+FSRS-6.x to FSRS-7 without orphaning existing history.
 Operational rebuild folds those recorded outputs; historical recomputation is
 an integrity check only while the exact old implementation remains available.
 Golden vectors run through both platform compositions before an upgrade can

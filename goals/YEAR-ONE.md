@@ -1,14 +1,17 @@
 # BeeCode year-one execution plan
 
-> **Note on the algorithm revision.** This plan used to say "FSRS 7" throughout.
-> The engine that was built and shipped is **FSRS-6.x, 21 parameters**. FSRS-7 is
-> a real but different algorithm — **35 parameters**, fractional intervals,
-> shipped in no scheduler library, existing only as benchmark research code.
+> **Note on the algorithm revision.** This plan used to say "FSRS 7" throughout,
+> at a time when the engine was FSRS-6.x and the label was simply wrong. It is now
+> accurate: BeeCode schedules with **FSRS-7, 35 parameters**, ported from
+> `srs-benchmark`'s `models/fsrs_v7.py` and verified against 384 vectors generated
+> by running upstream's own model. FSRS-6.x ships alongside it, because a schedule
+> stored under 21 parameters is not reinterpretable under 35.
 >
-> The version numbers are removed rather than corrected to "6", because the plan's
-> requirement is *FSRS scheduling*; the exact revision belongs in code, where
-> `FsrsProvenanceTest` pins it and a swap fails the build. **Adopting FSRS-7 is
-> not a relabel** — it is an `SRS-009` migration and would need its own goal. See
+> The version numbers stay removed from the plan text rather than being restored,
+> because the plan's requirement is *FSRS scheduling*; the exact revision belongs
+> in code, where `FsrsProvenanceTest` pins it and a swap fails the build. Adopting
+> FSRS-7 was **not** a relabel — it widened the persisted interval columns and the
+> export format, both migrated. See
 > [ADR 0004](../docs/adr/0004-bee-fsrs-is-its-own-repository.md).
 
 The 164 target goals are the north-star product plan, not a claim that one
