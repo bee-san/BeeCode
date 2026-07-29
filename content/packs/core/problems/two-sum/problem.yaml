@@ -1,0 +1,36 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Two Sum
+difficulty: easy
+topics:
+  - arrays
+  - hash-map
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: two_sum
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "nums = [2, 7, 11, 15], target = 9"
+    output: "[0, 1]"
+    explanation: "nums[0] + nums[1] == 9, so the answer is [0, 1]."
+  - input: "nums = [3, 2, 4], target = 6"
+    output: "[1, 2]"
+
+# Provenance is mandatory. The plan commits to original or licensed content only,
+# so every Problem records where its statement came from and under what terms.
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

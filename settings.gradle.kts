@@ -34,6 +34,9 @@ include(":python-api")
 // finalization transaction.
 include(":persistence")
 
+// Problem content loading, validation, and pack compilation.
+include(":content-tools")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.

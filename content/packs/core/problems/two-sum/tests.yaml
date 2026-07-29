@@ -1,0 +1,45 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+#
+# arguments is a JSON array of positional arguments for the entry point.
+# expected is the JSON-encoded return value.
+# comparator selects trusted built-in judge logic by ID; content can choose one
+#   but can never supply one.
+# hidden withholds the values on failure, so the Problem cannot be solved by
+#   reading the assertions. Hidden tests still run and still gate passing.
+
+tests:
+  - name: example-1
+    arguments: [[2, 7, 11, 15], 9]
+    expected: [0, 1]
+    comparator: unordered_list
+
+  - name: example-2
+    arguments: [[3, 2, 4], 6]
+    expected: [1, 2]
+    comparator: unordered_list
+
+  - name: duplicate-values
+    arguments: [[3, 3], 6]
+    expected: [0, 1]
+    comparator: unordered_list
+
+  - name: negative-numbers
+    arguments: [[-3, 4, 3, 90], 0]
+    expected: [0, 2]
+    comparator: unordered_list
+
+  - name: answer-at-the-end
+    arguments: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 17], 26]
+    expected: [8, 9]
+    comparator: unordered_list
+    hidden: true
+
+  - name: large-input-needs-better-than-quadratic
+    # 20,000 elements: a nested-loop solution does ~200M comparisons and will
+    # exceed the 5s deadline, so this test is what actually teaches the hash-map
+    # insight rather than just asserting it in prose.
+    argumentsFile: large-input.json
+    expected: [19998, 19999]
+    comparator: unordered_list
+    hidden: true
