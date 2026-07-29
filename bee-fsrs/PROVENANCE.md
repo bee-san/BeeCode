@@ -26,8 +26,27 @@ it claims to be.
 | Package | `dev.bee:bee-fsrs` |
 | Version | `0.2.0` |
 | Upstream repository | https://github.com/bee-san/bee-fsrs |
+| Upstream commit | `98f3ed75a9b7f3fa7243320721671557908eea2d` |
 | Algorithms | **FSRS-7** (35 parameters) and **FSRS-6.x** (21 parameters), side by side |
 | License | MIT |
+
+The commit is pinned because `0.2.0` is not a tag upstream — the only tag is `v0.1.0`, and
+`version = "0.2.0"` in its `build.gradle.kts` moves with `main`. "The vendored copy is
+v0.2.0" was therefore not a checkable statement on its own; the hash makes it one, the same
+correction already applied to the FSRS-7 reference below.
+
+Verified by diffing this directory against that commit: `src/` and `testdata/` are
+byte-identical. Re-verify after any re-vendor with
+
+```bash
+git clone https://github.com/bee-san/bee-fsrs /tmp/bee-fsrs-upstream
+diff -rq bee-fsrs/src /tmp/bee-fsrs-upstream/src && diff -rq bee-fsrs/testdata /tmp/bee-fsrs-upstream/testdata
+```
+
+One drift was found and fixed doing exactly that: the vendored `src/test/.../Json.kt` was a
+commit behind upstream's `98f3ed7`, holding a raw `0x0C` form-feed byte where upstream had
+replaced it with `''`. Test-parser only — no production mathematics differed — but it
+is the kind of gap that grows silently, which is the argument for pinning the hash.
 
 **BeeCode schedules with FSRS-7.** `fsrs-adapter` reaches for `Fsrs7Engine`, and
 `FsrsProvenanceTest` pins that. FSRS-6 is vendored alongside it, not as a fallback but
