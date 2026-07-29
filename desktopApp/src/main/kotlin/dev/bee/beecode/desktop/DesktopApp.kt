@@ -29,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -884,6 +886,9 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncPath by remember { mutableStateOf(profile.settings.syncFilePath()) }
+    var webDavUrl by remember { mutableStateOf(profile.settings.syncWebDavUrl() ?: "") }
+    var webDavUser by remember { mutableStateOf(profile.settings.syncWebDavUsername() ?: "") }
+    var webDavPassword by remember { mutableStateOf(profile.settings.syncWebDavPassword() ?: "") }
     var syncMessage by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
@@ -1014,6 +1019,15 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "A WebDAV server — Nextcloud, ownCloud, Synology — is the stronger " +
+                        "option if you have one: it checks for a conflicting write itself, " +
+                        "so two devices syncing at the same moment cannot overwrite each " +
+                        "other. A shared file relies on the two syncs not overlapping.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Spacer(Modifier.height(12.dp))
                 Labelled("File", syncPath ?: "Not set — sync is off")
                 Spacer(Modifier.height(10.dp))
@@ -1051,6 +1065,81 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                         }) { Text("Turn off") }
                     }
                 }
+                HorizontalDivider(Modifier.padding(vertical = 14.dp))
+
+                Text("Or a WebDAV server", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The address must point at a file, not a folder — for example " +
+                        "https://cloud.example.com/remote.php/dav/files/you/beecode-sync.json. " +
+                        "https is required: the password is sent with every request, and so " +
+                        "are your solutions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = webDavUrl,
+                    onValueChange = { webDavUrl = it },
+                    label = { Text("WebDAV file URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = webDavUser,
+                        onValueChange = { webDavUser = it },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = webDavPassword,
+                        onValueChange = { webDavPassword = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        // Masked so a password is not readable over a shoulder or in a
+                        // screen share. It is still stored in plaintext locally, which the
+                        // Settings text below says rather than implying otherwise.
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "The password is stored in this profile's database, unencrypted, and is " +
+                        "never included in an export or uploaded with your study data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    enabled = webDavUrl.isNotBlank() && !syncing,
+                    onClick = {
+                        syncing = true
+                        syncMessage = null
+                        val now = Clock.System.now()
+                        // Saved before syncing, so a learner who closes the window does not
+                        // have to retype it — and cleared to null when blank rather than
+                        // stored as an empty string that would read as "configured".
+                        profile.settings.setSyncWebDavUrl(webDavUrl, now)
+                        profile.settings.setSyncWebDavUsername(webDavUser.ifBlank { null }, now)
+                        profile.settings.setSyncWebDavPassword(webDavPassword.ifBlank { null }, now)
+                        settingsScope.launch {
+                            syncMessage = withContext(Dispatchers.IO) {
+                                ProfileFiles.syncWebDav(
+                                    profile = profile,
+                                    url = webDavUrl,
+                                    username = webDavUser.ifBlank { null },
+                                    password = webDavPassword.ifBlank { null },
+                                )
+                            }
+                            syncing = false
+                        }
+                    },
+                ) { Text(if (syncing) "Syncing…" else "Sync with WebDAV") }
+
                 syncMessage?.let { message ->
                     Spacer(Modifier.height(10.dp))
                     Text(

@@ -2,6 +2,7 @@ package dev.bee.beecode.desktop
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import dev.bee.beecode.app.BeeCodeProfile
@@ -181,7 +183,7 @@ class DesktopUiTest {
             ui.onNodeWithText("Study").performClick()
             ui.onNodeWithText("Settings").performClick()
 
-            ui.onNodeWithText("Sync now").performClick()
+            ui.onNodeWithText("Sync now").performScrollTo().performClick()
             ui.waitUntil(timeoutMillis = 10_000) {
                 ui.onAllNodesWithText("Sync now").fetchSemanticsNodes().isNotEmpty() && shared.isFile
             }
@@ -191,6 +193,53 @@ class DesktopUiTest {
             shared.delete()
             java.io.File(shared.absolutePath + ".tmp").delete()
         }
+    }
+
+    @Test
+    fun theWebDavOptionIsOfferedAndStatesItsRequirements() = withUi { ui, _ ->
+        // WebDAV is the stronger backend and the UI should say why, not just offer two
+        // boxes. The https requirement and the plaintext-password limitation both have to
+        // be visible *before* a learner types a credential, not discovered afterwards.
+        ui.onNodeWithText("Settings").performClick()
+        // The Settings pane is one scrolling column and this section is below the fold.
+        ui.onNodeWithText("Or a WebDAV server").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("WebDAV file URL").performScrollTo().assertIsDisplayed()
+        ui.onNode(hasText("https is required", substring = true)).performScrollTo().assertIsDisplayed()
+        ui.onNode(hasText("unencrypted", substring = true)).performScrollTo().assertIsDisplayed()
+        // And the reason to prefer it over a file is stated rather than left implicit.
+        ui.onNode(hasText("cannot overwrite each other", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun theWebDavSyncButtonIsDisabledUntilAnAddressIsGiven() = withUi { ui, _ ->
+        // A live button that silently does nothing is worse than a disabled one.
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Sync with WebDAV").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun aWebDavAddressIsRememberedAndAnHttpUrlIsRefusedInWords() = withUi { ui, profile ->
+        ui.onNodeWithText("Settings").performClick()
+        // Deliberately http, which create() must refuse — the learner needs to be told why
+        // rather than watching a sync fail obscurely.
+        ui.onNodeWithText("WebDAV file URL")
+            .performScrollTo()
+            .performTextReplacement("http://cloud.example.com/s.json")
+        ui.onNodeWithText("Sync with WebDAV").performScrollTo().performClick()
+
+        ui.waitUntil(timeoutMillis = 10_000) {
+            ui.onAllNodes(hasText("Sync needs an https", substring = true))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        // Matched on the refusal's own wording rather than "unencrypted", which also appears
+        // in the static warning above the field — two nodes would make this ambiguous.
+        ui.onNode(hasText("Sync needs an https", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        // The address is still remembered, so a learner fixing the scheme does not retype it.
+        assertEquals("http://cloud.example.com/s.json", profile.settings.syncWebDavUrl())
     }
 
     private companion object {

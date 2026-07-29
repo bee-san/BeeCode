@@ -6,6 +6,7 @@ import dev.bee.beecode.app.ProfileTransfer
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.SyncService
+import dev.bee.beecode.app.WebDavSyncStore
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 import java.awt.FileDialog
@@ -39,10 +40,10 @@ internal object ProfileFiles {
             // Say plainly that the file is sensitive. It contains the learner's
             // source code, which is the whole point of a backup and also the reason
             // it should not be left in a shared folder.
-            "Exported to ${target.name}. This file contains your solutions, so keep it " +
+            "Exported to ${target}. This file contains your solutions, so keep it " +
                 "somewhere private."
         } catch (e: Exception) {
-            "Could not write ${target.name}: ${e.message}"
+            "Could not write ${target}: ${e.message}"
         }
     }
 
@@ -75,7 +76,7 @@ internal object ProfileFiles {
      */
     suspend fun sync(profile: BeeCodeProfile, target: File): String {
         val report = SyncService(FileSyncStore(target), profile).sync(Clock.System.now())
-        return report.describe(target)
+        return report.describe(target.name)
     }
 
     /**
@@ -85,7 +86,7 @@ internal object ProfileFiles {
      * difference between "nothing to do" and "received 12 reviews" is the difference
      * between trusting sync and wondering whether it ran.
      */
-    private fun SyncReport.describe(target: File): String = when (this) {
+    private fun SyncReport.describe(target: String): String = when (this) {
         is SyncReport.Completed -> {
             val received = merge?.let { merge ->
                 buildList {
@@ -96,19 +97,37 @@ internal object ProfileFiles {
             }.orEmpty()
             when {
                 received.isNotEmpty() && pushed ->
-                    "Synced with ${target.name}: received ${received.joinToString(", ")}, and sent this device\'s changes."
+                    "Synced with ${target}: received ${received.joinToString(", ")}, and sent this device\'s changes."
                 received.isNotEmpty() ->
-                    "Synced with ${target.name}: received ${received.joinToString(", ")}."
-                pushed -> "Synced with ${target.name}: sent this device\'s changes."
-                else -> "Already up to date with ${target.name}."
+                    "Synced with ${target}: received ${received.joinToString(", ")}."
+                pushed -> "Synced with ${target}: sent this device\'s changes."
+                else -> "Already up to date with ${target}."
             }
         }
         // Nothing was lost: whatever was pulled is already applied locally.
         is SyncReport.Conflicted ->
-            "Another device kept updating ${target.name} while syncing, so this device\'s " +
+            "Another device kept updating ${target} while syncing, so this device\'s " +
                 "changes were not sent. Everything it had was received, and the next sync " +
                 "will try again."
-        is SyncReport.Failed -> "Could not sync with ${target.name}: $reason"
+        is SyncReport.Failed -> "Could not sync with ${target}: $reason"
+    }
+
+    /**
+     * Run one sync against a WebDAV server.
+     *
+     * Separate from [sync] rather than sharing a "store" parameter, because building the
+     * store can *fail* — an http:// URL, a folder address, half-supplied credentials — and
+     * that failure is a message for the learner rather than an exception.
+     */
+    suspend fun syncWebDav(
+        profile: BeeCodeProfile,
+        url: String,
+        username: String?,
+        password: String?,
+    ): String {
+        val store = WebDavSyncStore.create(url = url, username = username, password = password)
+            .getOrElse { return it.message ?: "That WebDAV address cannot be used." }
+        return SyncService(store, profile).sync(Clock.System.now()).describe(url)
     }
 
     /** Ask which shared file to sync against. */
