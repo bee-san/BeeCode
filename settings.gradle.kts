@@ -41,6 +41,9 @@ include(":content-tools")
 // achievements.
 include(":shared")
 
+// The Android client.
+include(":androidApp")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.

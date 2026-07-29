@@ -1,0 +1,774 @@
+package dev.bee.beecode.android.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.bee.beecode.domain.ExecutionOutcome
+import dev.bee.beecode.domain.ExecutionRun
+import dev.bee.beecode.domain.ReviewRating
+import dev.bee.beecode.domain.TestCaseResult
+
+/**
+ * The Problem view: statement, editor, results, and finalize.
+ *
+ * One vertically scrolling column rather than tabs. On a phone the learner moves
+ * between reading the Problem, writing code, and reading a failure constantly, and
+ * tabs would make that a navigation task instead of a scroll.
+ */
+@Composable
+fun ProblemScreen(
+    state: ProblemUiState,
+    onSourceChange: (String) -> Unit,
+    onRun: () -> Unit,
+    onCancelRun: () -> Unit,
+    onReveal: () -> Unit,
+    onFinalize: (ReviewRating) -> Unit,
+    onResetToStarter: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Scaffold(
+        bottomBar = {
+            ActionBar(
+                state = state,
+                onRun = onRun,
+                onCancelRun = onCancelRun,
+                onFinalize = onFinalize,
+                onClose = onClose,
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                // So the editor is not hidden behind the soft keyboard.
+                .imePadding()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            ProblemHeader(state, onClose)
+
+            state.message?.let { message ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
+                ) {
+                    Text(
+                        message,
+                        Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+
+            StatementCard(state)
+            CodeEditor(state.source, onSourceChange, onResetToStarter)
+
+            if (state.isRunning) {
+                RunningIndicator(onCancelRun)
+            }
+
+            state.latestRun?.let { run -> ResultCard(run) }
+
+            state.finalized?.let { finalized -> FinalizedCard(finalized, onClose) }
+
+            if (state.problem.hasExplanation && state.revealedExplanation == null &&
+                state.finalized == null
+            ) {
+                RevealPrompt(onReveal)
+            }
+
+            state.revealedExplanation?.let { explanation ->
+                ExplanationCard(explanation)
+            }
+
+            if (state.history.isNotEmpty()) {
+                HistoryCard(state)
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun ProblemHeader(state: ProblemUiState, onClose: () -> Unit) {
+    Column(Modifier.padding(top = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose, contentPadding = PaddingValues(4.dp)) { Text("← Back") }
+            Spacer(Modifier.weight(1f))
+            if (state.aided) {
+                // Say plainly that the ceiling has dropped, rather than silently
+                // disabling the Good and Easy buttons.
+                Surface(
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(6.dp),
+                ) {
+                    Text(
+                        "Answer revealed",
+                        Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+        Text(
+            state.problem.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            state.problem.topics.joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun StatementCard(state: ProblemUiState) {
+    var expanded by remember { mutableStateOf(true) }
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Problem",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide" else "Show")
+                }
+            }
+            if (expanded) {
+                Spacer(Modifier.height(4.dp))
+                // Rendered as lightly formatted plain text rather than with a
+                // Markdown library: the statements use a small, known subset, and a
+                // dependency for that would be poor value.
+                MarkdownText(state.problem.statementMarkdown)
+
+                if (state.problem.examples.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Examples", style = MaterialTheme.typography.titleSmall)
+                    state.problem.examples.forEach { example ->
+                        Spacer(Modifier.height(6.dp))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(6.dp),
+                                )
+                                .padding(10.dp),
+                        ) {
+                            MonoText("Input:  ${example.input}")
+                            MonoText("Output: ${example.output}")
+                            example.explanation?.let {
+                                Spacer(Modifier.height(4.dp))
+                                Text(it, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The code editor.
+ *
+ * A `BasicTextField` with monospace text, autocorrect and capitalisation disabled,
+ * and a symbol row. Those three settings matter more than they look: an IME that
+ * capitalises `Def` or autocorrects `nums` produces syntax errors the learner did
+ * not write, and a phone keyboard with no colon or bracket makes Python
+ * unwritable.
+ */
+@Composable
+private fun CodeEditor(
+    source: String,
+    onSourceChange: (String) -> Unit,
+    onResetToStarter: () -> Unit,
+) {
+    // Own the selection locally so inserting a symbol can place the caret after it.
+    var value by remember(source) {
+        mutableStateOf(TextFieldValue(source, TextRange(source.length)))
+    }
+
+    fun update(next: TextFieldValue) {
+        value = next
+        onSourceChange(next.text)
+    }
+
+    /**
+     * Insert text at the caret, replacing any selection.
+     *
+     * The caret then sits after the inserted text, which is what makes the symbol
+     * row usable for typing rather than a novelty.
+     */
+    fun insert(text: String) {
+        val start = value.selection.min
+        val end = value.selection.max
+        val updated = value.text.replaceRange(start, end, text)
+        update(TextFieldValue(updated, TextRange(start + text.length)))
+    }
+
+    Card {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Your solution",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onResetToStarter) { Text("Reset") }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)),
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = ::update,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+                        // Horizontal scroll so a long line is reachable rather than
+                        // wrapped into misleading indentation.
+                        .horizontalScroll(rememberScrollState())
+                        .semantics { contentDescription = "Python solution editor" },
+                    textStyle = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(
+                        // All three matter: autocorrect and capitalisation turn
+                        // valid Python into syntax errors the learner never typed.
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Default,
+                    ),
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            SymbolRow(onInsert = ::insert)
+        }
+    }
+}
+
+/**
+ * The symbol row.
+ *
+ * Python needs `:`, `_`, brackets, and indentation, and a phone keyboard buries or
+ * omits them. The first entry inserts four spaces, because indentation is
+ * syntactically significant in Python and a tab character is not equivalent.
+ */
+@Composable
+private fun SymbolRow(onInsert: (String) -> Unit) {
+    val symbols = listOf(
+        "    " to "⇥",
+        ":" to ":",
+        "_" to "_",
+        "(" to "(",
+        ")" to ")",
+        "[" to "[",
+        "]" to "]",
+        "{" to "{",
+        "}" to "}",
+        "\"" to "\"",
+        "=" to "=",
+        "<" to "<",
+        ">" to ">",
+        "+" to "+",
+        "-" to "-",
+        "*" to "*",
+        "/" to "/",
+        "%" to "%",
+        "." to ".",
+        "," to ",",
+        "#" to "#",
+    )
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        symbols.forEach { (text, label) ->
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(6.dp),
+                onClick = { onInsert(text) },
+            ) {
+                Text(
+                    label,
+                    Modifier
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .semantics {
+                            contentDescription = if (text == "    ") "Insert indent" else "Insert $text"
+                        },
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 15.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RunningIndicator(onCancel: () -> Unit) {
+    Card {
+        Row(
+            Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(12.dp))
+            Text("Running your code…", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onCancel) { Text("Stop") }
+        }
+    }
+}
+
+/**
+ * The result of a run.
+ *
+ * Every outcome gets its own headline, because the learner's next action differs:
+ * a syntax error is a typo, a timeout is an algorithmic problem, and a worker
+ * failure is BeeCode's fault rather than theirs.
+ */
+@Composable
+private fun ResultCard(run: ExecutionRun) {
+    val (headline, tint) = when (run.outcome) {
+        ExecutionOutcome.PASSED -> "All tests passed" to Color(0xFF6BBF59)
+        ExecutionOutcome.FAILED ->
+            "${run.passedTestCount} of ${run.totalTestCount} tests passed" to Color(0xFFE0A030)
+        ExecutionOutcome.SYNTAX_ERROR -> "Your code has a syntax error" to Color(0xFFE05A4F)
+        ExecutionOutcome.RUNTIME_ERROR -> "Your code raised an error" to Color(0xFFE05A4F)
+        ExecutionOutcome.TIMEOUT -> "Your code ran out of time" to Color(0xFFE0A030)
+        ExecutionOutcome.CANCELLED -> "Run stopped" to Color(0xFF98917F)
+        ExecutionOutcome.WORKER_FAILURE -> "BeeCode could not run your code" to Color(0xFFE05A4F)
+    }
+
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).background(tint, RoundedCornerShape(4.dp)))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    headline,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "${run.durationMillis} ms",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            run.let { it.testResults }.takeIf { it.isNotEmpty() }?.let { results ->
+                Spacer(Modifier.height(10.dp))
+                results.forEach { TestResultRow(it) }
+            }
+
+            // Diagnostics carry the traceback or the timeout explanation.
+            (run.let { r -> r.testResults.firstOrNull { !it.passed }?.message }
+                ?.takeIf { run.testResults.isNotEmpty() })
+                ?.let { }
+
+            if (run.output.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (run.outputTruncated) "Your output (truncated)" else "Your output",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(6.dp),
+                        )
+                        .padding(8.dp),
+                ) {
+                    MonoText(run.output.trim())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TestResultRow(result: TestCaseResult) {
+    Column(Modifier.padding(vertical = 3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (result.passed) "✓" else "✗",
+                color = if (result.passed) Color(0xFF6BBF59) else Color(0xFFE05A4F),
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                result.name + if (result.hidden) " (hidden)" else "",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // A hidden test reports pass or fail but withholds its values, so the
+        // Problem cannot be solved by reading the assertions.
+        if (!result.passed && !result.hidden) {
+            result.message?.let { message ->
+                Spacer(Modifier.height(2.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(4.dp),
+                        )
+                        .padding(6.dp),
+                ) {
+                    MonoText(message)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The rating buttons.
+ *
+ * Only the ratings the evidence permits are shown at all. Showing a disabled
+ * "Easy" after a failure would invite the learner to argue with the rule; omitting
+ * it states the rule instead.
+ */
+@Composable
+private fun ActionBar(
+    state: ProblemUiState,
+    onRun: () -> Unit,
+    onCancelRun: () -> Unit,
+    onFinalize: (ReviewRating) -> Unit,
+    onClose: () -> Unit,
+) {
+    Surface(tonalElevation = 3.dp) {
+        Column(Modifier.padding(12.dp).imePadding()) {
+            if (state.finalized != null) {
+                Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                    Text("Done")
+                }
+                return@Column
+            }
+
+            if (state.canFinalize) {
+                Text(
+                    "How did that go?",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ReviewRating.entries
+                        .filter { it in state.permittedRatings }
+                        .forEach { rating ->
+                            val suggested = rating == state.suggestedRating
+                            if (suggested) {
+                                Button(
+                                    onClick = { onFinalize(rating) },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp),
+                                ) { Text(rating.label(), fontSize = 13.sp) }
+                            } else {
+                                OutlinedButton(
+                                    onClick = { onFinalize(rating) },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(vertical = 10.dp),
+                                ) { Text(rating.label(), fontSize = 13.sp) }
+                            }
+                        }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            if (state.isRunning) {
+                OutlinedButton(onClick = onCancelRun, modifier = Modifier.fillMaxWidth()) {
+                    Text("Stop")
+                }
+            } else {
+                Button(onClick = onRun, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (state.latestRun == null) "Run tests" else "Run again")
+                }
+            }
+        }
+    }
+}
+
+private fun ReviewRating.label(): String = when (this) {
+    ReviewRating.AGAIN -> "Again"
+    ReviewRating.HARD -> "Hard"
+    ReviewRating.GOOD -> "Good"
+    ReviewRating.EASY -> "Easy"
+}
+
+@Composable
+private fun FinalizedCard(finalized: FinalizedUiState, onClose: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                if (finalized.review.countsAsSolved) "Solved" else "Review recorded",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            finalized.schedule?.let { schedule ->
+                Text(
+                    "Next review in ${schedule.intervalDays} " +
+                        if (schedule.intervalDays == 1) "day" else "days",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    "Due ${schedule.dueAt}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = onClose) { Text("Back to queue") }
+        }
+    }
+}
+
+/**
+ * The reveal prompt.
+ *
+ * States the cost before the learner commits, rather than after. Revealing is a
+ * legitimate choice when genuinely stuck, but it must be an informed one.
+ */
+@Composable
+private fun RevealPrompt(onReveal: () -> Unit) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Stuck?", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "You can read the explanation. Doing so means this review will not count " +
+                    "as solved, and the best rating available becomes Hard — because a pass " +
+                    "after reading the answer is recognition rather than recall.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = onReveal) { Text("Show the explanation") }
+        }
+    }
+}
+
+@Composable
+private fun ExplanationCard(explanation: String) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Explanation", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(6.dp))
+            MarkdownText(explanation)
+        }
+    }
+}
+
+@Composable
+private fun HistoryCard(state: ProblemUiState) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Your history", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(6.dp))
+            state.history.takeLast(8).reversed().forEach { review ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text(
+                        review.localDate().toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.width(96.dp),
+                    )
+                    Text(
+                        review.rating.label(),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (review.aided) {
+                        Text(
+                            "revealed",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Renders the small Markdown subset the Problem statements use.
+ *
+ * Headings, fenced code, inline code, and bullets. A full Markdown dependency
+ * would be poor value for content BeeCode itself authors and validates.
+ */
+@Composable
+private fun MarkdownText(markdown: String) {
+    Column {
+        var inCodeBlock = false
+        val codeLines = mutableListOf<String>()
+
+        @Composable
+        fun flushCode() {
+            if (codeLines.isNotEmpty()) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(6.dp),
+                        )
+                        .padding(10.dp),
+                ) {
+                    MonoText(codeLines.joinToString("\n"))
+                }
+                codeLines.clear()
+            }
+        }
+
+        markdown.lines().forEach { raw ->
+            if (raw.trimStart().startsWith("```")) {
+                if (inCodeBlock) flushCode()
+                inCodeBlock = !inCodeBlock
+                return@forEach
+            }
+            if (inCodeBlock) {
+                codeLines += raw
+                return@forEach
+            }
+
+            val line = raw.trim()
+            when {
+                line.isEmpty() -> Spacer(Modifier.height(6.dp))
+                line.startsWith("## ") -> Text(
+                    line.removePrefix("## "),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                line.startsWith("# ") -> Text(
+                    line.removePrefix("# "),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                line.startsWith("- ") -> Row {
+                    Text("•  ", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stripInlineMarkup(line.removePrefix("- ")),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                else -> Text(
+                    stripInlineMarkup(line),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        flushCode()
+    }
+}
+
+/**
+ * Remove inline emphasis and code markers.
+ *
+ * The backticks and asterisks would otherwise be shown literally, which reads
+ * worse than plain text. Styling each span individually is not worth the
+ * complexity for this content.
+ */
+private fun stripInlineMarkup(text: String): String =
+    text.replace("`", "").replace("**", "").replace("_", "")
+
+@Composable
+private fun MonoText(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        fontFamily = FontFamily.Monospace,
+        fontSize = 12.sp,
+        lineHeight = 17.sp,
+    )
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose owns all styling; this exists only so the manifest has a theme
+         and the window background matches before the first frame. -->
+    <style name="Theme.BeeCode" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/beecode_background</item>
+        <item name="android:statusBarColor">@color/beecode_background</item>
+    </style>
+</resources>

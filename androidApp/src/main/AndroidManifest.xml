@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      No permissions are declared, and that is deliberate rather than incidental.
+
+      BeeCode's local product needs no network, no storage outside its own
+      app-private directory, and no device identifiers. Declaring nothing is the
+      strongest honest statement of that: the app cannot reach a network even if a
+      future change tried to, because the platform would refuse.
+
+      Learner Python runs in this process (see ChaquopyPythonRunner), so it
+      inherits exactly this permission set — which is none.
+    -->
+
+    <!--
+      Fully qualified class names. A leading-dot shorthand resolves against the
+      namespace (dev.bee.beecode), but these classes live in the .android
+      subpackage, so the shorthand would look for a class that does not exist and
+      the process would crash at launch with ClassNotFoundException.
+    -->
+    <application
+        android:name="dev.bee.beecode.android.BeeCodeApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BeeCode">
+
+        <!--
+          allowBackup is off because a cloud backup would carry the learner's
+          source code and FSRS history off the device without them asking. Export
+          and restore are a deliberate, visible action instead.
+        -->
+
+        <activity
+            android:name="dev.bee.beecode.android.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:theme="@style/Theme.BeeCode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
