@@ -7,6 +7,9 @@ import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.ProfileTransfer
+import dev.bee.beecode.app.SyncReport
+import dev.bee.beecode.app.SyncService
+import dev.bee.beecode.app.SyncStore
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
@@ -235,6 +238,29 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         val result = ProfileTransfer.restore(profile, payload, kotlinx.datetime.Clock.System.now())
         refresh()
         return result
+    }
+
+    // ---- Sync -----------------------------------------------------------
+
+    /** The document URI this device syncs through, or null when sync is off. */
+    fun syncTarget(): String? = profile.settings.syncFilePath()
+
+    /** Remember the document the learner picked, so sync survives a restart. */
+    fun setSyncTarget(uri: String?) {
+        profile.settings.setSyncFilePath(uri, kotlinx.datetime.Clock.System.now())
+    }
+
+    /**
+     * Run one sync against [store], then refresh every derived view.
+     *
+     * The refresh is the point of doing this here rather than in the UI: a sync can add
+     * reviews from another device, which changes the queue, the statistics, and the
+     * achievements. Without it the learner would sync successfully and see nothing move.
+     */
+    suspend fun sync(store: SyncStore): SyncReport {
+        val report = SyncService(store, profile).sync(kotlinx.datetime.Clock.System.now())
+        refresh()
+        return report
     }
 
     /** A suggested file name, so exports are self-describing on disk. */

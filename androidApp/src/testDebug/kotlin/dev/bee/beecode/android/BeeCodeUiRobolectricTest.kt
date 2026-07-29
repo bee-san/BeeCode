@@ -19,6 +19,7 @@ import dev.bee.beecode.app.ProblemCatalogue
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -272,6 +273,34 @@ class BeeCodeUiRobolectricTest {
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNode(hasText("In this app's process", substring = true)).assertIsDisplayed()
+    }
+
+    @Test
+    fun syncIsOffByDefaultAndStatesItsPrivacyCostFirst() {
+        // Sync is opt-in because it writes source code to storage BeeCode does not
+        // control. The default must be off, the UI must say off rather than showing a
+        // dead button, and the consequence must be stated *before* the learner picks a
+        // file. Mirrors the desktop assertion so the two clients cannot drift.
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Sync between devices").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Not set — sync is off").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("contains your solutions", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertEquals(null, profile.settings.syncFilePath())
+    }
+
+    @Test
+    fun theSyncCardSaysBeeCodeNeedsNoStoragePermission() {
+        // Worth asserting in the UI rather than trusting the manifest: the no-permission
+        // property is a claim BeeCode makes to the learner, and adding sync is exactly
+        // the kind of change that would quietly break it.
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNode(hasText("no storage permission", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

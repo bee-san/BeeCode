@@ -30,12 +30,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -50,7 +52,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bee.beecode.app.AchievementState
+import dev.bee.beecode.android.DocumentSyncStore
+import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
+import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.domain.ProblemDefinition
@@ -506,6 +511,10 @@ private fun AchievementRow(state: AchievementState) {
 private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
     var transferMessage by remember { mutableStateOf<String?>(null) }
+    var syncTarget by remember { mutableStateOf(viewModel.syncTarget()) }
+    var syncMessage by remember { mutableStateOf<String?>(null) }
+    var syncing by remember { mutableStateOf(false) }
+    val settingsScope = rememberCoroutineScope()
     // Captured once here: LocalContext is a composable read and cannot be called
     // from inside the picker callbacks, which run outside composition.
     val contentResolver = LocalContext.current.contentResolver
@@ -543,6 +552,26 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                     is RestoreResult.Failed -> result.reason
                 }
             }.getOrElse { "Restore failed: ${it.message}" }
+        }
+    }
+
+    // CreateDocument, so the learner names the shared file and chooses its folder — and
+    // BeeCode still needs no storage permission. takePersistableUriPermission is what
+    // makes the grant survive a restart; without it sync would work once and then fail.
+    val syncPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            viewModel.setSyncTarget(uri.toString())
+            syncTarget = uri.toString()
+            syncMessage = null
         }
     }
 
@@ -650,11 +679,80 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
 
         Card {
             Column(Modifier.padding(16.dp)) {
+                Text("Sync between devices", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Optional. Pick one file in a folder something already syncs — Drive, " +
+                        "Dropbox, Syncthing — and choose the same file on your other " +
+                        "devices. There is no account and no BeeCode server; the file is " +
+                        "yours, and BeeCode still asks for no storage permission.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Reviews from every device are combined, and the most recent edit of a " +
+                        "draft wins. Like an export, the file contains your solutions, so " +
+                        "choose somewhere private.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    if (syncTarget == null) "Not set — sync is off" else "Sync file chosen",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { syncPicker.launch(SYNC_FILE_NAME) }) {
+                        Text(if (syncTarget == null) "Choose a file" else "Change")
+                    }
+                    Button(
+                        // Disabled while a sync is in flight, so a second tap cannot start
+                        // an overlapping sync against the same file.
+                        enabled = syncTarget != null && !syncing,
+                        onClick = {
+                            val target = syncTarget ?: return@Button
+                            syncing = true
+                            syncMessage = null
+                            settingsScope.launch {
+                                val store = DocumentSyncStore(
+                                    contentResolver = contentResolver,
+                                    uri = android.net.Uri.parse(target),
+                                )
+                                syncMessage = viewModel.sync(store).describe()
+                                syncing = false
+                            }
+                        },
+                    ) { Text(if (syncing) "Syncing…" else "Sync now") }
+                    if (syncTarget != null) {
+                        TextButton(onClick = {
+                            viewModel.setSyncTarget(null)
+                            syncTarget = null
+                            syncMessage = "Sync turned off. The file was left where it is."
+                        }) { Text("Turn off") }
+                    }
+                }
+                syncMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
                 Text("About", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "BeeCode schedules Problems with FSRS. Everything is stored on this " +
-                        "device: there is no account, no server, and no network access.",
+                        "device: there is no account and no server, and BeeCode holds no " +
+                        "network permission — sync writes to a file you choose, through " +
+                        "whatever already syncs it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -675,3 +773,43 @@ internal fun LabelledValue(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
     }
 }
+
+/**
+ * Turn a sync report into something worth reading.
+ *
+ * Specific about *what moved*, on purpose: "Synced" tells a learner nothing, and the
+ * difference between "already up to date" and "received 12 reviews" is the difference
+ * between trusting sync and wondering whether it ran. Kept in step with the desktop
+ * client's wording so the two clients describe the same event the same way.
+ */
+private fun SyncReport.describe(): String = when (this) {
+    is SyncReport.Completed -> {
+        val received = merge?.let { merge ->
+            buildList {
+                if (merge.reviewsFromRemote > 0) add("${merge.reviewsFromRemote} reviews")
+                if (merge.draftsFromRemote > 0) add("${merge.draftsFromRemote} drafts")
+                if (merge.settingsFromRemote > 0) add("${merge.settingsFromRemote} settings")
+            }
+        }.orEmpty()
+        when {
+            received.isNotEmpty() && pushed ->
+                "Received ${received.joinToString(", ")}, and sent this device's changes."
+            received.isNotEmpty() -> "Received ${received.joinToString(", ")}."
+            pushed -> "Sent this device's changes."
+            else -> "Already up to date."
+        }
+    }
+    // Nothing was lost: whatever was pulled has already been applied on this device.
+    is SyncReport.Conflicted ->
+        "Another device kept updating the file, so this device's changes were not sent. " +
+            "Everything it had was received, and the next sync will try again."
+    is SyncReport.Failed -> "Could not sync: $reason"
+}
+
+/**
+ * The suggested name for the shared file.
+ *
+ * Not dated, unlike an export's name: this is one file every device keeps writing to, so
+ * a name that changed daily would silently start a new sync history.
+ */
+private const val SYNC_FILE_NAME = "beecode-sync.json"
