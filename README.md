@@ -32,9 +32,9 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
-| Verified by | 16 Robolectric UI + 26 instrumented tests | 38 JVM tests, 15 of them UI |
+| Verified by | 16 Robolectric UI + 26 instrumented tests | 40 JVM tests, 15 of them UI |
 
-**416 automated tests**: 390 JVM tests across nine modules and 26 Android
+**418 automated tests**: 392 JVM tests across nine modules and 26 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -164,6 +164,9 @@ See [the year-one plan](goals/YEAR-ONE.md).
   directory, but with your own user account's privileges.
 - **An export contains your source code.** That is the point of a backup, and it
   is why the file should be kept somewhere private.
+- **Your profile folder is locked to your own user account** on desktop (0700, applied on
+  every launch so older installs are fixed too). It was created 0755 — world-readable —
+  which was invisible and wrong on any shared machine.
 
 ## Running it
 
