@@ -31,12 +31,45 @@ android {
         }
     }
 
+    /**
+     * Release signing.
+     *
+     * An installable APK must be signed, and an *unsigned* release APK cannot be
+     * installed at all. There is no published keystore for this project yet, so the
+     * build looks for one and falls back to the debug key when it is absent.
+     *
+     * That fallback is honest but consequential: an APK signed with a locally
+     * generated key cannot be upgraded in place by one signed with a different key,
+     * so a learner would have to uninstall before updating. The release notes say so.
+     * A real signing key belongs in repository secrets before any wide distribution.
+     */
+    val keystoreFile = rootProject.file("release.keystore")
+    val keystorePassword: String? = System.getenv("BEECODE_KEYSTORE_PASSWORD")
+
+    signingConfigs {
+        if (keystoreFile.exists() && keystorePassword != null) {
+            create("release") {
+                storeFile = keystoreFile
+                storePassword = keystorePassword
+                keyAlias = System.getenv("BEECODE_KEY_ALIAS") ?: "beecode"
+                keyPassword = System.getenv("BEECODE_KEY_PASSWORD") ?: keystorePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Off for now: the runner reaches Python by name through Chaquopy, and
-            // proving the keep rules are complete is release-hardening work that
-            // belongs with signing rather than in the first slice.
+            // Off deliberately. The Chaquopy runner reaches Python by name and the
+            // JDBC driver loads classes reflectively, so proving a shrinker's keep
+            // rules are complete is real work — and getting it wrong produces an app
+            // that fails only at run time, on a learner's device.
             isMinifyEnabled = false
+
+            signingConfig = signingConfigs.findByName("release")
+                // Without a keystore, sign with the debug key so the APK installs.
+                // Verified in the release workflow, which fails if the output is
+                // unsigned rather than shipping something that cannot be opened.
+                ?: signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"

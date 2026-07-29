@@ -39,7 +39,18 @@ compose.desktop {
         mainClass = "dev.bee.beecode.desktop.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
+            // jpackage can only build for the OS it runs on, so the format set is
+            // chosen per host rather than declared once. A release therefore needs a
+            // macOS runner to produce a .dmg — it cannot be cross-built from Linux.
+            val os = System.getProperty("os.name").orEmpty().lowercase()
+            when {
+                os.contains("mac") -> targetFormats(TargetFormat.Dmg)
+                os.contains("win") -> targetFormats(TargetFormat.Msi)
+                // Deb needs dpkg, which is absent on some build hosts; AppImage does
+                // not, so listing both means a Linux build still produces something.
+                else -> targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
+            }
+
             packageName = "BeeCode"
             packageVersion = libs.versions.appVersionName.get()
             description = "Offline spaced-repetition practice for algorithm Problems"
@@ -49,6 +60,18 @@ compose.desktop {
             linux {
                 menuGroup = "Development"
                 appCategory = "Development"
+            }
+
+            macOS {
+                // A stable reverse-DNS identifier, so macOS treats an upgrade as the
+                // same app rather than a second copy.
+                bundleID = "dev.bee.beecode"
+                packageName = "BeeCode"
+                appCategory = "public.app-category.developer-tools"
+                // Unsigned and un-notarized: there is no Apple Developer certificate
+                // for this project. Gatekeeper will refuse the first launch, and the
+                // release notes tell the user how to open it anyway. Claiming to sign
+                // without a certificate would just fail the build.
             }
 
             modules(
