@@ -889,7 +889,12 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
     var syncPath by remember { mutableStateOf(profile.settings.syncFilePath()) }
     var webDavUrl by remember { mutableStateOf(profile.settings.syncWebDavUrl() ?: "") }
     var webDavUser by remember { mutableStateOf(profile.settings.syncWebDavUsername() ?: "") }
-    var webDavPassword by remember { mutableStateOf(profile.settings.syncWebDavPassword() ?: "") }
+    // Resolved through SyncCredential, so a password delegated to the OS keyring comes back
+    // as the password rather than as the marker that stands in for it in the database.
+    var webDavPassword by remember { mutableStateOf(SyncCredential.resolve(profile.settings) ?: "") }
+    // Probed once per Settings composition rather than per recomposition: it spawns no
+    // process, but it does touch PATH, and the answer cannot change while the pane is open.
+    val credentialBackend = remember { SyncCredential.backendName() }
     var linkedAt by remember { mutableStateOf(profile.settings.leaderboardLinkedAt()) }
     var boardStatus by remember { mutableStateOf(LeaderboardService(profile).status()) }
     var boardMessage by remember { mutableStateOf<String?>(null) }
@@ -1112,10 +1117,20 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "The password is stored in this profile's database unencrypted — the " +
-                        "profile folder is readable only by your user account, but a backup " +
-                        "of it would expose the password. It is " +
-                        "never included in an export or uploaded with your study data.",
+                    // Two different truths, and saying the pessimistic one where it no longer
+                    // applies would be as dishonest as the reverse. Which branch a learner sees
+                    // is decided by whether a secret service was actually found.
+                    if (credentialBackend != null) {
+                        "The password is stored in $credentialBackend, not in this profile — so " +
+                            "a copy or backup of the profile does not contain it. It is never " +
+                            "included in an export or uploaded with your study data."
+                    } else {
+                        "This machine has no keyring BeeCode can use, so the password is stored " +
+                            "in this profile's database unencrypted — the profile folder is " +
+                            "readable only by your user account, but a backup of it would " +
+                            "expose the password. It is never included in an export or " +
+                            "uploaded with your study data."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1131,7 +1146,9 @@ private fun SettingsPane(profile: BeeCodeProfile, runnerStatus: RunnerStatus?) {
                         // stored as an empty string that would read as "configured".
                         profile.settings.setSyncWebDavUrl(webDavUrl, now)
                         profile.settings.setSyncWebDavUsername(webDavUser.ifBlank { null }, now)
-                        profile.settings.setSyncWebDavPassword(webDavPassword.ifBlank { null }, now)
+                        // Into the OS keyring where there is one, leaving only a marker in the
+                        // database; plaintext as before where there is not.
+                        SyncCredential.store(profile.settings, webDavPassword, now = now)
                         settingsScope.launch {
                             syncMessage = withContext(Dispatchers.IO) {
                                 ProfileFiles.syncWebDav(

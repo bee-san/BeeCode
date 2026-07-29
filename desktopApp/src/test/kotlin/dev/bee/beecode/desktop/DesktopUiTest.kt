@@ -209,7 +209,17 @@ class DesktopUiTest {
         ui.onNodeWithText("Or a WebDAV server").performScrollTo().assertIsDisplayed()
         ui.onNodeWithText("WebDAV file URL").performScrollTo().assertIsDisplayed()
         ui.onNode(hasText("https is required", substring = true)).performScrollTo().assertIsDisplayed()
-        ui.onNode(hasText("unencrypted", substring = true)).performScrollTo().assertIsDisplayed()
+        // Where the credential goes depends on whether this machine has a keyring BeeCode can
+        // use, so assert the branch that actually applies rather than one of them. Asserting
+        // "unencrypted" unconditionally passed here only because this host has no secret-tool,
+        // and would have failed on any developer machine with a desktop keyring installed.
+        if (SyncCredential.backendName() != null) {
+            ui.onNode(hasText("not in this profile", substring = true))
+                .performScrollTo()
+                .assertIsDisplayed()
+        } else {
+            ui.onNode(hasText("unencrypted", substring = true)).performScrollTo().assertIsDisplayed()
+        }
         // And the reason to prefer it over a file is stated rather than left implicit.
         ui.onNode(hasText("cannot overwrite each other", substring = true))
             .performScrollTo()

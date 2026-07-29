@@ -32,11 +32,13 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
-| Verified by | 16 Robolectric UI + 26 instrumented tests | 40 JVM tests, 15 of them UI |
+| Credential storage | Android Keystore (hardware-backed on most devices) | OS keyring, or plaintext where none exists |
+| Verified by | 16 Robolectric UI + 26 instrumented tests | 61 JVM tests, 15 of them UI |
 
-**418 automated tests**: 392 JVM tests across nine modules and 26 Android
+**440 automated tests**: 414 JVM tests across nine modules and 26 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
-restart journey against real CPython and real SQLite on both platforms.
+restart journey against real CPython and real SQLite on both platforms. None of the
+414 skip on this host or in CI.
 
 **Both clients' UI is tested, headlessly, on every push.** The two suites assert
 deliberately overlapping rules — a failed run permits only *Again*, an unaided pass
@@ -166,7 +168,21 @@ See [the year-one plan](goals/YEAR-ONE.md).
   is why the file should be kept somewhere private.
 - **Your profile folder is locked to your own user account** on desktop (0700, applied on
   every launch so older installs are fixed too). It was created 0755 — world-readable —
-  which was invisible and wrong on any shared machine.
+  which was invisible and wrong on any shared machine. The sync file gets the same
+  treatment (0600, set before the rename so it is never briefly world-readable).
+- **The desktop WebDAV password goes to your OS keyring, where there is one.**
+  `secret-tool` on Linux, `security` on macOS — both are already installed with the
+  desktop, so this adds no dependency. The profile then holds a marker, not the password,
+  so a copy or backup of it contains no credential at all. Where no keyring is found
+  (Windows, a headless box, a locked keyring) it falls back to storing the password in the
+  profile exactly as before, and **Settings says which of the two happened** rather than
+  making one promise for both.
+  What is *not* verified: that a real `secret-tool` or `security` honours those commands.
+  BeeCode's side of the pipe is tested against a stand-in client — arguments, stdin, the
+  round trip, a refusal, an absent binary — but neither binary exists on this dev host or
+  in CI, so agreement with the real ones is an assumption, not a test result.
+  It also does not hide the secret from *your own account*: `secret-tool lookup` returns
+  it, by design. What it stops is the credential travelling inside a file.
 
 ## Running it
 
