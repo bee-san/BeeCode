@@ -791,8 +791,9 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "The password is stored on this device unencrypted, and is never " +
-                        "included in an export or uploaded with your study data.",
+                    "The password is encrypted with a key held in this device's keystore, so " +
+                        "a copy of the app's data taken elsewhere cannot read it, and it is " +
+                        "never included in an export or uploaded with your study data.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

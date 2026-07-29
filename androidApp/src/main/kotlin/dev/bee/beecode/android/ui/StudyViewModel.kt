@@ -7,6 +7,7 @@ import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.ProfileTransfer
+import dev.bee.beecode.android.KeystoreSecretStore
 import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.OutboxStatus
 import dev.bee.beecode.app.SyncReport
@@ -293,7 +294,16 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
 
     fun webDavUsername(): String? = profile.settings.syncWebDavUsername()
 
-    fun webDavPassword(): String? = profile.settings.syncWebDavPassword()
+    /**
+     * The WebDAV password, decrypted.
+     *
+     * Returns null when a stored ciphertext will not decrypt, which is expected rather than
+     * exceptional: the keystore key is destroyed on uninstall, factory reset, and on some
+     * devices when the screen lock is removed. The learner is asked again rather than shown
+     * a crash or, worse, having an unusable value sent to their server as a password.
+     */
+    fun webDavPassword(): String? =
+        profile.settings.syncWebDavPassword()?.let { KeystoreSecretStore.decrypt(it) }
 
     /**
      * Remember WebDAV settings so a learner does not retype them.
@@ -305,7 +315,15 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         val now = kotlinx.datetime.Clock.System.now()
         profile.settings.setSyncWebDavUrl(url?.ifBlank { null }, now)
         profile.settings.setSyncWebDavUsername(username?.ifBlank { null }, now)
-        profile.settings.setSyncWebDavPassword(password?.ifBlank { null }, now)
+        // Encrypted with a key in the Android Keystore, which on most devices is
+        // hardware-backed: a database copied off the device decrypts to nothing.
+        //
+        // Falls back to plaintext when the platform refuses to provide a key, because a
+        // learner on such a device should still be able to sync rather than lose a feature
+        // to a hardening measure. That is the same behaviour as before this existed, so it
+        // is a strict improvement rather than a new failure mode.
+        val stored = password?.ifBlank { null }?.let { KeystoreSecretStore.encrypt(it) ?: it }
+        profile.settings.setSyncWebDavPassword(stored, now)
     }
 
     /**

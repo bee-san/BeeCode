@@ -316,7 +316,11 @@ class BeeCodeUiRobolectricTest {
         compose.onNode(hasText("https is required", substring = true))
             .performScrollTo()
             .assertIsDisplayed()
-        compose.onNode(hasText("unencrypted", substring = true))
+        // Android encrypts the credential with a keystore key, so the card must say that
+        // rather than the "unencrypted" warning the desktop still correctly shows. The two
+        // clients differ here because the platforms genuinely differ, and claiming uniform
+        // pessimism would understate what Android does.
+        compose.onNode(hasText("encrypted with a key held in this device", substring = true))
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNode(hasText("cannot overwrite each other", substring = true))

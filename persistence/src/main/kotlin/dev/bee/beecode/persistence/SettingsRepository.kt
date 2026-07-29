@@ -124,12 +124,17 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
     /**
      * The WebDAV password.
      *
-     * **Stored in plaintext in the profile database, and that is a real limitation rather
-     * than an oversight.** BeeCode's threat model is a single-user device: the same database
-     * already holds every solution the learner has written, so a reader who can open it has
-     * already got the thing worth protecting. Encrypting only this column would move the key
-     * problem rather than solve it, and platform keystores differ enough that doing it
-     * properly is its own piece of work.
+     * **Stored as whatever the caller hands over — this layer does not encrypt.** On Android
+     * that is a ciphertext from `KeystoreSecretStore`, sealed with a key in the platform
+     * keystore, so a database copied off the device decrypts to nothing. On desktop it is
+     * still plaintext, and the desktop UI says so.
+     *
+     * The asymmetry is real rather than an oversight. Android has a hardware-backed keystore
+     * available since API 23; the JVM has no cross-platform equivalent that is not either a
+     * large dependency or a keystore protected by a password stored next to it, which
+     * protects nothing. Encrypting on the platform that can is better than uniform
+     * pessimism, and the encryption lives in `:androidApp` rather than here because this
+     * module has no access to platform crypto and should not grow one.
      *
      * What follows from that: this value is excluded from export and from the sync payload —
      * a snapshot that carried it would put the credential on the very server it authenticates
