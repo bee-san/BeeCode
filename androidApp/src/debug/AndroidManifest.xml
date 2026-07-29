@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!--
+          The Compose UI test host. Debug-only: this manifest is merged for the debug
+          build type alone, so the activity cannot reach a release APK.
+        -->
+        <activity
+            android:name="dev.bee.beecode.android.ComposeTestHostActivity"
+            android:exported="false"
+            android:theme="@style/Theme.BeeCode" />
+    </application>
+</manifest>

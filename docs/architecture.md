@@ -48,27 +48,55 @@ Platform adapters include:
 The domain does not import Compose, Android, desktop, SQL, HTTP, Python-provider,
 or server framework classes.
 
-## Planned repository modules
+## Repository modules
+
+As built:
 
 ```text
 BeeCode/
-├── androidApp/       Android entry point, lifecycle, credentials, Python adapter
-├── desktopApp/       Desktop entry point, packaging, process runner
-├── shared/           KMP shared UI and application services
-├── domain/           Pure models, commands, events, and state machines
-├── persistence/      Local schema, repositories, transactions, migrations
-├── fsrs-adapter/     BeeCode policy around the external bee-fsrs package
-├── python-api/       Platform-neutral execution contracts
-├── protocol/         Versioned Leaderboard DTOs
-├── server/           Ktor/PostgreSQL modular monolith
-├── content/          Problem packs and achievement definitions
-└── tools/            Problem generator/compiler/validator
+├── bee-fsrs/         FSRS-6.x memory mathematics, vendored with provenance
+├── domain/           Pure models, review state machine, rating policy
+├── fsrs-adapter/     BeeCode policy around bee-fsrs; the only module that imports it
+├── python-api/       Execution contracts and the shared Python harness
+├── persistence/      SQLite schema, migrations, exactly-once finalization
+├── content-tools/    Problem loading, validation, pack compilation
+├── shared/           Study loop, statistics, achievements, export/restore
+├── androidApp/       Android client and the Chaquopy runner
+├── desktopApp/       Desktop client and the process runner
+└── content/packs/    The Problem pack
 ```
 
-The exact number of Gradle modules may be smaller in the first walking
-skeleton. The dependency rules are more important than the physical split.
+Two departures from the original plan, both recorded as ADRs:
 
-## Recommended client technology direction
+- **No separate persistence driver per platform.** `sqlite-jdbc` bundles Android
+  native libraries, so both clients use one implementation and one schema. That
+  makes desktop/Android review semantics identical by construction rather than by
+  continuous testing. See [ADR 0003](adr/0003-one-persistence-implementation.md).
+- **`shared/` is plain Kotlin/JVM, not a Compose module.** Both clients run on the
+  JVM, and keeping the application layer UI-free means the whole study loop is
+  testable without a UI toolkit — which is how the answer/run/retry/finalize
+  journey has an automated test rather than a manual script. Each client owns its
+  own Compose UI, because a phone and a desktop genuinely want different layouts.
+
+`protocol/` and `server/` are unbuilt; they belong to the conditional Leaderboard
+milestone. Personal sync is now planned along different lines — see
+[ADR 0002](adr/0002-personal-sync-direction.md).
+
+## Client technology, as built
+
+- Compose (Material 3) per client, over a shared UI-free application layer.
+- Kotlin 2.2.20, AGP 8.13, JVM target 17, Android `minSdk` 26 / `compileSdk` 36.
+- SQLite through `sqlite-jdbc` on both platforms, WAL and `synchronous = FULL`.
+- FSRS-6.x vendored into `bee-fsrs/` from `bee-san/kanji_anki` with full
+  provenance, dependency-free and clock-free.
+- Desktop Python: `python3` child process under a supervisor, killable, cleaned
+  environment, fresh temporary workspace.
+- Android Python: Chaquopy 17, CPython 3.12, `x86_64` and `arm64-v8a`.
+- `kotlinx-datetime` is pinned: Compose Desktop pulls 0.7.1 transitively, where
+  `Instant` and `Clock` moved to `kotlin.time`, which broke the desktop classpath
+  at run time while compiling cleanly.
+
+## Original recommended direction
 
 - Compose Multiplatform for shared Android/desktop rendering and application
   logic.
@@ -204,6 +232,34 @@ Golden vectors run through both platform compositions before an upgrade can
 change schedules. v1 has no separate minute-based learning ladder.
 
 ## Python execution boundary
+
+### Capability levels, as delivered
+
+The plan requires that containment be labelled honestly rather than overclaimed,
+and that same-process execution never be called a sandbox. As built:
+
+| Platform | Level | What that actually means |
+|---|---|---|
+| Desktop | `SEPARATE_PROCESS` | A killable child process, cleaned environment, fresh temporary workspace, process-tree kill including `multiprocessing` grandchildren. Runs with the user's own privileges — not a sandbox. |
+| Android | `IN_PROCESS` | Chaquopy embeds CPython in the app process. A GIL-bound loop cannot be killed; the deadline is enforced at the UI boundary and the thread is abandoned. Mitigated by declaring **no Android permissions at all**, so learner code has no network and no storage beyond BeeCode's own. |
+
+Both levels are shown verbatim in each client's Settings screen. The Android screen
+states in plain words that BeeCode cannot force Python to stop and that this is not
+a security sandbox.
+
+Android remains on the bottom rung of the plan's fallback ladder. An isolated
+service or a separate no-permission runner APK is still the route to a genuinely
+killable boundary; the current implementation is honest rather than sufficient.
+
+### Result framing
+
+Learner output and the framed result share one stream, so the harness base64-encodes
+its response and a reader takes the text after the final sentinel. Base64's alphabet
+cannot contain the sentinel, which is what makes the last occurrence always the true
+frame — verified against CPython by having learner code write a syntactically perfect
+forged frame to `sys.__stdout__` and confirming it loses.
+
+### Contract
 
 Both platforms implement:
 

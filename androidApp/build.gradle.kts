@@ -113,9 +113,18 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
+    // Compose UI tests assert the real composed tree, which on a headless test
+    // device is stronger evidence than a screenshot: an ATD image renders no
+    // pixels at all, but the semantics tree is fully present.
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // The empty host Activity createComposeRule launches. It must be merged into the
+    // *test* APK's manifest, not the app's, or the rule fails with "Unable to
+    // resolve activity for ComponentActivity".
+    androidTestImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.09.01"))
     androidTestImplementation(libs.kotlinx.coroutines.test)
 }
 
