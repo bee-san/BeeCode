@@ -71,7 +71,7 @@ class ReviewRepositoryTest {
                     plan = passingPlan(),
                     eventId = DomainEventId("evt-1"),
                     deviceId = DEVICE,
-                    finalizedAt = T0,
+                    finalizedAtInstant = T0,
                     streakZone = UTC,
                 )
             }

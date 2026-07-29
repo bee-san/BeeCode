@@ -83,7 +83,12 @@ class BeeCodeScheduler(
             policy.maximumIntervalDays,
         )
 
-        val dueAt = reviewedAt.plusDays(intervalDays)
+        // Truncated to milliseconds, matching what persistence can represent.
+        // Carrying sub-millisecond precision here would mean a due date that
+        // silently changes when the profile is reopened, and equality checks
+        // against a reloaded schedule would fail for no visible reason.
+        val reviewedAtMillis = reviewedAt.truncatedToMillis()
+        val dueAt = reviewedAtMillis.plusDays(intervalDays)
 
         val record = FsrsTransitionRecord(
             algorithmId = FsrsAlgorithmInfo.ALGORITHM_LABEL,
@@ -108,7 +113,7 @@ class BeeCodeScheduler(
             stability = nextMemory.stability,
             difficulty = nextMemory.difficulty,
             dueAt = dueAt,
-            lastReviewedAt = reviewedAt,
+            lastReviewedAt = reviewedAtMillis,
             intervalDays = intervalDays,
             reviewCount = (previous?.reviewCount ?: 0) + 1,
             // A lapse counter that only ever increases is the honest one: it
@@ -118,7 +123,7 @@ class BeeCodeScheduler(
             // Optimistic-concurrency counter. The caller commits only if the
             // stored version still equals previous.version.
             version = (previous?.version ?: 0) + 1,
-            updatedAt = reviewedAt,
+            updatedAt = reviewedAtMillis,
         )
 
         return ScheduleTransition(schedule, record, previousVersion = previous?.version)
@@ -175,6 +180,19 @@ class BeeCodeScheduler(
 
         private fun Instant.plusDays(days: Int): Instant =
             Instant.fromEpochSeconds(epochSeconds + days.toLong() * SECONDS_PER_DAY, nanosecondsOfSecond)
+
+        /**
+         * Drop precision finer than a millisecond.
+         *
+         * The storage layer holds instants as epoch milliseconds, so a schedule
+         * carrying nanoseconds would not survive a round trip: the due date a
+         * learner is shown before a restart would differ from the one after it, and
+         * an equality check against a reloaded schedule would fail with no visible
+         * cause. Truncating at the point the value is created keeps the in-memory
+         * schedule and the stored one identical by construction.
+         */
+        private fun Instant.truncatedToMillis(): Instant =
+            Instant.fromEpochMilliseconds(toEpochMilliseconds())
 
         /**
          * A short stable digest used to detect a broken fold, not for security.

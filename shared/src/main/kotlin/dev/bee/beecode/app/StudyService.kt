@@ -201,7 +201,7 @@ class StudyService(
             plan = plan,
             eventId = ids.newDomainEventId(),
             deviceId = deviceId,
-            finalizedAt = now,
+            finalizedAtInstant = now,
             streakZone = settings.streakZone(),
         )
 

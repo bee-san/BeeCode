@@ -207,6 +207,29 @@ class BeeCodeSchedulerTest {
     }
 
     @Test
+    fun scheduleInstantsCarryNoSubMillisecondPrecision() {
+        // Persistence stores epoch milliseconds. A schedule carrying nanoseconds
+        // would not survive a round trip: the due date shown before a restart would
+        // differ from the one after it, and comparing against a reloaded schedule
+        // would fail with no visible cause.
+        val precise = Instant.fromEpochSeconds(T0.epochSeconds, nanosecondAdjustment = 123_456_789)
+        val transition = scheduler.schedule(PROBLEM, null, ReviewRating.GOOD, precise)
+
+        for ((label, instant) in listOf(
+            "dueAt" to transition.schedule.dueAt,
+            "lastReviewedAt" to transition.schedule.lastReviewedAt,
+            "updatedAt" to transition.schedule.updatedAt,
+            "record.dueAt" to transition.record.dueAt,
+        )) {
+            assertEquals(
+                instant,
+                Instant.fromEpochMilliseconds(instant.toEpochMilliseconds()),
+                "$label must be millisecond-precise so it survives storage",
+            )
+        }
+    }
+
+    @Test
     fun schedulingIsDeterministic() {
         // No clock, no randomness: the same inputs must always give the same
         // schedule, or the audit record means nothing.

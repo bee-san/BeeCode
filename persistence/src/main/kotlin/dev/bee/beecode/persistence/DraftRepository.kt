@@ -83,7 +83,11 @@ class DraftRepository(private val database: BeeCodeDatabase) {
         val stored = readDraft(connection, draft.problemId)
         if (stored != null && stored.version > draft.version) return@transaction null
 
-        val next = draft.copy(version = draft.version + 1, updatedAt = now)
+        // Truncated to the precision this table can store, so the draft returned
+        // here is identical to the one a later read produces. Returning a
+        // nanosecond-precise value that the database rounds would make the two
+        // disagree for no visible reason.
+        val next = draft.copy(version = draft.version + 1, updatedAt = now.truncatedToMillis())
         connection.prepareStatement(
             """
             INSERT INTO solution_draft (

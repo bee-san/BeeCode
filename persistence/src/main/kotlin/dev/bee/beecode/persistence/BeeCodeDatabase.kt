@@ -1,9 +1,21 @@
 package dev.bee.beecode.persistence
 
+import kotlinx.datetime.Instant
 import java.io.Closeable
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
+
+/**
+ * Drop precision finer than a millisecond.
+ *
+ * Every instant column in the schema is epoch milliseconds, so a value written
+ * with nanoseconds comes back different from what was stored. Truncating before a
+ * write, and returning the truncated value to the caller, keeps in-memory state
+ * and stored state identical by construction rather than nearly equal.
+ */
+internal fun Instant.truncatedToMillis(): Instant =
+    Instant.fromEpochMilliseconds(toEpochMilliseconds())
 
 /**
  * The local SQLite database: BeeCode's authority for all study state.

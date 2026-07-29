@@ -66,9 +66,14 @@ class ReviewRepository(
         plan: FinalizationPlan,
         eventId: DomainEventId,
         deviceId: DeviceId,
-        finalizedAt: Instant,
+        finalizedAtInstant: Instant,
         streakZone: TimeZone,
     ): FinalizeOutcome = database.transaction { connection ->
+        // Truncated once, up front, so the review, the schedule, and the FSRS audit
+        // all agree with what the database will hold. Storing millisecond precision
+        // while returning nanoseconds would make a reloaded review compare unequal
+        // to the one just written.
+        val finalizedAt = finalizedAtInstant.truncatedToMillis()
         // Step 1: idempotency. Keyed on the session, which is the identity of
         // "one scheduled attempt".
         readReview(connection, plan.sessionId)?.let { existing ->
