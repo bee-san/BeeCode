@@ -19,4 +19,5 @@ evidence required to revisit it.
 |---|---|---|
 | [0001](0001-product-boundaries.md) | Product boundaries | Accepted |
 | [0002](0002-personal-sync-direction.md) | Personal sync direction (snapshot merge) | Accepted for planning |
+| [0003](0003-one-persistence-implementation.md) | One persistence implementation for both platforms | Accepted |
 

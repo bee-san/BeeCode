@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+#
+# Every expected value below is in the canonical form the statement requires:
+# each group sorted alphabetically, and the groups sorted alphabetically. That is
+# what makes the exact comparator usable here — grouping order is otherwise
+# non-deterministic, and no available comparator can normalise a list of lists.
+
+tests:
+  - name: example-three-groups
+    arguments: [["eat", "tea", "tan", "ate", "nat", "bat"]]
+    expected: [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]]
+    comparator: exact
+
+  - name: example-single-word
+    arguments: [["a"]]
+    expected: [["a"]]
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: empty-string-is-its-own-group
+    arguments: [[""]]
+    expected: [[""]]
+    comparator: exact
+
+  - name: no-anagrams-at-all
+    # Every word is alone, and the groups must still come back sorted.
+    arguments: [["dog", "cat", "bird"]]
+    expected: [["bird"], ["cat"], ["dog"]]
+    comparator: exact
+
+  - name: duplicates-are-preserved
+    # "ab" appears twice and must appear twice in its group; a set-backed grouping
+    # silently drops one.
+    arguments: [["ab", "ba", "ab"]]
+    expected: [["ab", "ab", "ba"]]
+    comparator: exact
+    hidden: true
+
+  - name: same-letters-different-counts-are-not-anagrams
+    # aab / aba / abb: the first two group, the third does not. A key built from
+    # the set of distinct letters wrongly merges all three.
+    arguments: [["aab", "abb", "aba", "bba"]]
+    expected: [["aab", "aba"], ["abb", "bba"]]
+    comparator: exact
+    hidden: true

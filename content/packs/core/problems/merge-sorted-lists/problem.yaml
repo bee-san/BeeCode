@@ -1,0 +1,35 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Merge Sorted Lists
+difficulty: easy
+topics:
+  - arrays
+  - two-pointers
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: merge_sorted
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "a = [1, 2, 4], b = [1, 3, 4]"
+    output: "[1, 1, 2, 3, 4, 4]"
+    explanation: "Duplicates across the two lists are kept, so the result has six elements."
+  - input: "a = [], b = [0]"
+    output: "[0]"
+    explanation: "Merging with an empty list returns the other list's values."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

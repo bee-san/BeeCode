@@ -1,0 +1,41 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-values
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: [5, 4, 3, 2, 1]
+    comparator: exact
+
+  - name: example-two-values
+    arguments: [[1, 2]]
+    expected: [2, 1]
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: single-value
+    arguments: [[9]]
+    expected: [9]
+    comparator: exact
+
+  - name: odd-length-keeps-the-middle-in-place
+    # A wrong loop bound either skips the middle swap or swaps it back.
+    arguments: [[1, 2, 3]]
+    expected: [3, 2, 1]
+    comparator: exact
+
+  - name: repeated-values-must-not-be-collapsed
+    arguments: [[4, 4, 7, 4]]
+    expected: [4, 7, 4, 4]
+    comparator: exact
+    hidden: true
+
+  - name: negatives-and-zero
+    arguments: [[0, -1, -2, 3, 0]]
+    expected: [0, 3, -2, -1, 0]
+    comparator: exact
+    hidden: true

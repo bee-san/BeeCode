@@ -1,0 +1,37 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Group Anagrams
+difficulty: medium
+topics:
+  - strings
+  - hash-map
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: group_anagrams
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: 'strs = ["eat", "tea", "tan", "ate", "nat", "bat"]'
+    output: '[["ate", "eat", "tea"], ["bat"], ["nat", "tan"]]'
+    explanation: >
+      Three groups. Each group is sorted alphabetically and the groups are
+      ordered by their first element, as the canonical output form requires.
+  - input: 'strs = ["a"]'
+    output: '[["a"]]'
+    explanation: "One word gives one group containing it."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

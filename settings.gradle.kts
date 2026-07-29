@@ -37,6 +37,10 @@ include(":persistence")
 // Problem content loading, validation, and pack compilation.
 include(":content-tools")
 
+// Application services shared by desktop and Android: study loop, statistics,
+// achievements.
+include(":shared")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.

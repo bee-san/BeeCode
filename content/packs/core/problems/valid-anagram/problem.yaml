@@ -1,0 +1,35 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Valid Anagram
+difficulty: easy
+topics:
+  - strings
+  - hash-map
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: is_anagram
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: 's = "anagram", t = "nagaram"'
+    output: "true"
+    explanation: "Both strings use three a's, one n, one g, one r and one m."
+  - input: 's = "rat", t = "car"'
+    output: "false"
+    explanation: "s has a t that t does not have, and t has a c that s does not."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

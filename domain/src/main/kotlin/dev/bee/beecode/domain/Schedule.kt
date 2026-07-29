@@ -83,10 +83,39 @@ data class ProblemReviewFinalized(
     val aided: Boolean,
     val countsAsSolved: Boolean,
     val finalizedAt: Instant,
+    /**
+     * The timezone in which this review's local date was determined.
+     *
+     * Part of the recorded fact, not a display preference. Streaks and the 5am
+     * Club are defined in local dates, so the zone that was active when the
+     * learner finalized is what makes their streak reproducible. Interpreting old
+     * reviews in the learner's *current* zone would silently rewrite streak
+     * history every time they travelled.
+     *
+     * Stored as an id string rather than a `TimeZone` so the domain stays free of
+     * platform timezone-database differences, and so an unrecognised historical
+     * zone can be surfaced rather than crashing.
+     */
+    val streakZoneId: String,
     val transition: FsrsTransitionRecord,
     /** ADR 0002 property 4: which installation recorded this. */
     val deviceId: DeviceId,
-)
+) {
+    /**
+     * The local date this review counted for.
+     *
+     * Derived from [streakZoneId], so it reproduces the date the learner saw even
+     * if their zone has since changed. Falls back to UTC for an unrecognised zone,
+     * which is stable and auditable rather than a crash.
+     */
+    fun localDate(): LocalDate = finalizedAt.localDateIn(resolvedZone())
+
+    /** The local hour, used by the 5am Club's `[00:00, 06:00)` window. */
+    fun localHour(): Int = finalizedAt.localHourIn(resolvedZone())
+
+    private fun resolvedZone(): TimeZone =
+        runCatching { TimeZone.of(streakZoneId) }.getOrDefault(TimeZone.UTC)
+}
 
 /**
  * A complete audit of one FSRS transition.

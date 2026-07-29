@@ -1,0 +1,42 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-steps
+    arguments: [2]
+    expected: 2
+    comparator: exact
+
+  - name: example-three-steps
+    arguments: [3]
+    expected: 3
+    comparator: exact
+
+  - name: zero-steps
+    arguments: [0]
+    expected: 1
+    comparator: exact
+
+  - name: one-step
+    arguments: [1]
+    expected: 1
+    comparator: exact
+
+  - name: five-steps
+    arguments: [5]
+    expected: 8
+    comparator: exact
+
+  - name: ten-steps
+    arguments: [10]
+    expected: 89
+    comparator: exact
+    hidden: true
+
+  - name: largest-allowed-input-must-not-be-exponential
+    # Naive recursion without memoisation makes roughly 3.6 billion calls here and
+    # will blow the 5s deadline, so this test enforces the insight.
+    arguments: [45]
+    expected: 1836311903
+    comparator: exact
+    hidden: true

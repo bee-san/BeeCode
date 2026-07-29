@@ -1,0 +1,43 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-has-duplicate
+    arguments: [[1, 2, 3, 1]]
+    expected: true
+    comparator: exact
+
+  - name: example-all-distinct
+    arguments: [[1, 2, 3, 4]]
+    expected: false
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: false
+    comparator: exact
+
+  - name: single-element
+    arguments: [[7]]
+    expected: false
+    comparator: exact
+
+  - name: all-same
+    arguments: [[5, 5, 5, 5]]
+    expected: true
+    comparator: exact
+
+  - name: negatives-and-zero
+    # -1 repeats; a solution that keys on abs() or forgets sign gets this wrong.
+    arguments: [[0, -1, 2, -3, -1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-only-at-the-far-ends
+    # The pair is maximally far apart, so early-exit heuristics that only look at
+    # neighbours fail here.
+    arguments: [[4, 1, 2, 3, 5, 6, 4]]
+    expected: true
+    comparator: exact
+    hidden: true

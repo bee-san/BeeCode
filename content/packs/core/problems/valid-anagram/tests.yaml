@@ -1,0 +1,43 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-anagram
+    arguments: ["anagram", "nagaram"]
+    expected: true
+    comparator: exact
+
+  - name: example-not-an-anagram
+    arguments: ["rat", "car"]
+    expected: false
+    comparator: exact
+
+  - name: both-empty
+    arguments: ["", ""]
+    expected: true
+    comparator: exact
+
+  - name: different-lengths
+    # Same character set, different multiplicities. A set-based solution says true.
+    arguments: ["a", "aa"]
+    expected: false
+    comparator: exact
+
+  - name: case-is-significant
+    arguments: ["Ab", "ab"]
+    expected: false
+    comparator: exact
+
+  - name: repeated-letters-rearranged
+    arguments: ["aacc", "caac"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: same-letters-wrong-counts
+    # Both strings contain only a and b and have equal length, so only true
+    # counting distinguishes them.
+    arguments: ["aabb", "abbb"]
+    expected: false
+    comparator: exact
+    hidden: true

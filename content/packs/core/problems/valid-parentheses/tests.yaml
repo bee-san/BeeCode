@@ -1,0 +1,43 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: simple-pair
+    arguments: ["()"]
+    expected: true
+    comparator: exact
+
+  - name: example-all-three-types
+    arguments: ["()[]{}"]
+    expected: true
+    comparator: exact
+
+  - name: example-crossed-nesting
+    arguments: ["([)]"]
+    expected: false
+    comparator: exact
+
+  - name: empty-string-is-balanced
+    arguments: [""]
+    expected: true
+    comparator: exact
+
+  - name: deeply-nested
+    arguments: ["{[()]}"]
+    expected: true
+    comparator: exact
+
+  - name: openers-never-closed
+    # Catches solutions that return True as soon as the loop ends without
+    # checking that nothing is still open.
+    arguments: ["(["]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: closer-with-nothing-open
+    # Catches solutions that pop an empty stack instead of rejecting.
+    arguments: ["]"]
+    expected: false
+    comparator: exact
+    hidden: true

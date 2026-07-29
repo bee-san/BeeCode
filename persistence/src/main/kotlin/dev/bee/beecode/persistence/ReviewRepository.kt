@@ -110,6 +110,7 @@ class ReviewRepository(
             aided = plan.aided,
             countsAsSolved = plan.countsAsSolved,
             finalizedAt = finalizedAt,
+            streakZoneId = streakZone.id,
             transition = transition.record,
             deviceId = deviceId,
         )
@@ -117,7 +118,6 @@ class ReviewRepository(
             connection = connection,
             review = review,
             selectedSource = plan.selectedRun.source,
-            streakZone = streakZone,
         )
 
         FinalizeOutcome.Finalized(review, transition.schedule)
@@ -302,7 +302,6 @@ class ReviewRepository(
         connection: Connection,
         review: ProblemReviewFinalized,
         selectedSource: String,
-        streakZone: TimeZone,
     ) {
         val record = review.transition
         connection.prepareStatement(
@@ -332,10 +331,12 @@ class ReviewRepository(
             statement.setLong(10, review.finalizedAt.toEpochMilliseconds())
             statement.setString(11, review.deviceId.value)
             statement.setString(12, selectedSource)
-            // Derived once, here, in the profile's zone at the time of the review.
-            statement.setString(13, review.finalizedAt.localDateIn(streakZone).toString())
-            statement.setInt(14, review.finalizedAt.localHourIn(streakZone))
-            statement.setString(15, streakZone.id)
+            // Denormalised from the review's own recorded zone so the streak and
+            // 5am Club queries can filter and group in SQL without recomputing a
+            // timezone conversion per row.
+            statement.setString(13, review.localDate().toString())
+            statement.setInt(14, review.localHour())
+            statement.setString(15, review.streakZoneId)
             statement.setString(16, record.algorithmId)
             statement.setString(17, record.engineVersion)
             statement.setString(18, record.parametersHash)
@@ -418,6 +419,7 @@ internal fun ResultSet.toReview(): ProblemReviewFinalized = ProblemReviewFinaliz
     aided = getInt("aided") == 1,
     countsAsSolved = getInt("counts_as_solved") == 1,
     finalizedAt = Instant.fromEpochMilliseconds(getLong("finalized_at")),
+    streakZoneId = getString("streak_zone_id"),
     deviceId = DeviceId(getString("device_id")),
     transition = FsrsTransitionRecord(
         algorithmId = getString("fsrs_algorithm_id"),

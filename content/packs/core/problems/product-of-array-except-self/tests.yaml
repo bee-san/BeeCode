@@ -1,0 +1,42 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-no-zeros
+    arguments: [[1, 2, 3, 4]]
+    expected: [24, 12, 8, 6]
+    comparator: exact
+
+  - name: example-one-zero
+    arguments: [[-1, 1, 0, -3, 3]]
+    expected: [0, 0, 9, 0, 0]
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: single-element-gives-the-empty-product
+    arguments: [[5]]
+    expected: [1]
+    comparator: exact
+
+  - name: two-elements-is-just-a-swap
+    arguments: [[7, 3]]
+    expected: [3, 7]
+    comparator: exact
+
+  - name: two-zeros-make-everything-zero
+    # With two zeros no position can escape one of them, so the whole answer is
+    # zero. Division-based fixes that special-case a single zero break here.
+    arguments: [[0, 4, 0]]
+    expected: [0, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: negatives-only-so-signs-must-be-tracked
+    arguments: [[-2, -3, -4]]
+    expected: [12, 8, 6]
+    comparator: exact
+    hidden: true

@@ -1,0 +1,43 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-shared-prefix
+    arguments: [["flower", "flow", "flight"]]
+    expected: "fl"
+    comparator: exact
+
+  - name: example-no-shared-prefix
+    arguments: [["dog", "racecar", "car"]]
+    expected: ""
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: ""
+    comparator: exact
+
+  - name: single-string-is-its-own-prefix
+    arguments: [["alone"]]
+    expected: "alone"
+    comparator: exact
+
+  - name: all-identical
+    arguments: [["same", "same", "same"]]
+    expected: "same"
+    comparator: exact
+
+  - name: one-string-is-a-prefix-of-the-rest
+    # The answer is bounded by the shortest word, and here that bound is tight.
+    # Indexing past its end is the usual crash.
+    arguments: [["interspecies", "inter", "interstellar"]]
+    expected: "inter"
+    comparator: exact
+    hidden: true
+
+  - name: empty-string-in-the-list
+    # One empty entry forces the answer to "" no matter what the others share.
+    arguments: [["abc", "", "abd"]]
+    expected: ""
+    comparator: exact
+    hidden: true

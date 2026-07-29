@@ -1,0 +1,35 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Binary Search
+difficulty: easy
+topics:
+  - arrays
+  - binary-search
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: search
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "nums = [-1, 0, 3, 5, 9, 12], target = 9"
+    output: "4"
+    explanation: "9 is stored at index 4."
+  - input: "nums = [-1, 0, 3, 5, 9, 12], target = 2"
+    output: "-1"
+    explanation: "2 is absent, so the answer is -1."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

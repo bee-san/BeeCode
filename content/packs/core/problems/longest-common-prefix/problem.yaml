@@ -1,0 +1,36 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Longest Common Prefix
+difficulty: easy
+topics:
+  - strings
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: longest_common_prefix
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: 'strs = ["flower", "flow", "flight"]'
+    output: '"fl"'
+    explanation: >
+      All three start with "fl". The third word has 'i' where the others have
+      'o', so the prefix stops there.
+  - input: 'strs = ["dog", "racecar", "car"]'
+    output: '""'
+    explanation: "The words disagree at the very first character."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

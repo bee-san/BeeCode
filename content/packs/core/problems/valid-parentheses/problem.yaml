@@ -1,0 +1,37 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Valid Parentheses
+difficulty: easy
+topics:
+  - stack
+  - strings
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: is_valid
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: 's = "()[]{}"'
+    output: "true"
+    explanation: "Each closer immediately matches the opener before it."
+  - input: 's = "([)]"'
+    output: "false"
+    explanation: >
+      Both bracket types are balanced by count, but ')' arrives while '[' is
+      still the most recent unclosed bracket, so the nesting is wrong.
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536
