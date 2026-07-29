@@ -27,6 +27,9 @@ include(":domain")
 // that depends on dev.bee.fsrs.
 include(":fsrs-adapter")
 
+// Platform-neutral Python execution contracts and the shared harness.
+include(":python-api")
+
 // Further modules are added here as each vertical slice lands, so the build
 // always configures cleanly rather than referencing planned-but-empty
 // directories.
