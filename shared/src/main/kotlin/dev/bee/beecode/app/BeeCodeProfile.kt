@@ -3,6 +3,7 @@ package dev.bee.beecode.app
 import dev.bee.beecode.domain.AchievementId
 import dev.bee.beecode.domain.IdGenerator
 import dev.bee.beecode.domain.ProblemId
+import dev.bee.beecode.persistence.ActivityOutboxRepository
 import dev.bee.beecode.persistence.BeeCodeDatabase
 import dev.bee.beecode.persistence.DraftRepository
 import dev.bee.beecode.persistence.ReviewRepository
@@ -29,6 +30,7 @@ class BeeCodeProfile private constructor(
     val reviews: ReviewRepository,
     val drafts: DraftRepository,
     val settings: SettingsRepository,
+    val activityOutbox: ActivityOutboxRepository,
     private val clock: Clock,
 ) : Closeable {
 
@@ -129,6 +131,7 @@ class BeeCodeProfile private constructor(
             val scheduler = BeeCodeScheduler(settings.schedulerPolicy())
             val reviews = ReviewRepository(database, scheduler)
             val drafts = DraftRepository(database)
+            val activityOutbox = ActivityOutboxRepository(database)
             return BeeCodeProfile(
                 database = database,
                 catalogue = catalogue,
@@ -144,6 +147,7 @@ class BeeCodeProfile private constructor(
                 reviews = reviews,
                 drafts = drafts,
                 settings = settings,
+                activityOutbox = activityOutbox,
                 clock = clock,
             )
         }
