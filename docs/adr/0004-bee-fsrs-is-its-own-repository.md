@@ -102,6 +102,29 @@ silently rewritten to match what was built.
 - Changing FSRS mathematics now means a change upstream plus a re-vendor. That friction
   is the point: it is what stops BeeCode forking an engine kanji_anki shares.
 - BeeCode still builds offline and on a fresh clone with no extra setup.
-- The M0 gate's remaining item — publishing to a public repository so an outside consumer
-  can resolve it without vendoring — is done as far as the artifact and smoke test go.
-  Maven Central publication is deferred and does not block BeeCode.
+
+### Status of the gate's "external consumer resolves the same artifact" clause
+
+This was initially claimed as met and was not. `consumer-smoke` resolves the coordinate
+through `dependencySubstitution` to the sibling project, so nothing had been published
+anywhere — both Maven Central and GitHub Packages returned 404 for `dev.bee:bee-fsrs`,
+and no outside consumer could have fetched it.
+
+Now closed, with the two halves kept distinct because they fail for different reasons:
+
+| Build | Resolves | Catches |
+|---|---|---|
+| `consumer-smoke/` | substituted sibling project | undeclared dependency, leaked `internal` type |
+| `artifact-resolution/` | real coordinate from a repository | malformed POM, missing transitive dependency, unpublished artifact |
+
+A composite build never reads the POM, so the first can be green while the artifact is
+unusable or absent entirely. Verified by deleting the artifact from the local
+repository: `artifact-resolution` fails with "Could not find dev.bee:bee-fsrs:0.1.0"
+while `consumer-smoke` stays green.
+
+The artifact publishes to **GitHub Packages**, which requires a `read:packages` token
+even for a public package — a GitHub restriction, not a design choice. That is precisely
+why BeeCode keeps vendoring rather than resolving: a credential requirement in every
+build, including a contributor's first clone, is a worse trade than a vendored copy
+guarded by `FsrsProvenanceTest`. Maven Central publication would remove that constraint
+and is still not done.
