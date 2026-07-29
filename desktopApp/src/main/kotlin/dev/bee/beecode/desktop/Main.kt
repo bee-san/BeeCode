@@ -13,9 +13,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import dev.bee.beecode.app.BeeCodeProfile
-import dev.bee.beecode.app.ProblemCatalogue
 import dev.bee.beecode.persistence.SettingsRepository
-import dev.bee.beecode.python.jvm.ProcessPythonRunner
 import java.io.File
 
 /**
@@ -24,12 +22,23 @@ import java.io.File
  * Owns the two decisions the shared code deliberately leaves to a client: where the
  * profile lives, and which Python interpreter to use.
  */
-fun main() = application {
-    val profile = rememberProfile()
+fun main() {
+    // Open the profile *before* entering Compose's application builder. The builder
+    // composes immediately and touches AWT for the display density, so anything
+    // created inside it runs after that point — meaning a failure to open the
+    // database would surface as a Compose error rather than as itself.
+    val profile = Startup.openProfile()
+    application {
+        BeeCodeWindow(profile, onExit = ::exitApplication)
+    }
+}
+
+@Composable
+private fun BeeCodeWindow(profile: BeeCodeProfile, onExit: () -> Unit) {
     val state = rememberWindowState(width = 1180.dp, height = 820.dp)
 
     Window(
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = onExit,
         state = state,
         title = "BeeCode",
     ) {
@@ -46,40 +55,6 @@ fun main() = application {
             }
         }
     }
-}
-
-/**
- * Open the learner's profile.
- *
- * Not a composable `remember`: the profile owns a database handle and must be
- * created exactly once for the process, before any window exists.
- */
-private fun rememberProfile(): BeeCodeProfile {
-    val dataDirectory = profileDirectory()
-    dataDirectory.mkdirs()
-
-    val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
-
-    // The interpreter the learner chose in Settings, if any. Read before the
-    // profile so a chosen path applies from the first run of the session.
-    val databaseFile = File(dataDirectory, "beecode.db")
-    val bootstrap = BeeCodeProfile.open(
-        databasePath = databaseFile.absolutePath,
-        catalogue = catalogue,
-        runner = ProcessPythonRunner(),
-    )
-    val chosen = bootstrap.settings.pythonExecutable()
-    if (chosen == null) return bootstrap
-
-    // A custom interpreter was configured, so reopen with it. Reopening rather than
-    // mutating keeps the runner immutable for the profile's lifetime, which is what
-    // makes a run's recorded runner identity trustworthy.
-    bootstrap.close()
-    return BeeCodeProfile.open(
-        databasePath = databaseFile.absolutePath,
-        catalogue = catalogue,
-        runner = ProcessPythonRunner(pythonExecutable = chosen),
-    )
 }
 
 /**

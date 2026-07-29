@@ -164,6 +164,61 @@ class DesktopWiringTest {
     }
 
     @Test
+    fun theRealStartupPathOpensAUsableProfile() = runBlocking {
+        // Exercises exactly what main() calls, in a temporary data directory. This is
+        // the assertion that the app can actually start: launching the binary on a
+        // headless host fails in Compose before reaching any of this, so a smoke test
+        // of the window proves nothing about the wiring.
+        val dataDirectory = kotlin.io.path.createTempDirectory("beecode-startup-").toFile()
+        try {
+            Startup.openProfile(dataDirectory).use { profile ->
+                // The database was created where a learner could find it.
+                assertTrue(
+                    File(dataDirectory, Startup.DATABASE_NAME).isFile,
+                    "startup must create the profile database",
+                )
+                // The packaged pack loaded.
+                assertEquals(12, profile.catalogue.size)
+                // And the study loop is immediately usable.
+                assertTrue(profile.study.queue().new.isNotEmpty())
+                assertTrue(profile.study.runnerStatus().available)
+            }
+
+            // Reopening the same directory finds the existing profile rather than
+            // creating a second one.
+            Startup.openProfile(dataDirectory).use { profile ->
+                assertEquals(0, profile.reviews.reviewCount())
+            }
+        } finally {
+            dataDirectory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun startupHonoursAPreviouslyChosenInterpreter() {
+        // The two-phase open: the interpreter is stored *in* the profile, so startup
+        // reads it and reopens with a runner bound to it.
+        val dataDirectory = kotlin.io.path.createTempDirectory("beecode-startup-py-").toFile()
+        try {
+            Startup.openProfile(dataDirectory).use { profile ->
+                profile.settings.setPythonExecutable(
+                    "definitely-not-python-xyz",
+                    kotlinx.datetime.Clock.System.now(),
+                )
+            }
+            Startup.openProfile(dataDirectory).use { profile ->
+                // The chosen interpreter does not exist, so the runner reports itself
+                // unavailable with an actionable reason rather than crashing at launch.
+                val status = runBlocking { profile.study.runnerStatus() }
+                assertTrue(!status.available, "a missing interpreter must be reported")
+                assertNotNull(status.unavailableReason)
+            }
+        } finally {
+            dataDirectory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun aChosenPythonExecutableIsHonoured() {
         // The Settings screen lets a learner point BeeCode at a specific interpreter.
         // Storing it is what makes the desktop usable where python3 is not on PATH.
