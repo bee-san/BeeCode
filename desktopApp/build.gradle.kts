@@ -32,6 +32,12 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit)
+
+    // Compose UI tests for the desktop client. These need no display: Compose
+    // Desktop's `runComposeUiTest` composes and lays out headlessly on the JVM, so
+    // unlike the Android instrumented tests there is no emulator in the way.
+    @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+    testImplementation(compose.uiTest)
 }
 
 /**

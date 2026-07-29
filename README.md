@@ -28,11 +28,17 @@ The complete local study loop works on both platforms today.
 | Runner containment | `IN_PROCESS` — not a sandbox | `SEPARATE_PROCESS`, killable |
 | Local statistics and achievements | ✅ | ✅ |
 | Export and restore | ✅ | ✅ |
-| Verified by | 9 Robolectric UI + 18 instrumented tests | 23 JVM tests |
+| Verified by | 9 Robolectric UI + 18 instrumented tests | 29 JVM tests, 6 of them UI |
 
-**250 automated tests**: 232 JVM tests across nine modules and 18 Android
+**256 automated tests**: 238 JVM tests across nine modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
+
+**Both clients' UI is tested, headlessly, on every push.** The two suites assert
+deliberately overlapping rules — a failed run permits only *Again*, an unaided pass
+permits every rating, Settings never calls the runner a sandbox — so a divergence
+between platforms fails on one and not the other. That is how conformance gets checked
+rather than assumed.
 
 The Android UI is verified by **Robolectric on the JVM**, and that is a deliberate
 choice rather than a convenience. The equivalent instrumented Compose tests need an

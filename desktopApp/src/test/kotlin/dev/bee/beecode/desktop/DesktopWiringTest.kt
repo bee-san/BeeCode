@@ -23,10 +23,13 @@ import kotlin.test.assertTrue
 /**
  * The desktop client's composition root, tested headlessly.
  *
- * The UI itself is Compose and needs a display, but everything that can actually be
- * wired up wrongly is testable without one: the pack must be readable from the
- * packaged resource, the profile must open in a real directory, and the study loop
- * must work end to end through the desktop's own runner.
+ * Everything that can be wired up wrongly is testable without a display: the pack must
+ * be readable from the packaged resource, the profile must open in a real directory, and
+ * the study loop must work end to end through the desktop's own runner — against real
+ * CPython, unlike [DesktopUiTest], which is about the UI and scripts the runner.
+ *
+ * This comment used to claim the UI "needs a display". It does not: [DesktopUiTest]
+ * composes and asserts it on the JVM with no window.
  *
  * This is the desktop half of the Test 1 gate. The Android half is
  * `AndroidStudyJourneyTest`, and the two assert the same outcomes deliberately —

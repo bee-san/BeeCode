@@ -19,6 +19,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -77,6 +79,11 @@ fun CodeEditor(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(12.dp)
+                // A BasicTextField carries no label, so a screen reader would announce
+                // this only as an edit field. The Android editor names itself the same
+                // way, which also keeps the two clients' UI tests addressing it by the
+                // same identifier.
+                .semantics { contentDescription = "Python solution editor" }
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (event.key) {
