@@ -1,8 +1,11 @@
 # BeeCode
 
 BeeCode is an offline-first spaced-repetition app for practising LeetCode-style
-algorithm Problems. It runs on Android and desktop, schedules reviews with FSRS,
-and lets you write and run Python solutions inside each review.
+algorithm Problems. It runs on Android and desktop, schedules reviews with
+[bee-fsrs](https://github.com/bee-san/bee-fsrs) (FSRS-6.x, Kotlin), and lets you write
+and run Python solutions inside each review.
+
+Python is what you *write* — the scheduling engine is Kotlin.
 
 Everything is local. There is no account, no server, and no network access.
 
@@ -27,7 +30,7 @@ The complete local study loop works on both platforms today.
 | Export and restore | ✅ | ✅ |
 | Verified by | 18 instrumented tests on an API 35 x86_64 emulator | 23 JVM tests |
 
-**234 automated tests**: 216 JVM tests across eight modules and 18 Android
+**240 automated tests**: 222 JVM tests across eight modules and 18 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -73,7 +76,7 @@ Requires JDK 17 and Python 3 on desktop; the Android APK bundles its own CPython
 ## Repository layout
 
 ```text
-bee-fsrs/        FSRS-6.x memory mathematics, vendored with provenance
+bee-fsrs/        Vendored checkout of dev.bee:bee-fsrs (its own repo)
 domain/          Pure models, review state machine, and the rating policy
 fsrs-adapter/    BeeCode's review policy over bee-fsrs
 python-api/      Execution contracts and the shared Python harness
@@ -131,7 +134,8 @@ finalizing the same session produce exactly one review, and that is a test.
 - [Architecture decisions](docs/adr/README.md)
 - [Year-one execution plan](goals/YEAR-ONE.md)
 - [North-star catalogue: 164 goals](goals/README.md)
-- [FSRS provenance](bee-fsrs/PROVENANCE.md)
+- [FSRS provenance](bee-fsrs/PROVENANCE.md) and the engine's own repository,
+  [bee-san/bee-fsrs](https://github.com/bee-san/bee-fsrs)
 - [Contributing](CONTRIBUTING.md)
 
 ## Naming
