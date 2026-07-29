@@ -34,7 +34,7 @@ The complete local study loop works on both platforms today.
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
 | Verified by | 13 Robolectric UI + 19 instrumented tests | 34 JVM tests, 11 of them UI |
 
-**409 automated tests**: 390 JVM tests across nine modules and 19 Android
+**416 automated tests**: 390 JVM tests across nine modules and 26 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -128,8 +128,16 @@ be made atomic without file locking that behaves differently on every platform. 
 against a real HTTP server, and no new dependency — `HttpURLConnection` works on every
 Android version BeeCode supports, where `java.net.http` would raise minSdk from 26 to 34.
 
-Sync credentials never leave the device: not in an export, not in a sync payload, not
-merged from a remote one. That needed fixing rather than just adding — export and merge
+On Android the WebDAV password is **encrypted with a key in the platform keystore** —
+hardware-backed on most devices, so a database copied off the phone decrypts to nothing.
+GCM specifically, so a tampered ciphertext fails rather than becoming plausible garbage
+that would be sent to a server as a password. Desktop still stores it in the clear and its
+UI says so: there is no cross-platform JVM keystore that is not either a large dependency
+or a keystore protected by a password stored beside it. The asymmetry is real rather than
+uniform pessimism.
+
+Sync credentials never leave the device either: not in an export, not in a sync payload,
+not merged from a remote one. That needed fixing rather than just adding — export and merge
 excluded exactly one key, so a password would have travelled by default into every backup
 and up to the server it authenticates to.
 
