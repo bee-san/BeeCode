@@ -519,6 +519,9 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
     var webDavUrl by remember { mutableStateOf(viewModel.webDavUrl() ?: "") }
     var webDavUser by remember { mutableStateOf(viewModel.webDavUsername() ?: "") }
     var webDavPassword by remember { mutableStateOf(viewModel.webDavPassword() ?: "") }
+    var boardJoined by remember { mutableStateOf(viewModel.leaderboardJoined()) }
+    var boardStatus by remember { mutableStateOf(viewModel.leaderboardStatus()) }
+    var boardMessage by remember { mutableStateOf<String?>(null) }
     var syncMessage by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
@@ -819,6 +822,96 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                 ) { Text(if (syncing) "Syncing…" else "Sync with WebDAV") }
 
                 syncMessage?.let { message ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Leaderboard", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Optional, off by default, and it needs a server that does not exist " +
+                        "yet — so joining now only records what this device would share " +
+                        "once one does. Nothing leaves your phone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "A board sees counts and streaks: which day you solved something, and " +
+                        "whether it was an unaided pass. Never your code, your test output, " +
+                        "or your schedule. Activity from before you join is never shared.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                if (!boardJoined) {
+                    Text("Not joined", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(onClick = {
+                        viewModel.joinLeaderboard()
+                        boardJoined = true
+                        boardStatus = viewModel.leaderboardStatus()
+                        boardMessage = "Joined. Solves from now on will be shared once a " +
+                            "server exists; everything before now stays private."
+                    }) { Text("Join a Leaderboard") }
+                } else {
+                    Text(
+                        "Waiting to send: ${boardStatus.pending}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text("Sent: ${boardStatus.acknowledged}", style = MaterialTheme.typography.bodyMedium)
+                    if (boardStatus.parked > 0) {
+                        Text("Stuck: ${boardStatus.parked}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (boardStatus.rejected > 0) {
+                        // Separate from "stuck" because a refusal is final: a learner should
+                        // not be invited to retry a decision the server already made.
+                        Text(
+                            "Refused by the server: ${boardStatus.rejected}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            val added = viewModel.refreshLeaderboard()
+                            boardStatus = viewModel.leaderboardStatus()
+                            boardMessage = if (added > 0) {
+                                "Queued $added new ${if (added == 1) "solve" else "solves"}."
+                            } else {
+                                "Nothing new to queue."
+                            }
+                        }) { Text("Check activity") }
+
+                        if (boardStatus.parked > 0) {
+                            OutlinedButton(onClick = {
+                                val revived = viewModel.retryStuckLeaderboardItems()
+                                boardStatus = viewModel.leaderboardStatus()
+                                boardMessage = "Will try $revived again."
+                            }) { Text("Retry stuck") }
+                        }
+
+                        TextButton(onClick = {
+                            viewModel.leaveLeaderboard()
+                            boardJoined = false
+                            boardStatus = viewModel.leaderboardStatus()
+                            boardMessage = "Left. Your reviews, schedule, and achievements " +
+                                "are untouched — a board is a view of your study, never " +
+                                "where it lives."
+                        }) { Text("Leave") }
+                    }
+                }
+
+                boardMessage?.let { message ->
                     Spacer(Modifier.height(10.dp))
                     Text(
                         message,

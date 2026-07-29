@@ -7,6 +7,8 @@ import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.ProfileTransfer
+import dev.bee.beecode.app.LeaderboardService
+import dev.bee.beecode.app.OutboxStatus
 import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.SyncService
 import dev.bee.beecode.app.SyncStore
@@ -249,6 +251,42 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     fun setSyncTarget(uri: String?) {
         profile.settings.setSyncFilePath(uri, kotlinx.datetime.Clock.System.now())
     }
+
+    // ---- Leaderboard ----------------------------------------------------
+
+    /** Whether this profile has joined a Leaderboard. Off by default. */
+    fun leaderboardJoined(): Boolean = profile.settings.leaderboardLinkedAt() != null
+
+    /** Queue counts for the status lines. */
+    fun leaderboardStatus(): OutboxStatus = LeaderboardService(profile).status()
+
+    /**
+     * Join, recording *now* as the cutoff.
+     *
+     * The cutoff is the current instant and not epoch zero, which is what keeps a learner's
+     * pre-join history private: reviews finalized before this are never uploaded.
+     *
+     * @return how many solves were queued, which is zero unless the learner solved something
+     *   in the same instant — stated because a UI showing a count should not have to guess.
+     */
+    fun joinLeaderboard(): Int {
+        val now = kotlinx.datetime.Clock.System.now()
+        profile.settings.setLeaderboardLinkedAt(now, now)
+        return profile.refreshLeaderboardActivity(now)
+    }
+
+    /** Leave, discarding the queue. Reviews, schedules, and achievements are untouched. */
+    fun leaveLeaderboard() {
+        profile.settings.setLeaderboardLinkedAt(null, kotlinx.datetime.Clock.System.now())
+        LeaderboardService(profile).forget()
+    }
+
+    /** Bring the queue up to date with the review log. Safe to call repeatedly. */
+    fun refreshLeaderboard(): Int = profile.refreshLeaderboardActivity()
+
+    /** Return stuck items to the queue after an outage. */
+    fun retryStuckLeaderboardItems(): Int =
+        LeaderboardService(profile).retryParked(kotlinx.datetime.Clock.System.now())
 
     /** The WebDAV file URL this device syncs through, or null when unset. */
     fun webDavUrl(): String? = profile.settings.syncWebDavUrl()

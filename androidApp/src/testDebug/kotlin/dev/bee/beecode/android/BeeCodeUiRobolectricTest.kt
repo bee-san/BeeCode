@@ -20,6 +20,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -337,6 +338,72 @@ class BeeCodeUiRobolectricTest {
         model.setWebDav("https://cloud.example.com/beecode-sync.json", "", "")
         assertEquals(null, profile.settings.syncWebDavUsername())
         assertEquals(null, profile.settings.syncWebDavPassword())
+    }
+
+    @Test
+    fun theLeaderboardIsOffByDefaultAndSaysWhatABoardWouldSee() {
+        // Mirrors the desktop assertion. Where two clients make the same promise about what
+        // is shared, saying it differently is how they drift — and this is a privacy promise,
+        // so the wording is the product.
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Leaderboard").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Not joined").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("counts and streaks", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText("Never your code", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText("before you join is never shared", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText("does not exist yet", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertEquals(null, profile.settings.leaderboardLinkedAt())
+    }
+
+    @Test
+    fun joiningRecordsNowAsTheCutoffSoEarlierWorkStaysPrivate() {
+        // Through the ViewModel rather than the button: the assertion worth making is that
+        // the cutoff is *now*, which is the single thing keeping a learner's back catalogue
+        // out of a board.
+        launch()
+        val model = StudyViewModel(profile)
+        val before = kotlinx.datetime.Clock.System.now()
+        model.joinLeaderboard()
+
+        val linkedAt = requireNotNull(profile.settings.leaderboardLinkedAt())
+        // A one-second window rather than `>= before`. Settings store epoch *millis*, so the
+        // read-back value is truncated and can land microseconds below the instant captured
+        // above — which made the strict comparison fail for a reason that has nothing to do
+        // with the rule being tested.
+        //
+        // What matters is that the cutoff is *now* and not the beginning of time: a
+        // backdated cutoff is what would share a learner's whole back catalogue.
+        assertTrue(
+            "the cutoff must be the moment of joining, was $linkedAt",
+            linkedAt >= before - kotlin.time.Duration.parse("1s"),
+        )
+        assertTrue(
+            "the cutoff must not be backdated, was $linkedAt",
+            linkedAt > kotlinx.datetime.Instant.fromEpochMilliseconds(0),
+        )
+        assertTrue(model.leaderboardJoined())
+        assertEquals(0, model.leaderboardStatus().pending)
+    }
+
+    @Test
+    fun leavingDiscardsTheQueueAndKeepsEveryReview() {
+        launch()
+        val model = StudyViewModel(profile)
+        model.joinLeaderboard()
+        model.leaveLeaderboard()
+
+        assertEquals(null, profile.settings.leaderboardLinkedAt())
+        assertTrue(!model.leaderboardJoined())
+        assertEquals(0, model.leaderboardStatus().pending)
     }
 
     @Test
