@@ -31,11 +31,13 @@ The complete local study loop works on both platforms today.
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
-One caveat stated plainly: 9 of the Android tests are Compose UI tests that need a
-rendering-capable emulator, and they **skip** on the automated-test-device image a
-host without `/dev/kvm` is limited to. CI enables KVM so they run for real. The 9
+One caveat stated plainly: 9 of the Android tests are Compose UI tests that need an
+emulator which accepts injected touch input. They **skip** on the headless
+automated-test-device image this dev host is limited to without `/dev/kvm`, and CI's
+`-no-window` emulator refuses injection too — so **these 9 have not yet run
+anywhere**. They are written and building; whether they pass is unverified. The 9
 behavioural tests — which cover the full study journey, the timeout, and the
-no-network check — have no such requirement and always run.
+no-network check — have no such requirement and run on every push.
 
 Not built yet: the private Leaderboard, personal cross-device sync, and the wider
 Problem curriculum. See [the year-one plan](goals/YEAR-ONE.md).

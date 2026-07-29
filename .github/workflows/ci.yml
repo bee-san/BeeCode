@@ -95,13 +95,15 @@ jobs:
           name: beecode-debug-apk
           path: androidApp/build/outputs/apk/debug/*.apk
 
-  # Instrumented tests are the real Android evidence, but an emulator needs KVM,
-  # which GitHub's standard runners provide only on some images. Kept as a
-  # separate job so a flaky emulator cannot block the JVM and build gates.
+  # Instrumented tests are the real Android evidence: the study journey, the
+  # timeout, and the no-network check all run here against embedded CPython.
+  #
+  # Deliberately NOT continue-on-error. It was, and that hid a genuine failure
+  # behind a green overall run — the Compose UI tests were failing on every push
+  # while appearing to be skipped. A gate that cannot fail is not a gate.
   android-instrumented:
     name: Android instrumented tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 

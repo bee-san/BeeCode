@@ -16,9 +16,8 @@ import dev.bee.beecode.android.ui.BeeCodeApp
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
-import android.content.Context
-import android.util.DisplayMetrics
-import android.view.WindowManager
+import android.os.SystemClock
+import android.view.MotionEvent
 import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -42,11 +41,14 @@ import java.io.File
  * "gslim") images have none: they fail with "Failed to inject touch input" and
  * produce an all-black framebuffer for every app including system ones.
  *
- * A rendering image needs hardware acceleration, so a host without `/dev/kvm` can
- * only boot ATD. Rather than fail misleadingly there, these tests **skip** when no
- * display is available, and CI enables KVM so they run for real. [
- * AndroidStudyJourneyTest] carries no such requirement and is the behavioural gate
- * that always runs.
+ * The same is true of a `-no-window` emulator, including the one CI runs. So these
+ * tests **skip** unless the device actually accepts injected touch input, and that is
+ * verified by attempting an injection rather than inferred from display metrics or the
+ * build product name — inferring it was wrong once already, and the consequence was
+ * nine tests that had never run anywhere while looking merely skipped.
+ *
+ * [AndroidStudyJourneyTest] carries no such requirement and is the behavioural gate
+ * that always runs, on this host and in CI.
  */
 @RunWith(AndroidJUnit4::class)
 class BeeCodeUiTest {
@@ -68,9 +70,9 @@ class BeeCodeUiTest {
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         assumeTrue(
-            "This emulator image has no display, so Compose touch input and layout " +
-                "bounds are unavailable. Run on a rendering-capable image.",
-            hasUsableDisplay(context),
+            "This device refuses injected touch input, so Compose performClick and " +
+                "assertIsDisplayed cannot work. Run on a rendering-capable emulator.",
+            canInjectTouchInput(),
         )
         System.setProperty("java.io.tmpdir", context.cacheDir.absolutePath)
         System.setProperty("org.sqlite.tmpdir", context.cacheDir.absolutePath)
@@ -261,21 +263,32 @@ class BeeCodeUiTest {
 
     private companion object {
         /**
-         * Whether this device can actually render and accept touch input.
+         * Whether this device can actually accept injected touch input.
          *
-         * ATD images report a display of zero size, which is what makes
-         * `assertIsDisplayed` and `performClick` fail there.
+         * Tested by **doing it**, not inferred. An earlier version checked display
+         * metrics and the build product name, which was a proxy for the real
+         * capability and got it wrong: CI's `-no-window` emulator reports a non-zero
+         * display and is not named "atd", so the check passed and every test then
+         * failed with "Failed to inject touch input". The result was nine tests that
+         * had never run anywhere while appearing to be merely skipped.
+         *
+         * `injectInputEvent` needs the INJECT_EVENTS permission, which instrumentation
+         * holds only when the platform allows it. If the call is refused here, it will
+         * be refused by `performClick` too.
          */
-        fun hasUsableDisplay(context: Context): Boolean = runCatching {
-            val metrics = DisplayMetrics()
-            @Suppress("DEPRECATION")
-            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager)
-                .defaultDisplay
-                .getMetrics(metrics)
-            metrics.widthPixels > 0 && metrics.heightPixels > 0 &&
-                // ATD images are identifiable by name and render nothing.
-                !android.os.Build.PRODUCT.contains("atd") &&
-                !android.os.Build.PRODUCT.contains("gslim")
+        fun canInjectTouchInput(): Boolean = runCatching {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val now = SystemClock.uptimeMillis()
+            // A no-op event at the origin: nothing to interact with, so it cannot
+            // disturb whatever is on screen, but it exercises the same path.
+            val event = MotionEvent.obtain(
+                now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0,
+            )
+            try {
+                instrumentation.uiAutomation.injectInputEvent(event, true)
+            } finally {
+                event.recycle()
+            }
         }.getOrDefault(false)
     }
 }
