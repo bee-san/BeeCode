@@ -33,7 +33,7 @@ The complete local study loop works on both platforms today.
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Verified by | 13 Robolectric UI + 19 instrumented tests | 34 JVM tests, 11 of them UI |
 
-**375 automated tests**: 356 JVM tests across nine modules and 19 Android
+**402 automated tests**: 383 JVM tests across nine modules and 19 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms.
 
@@ -112,6 +112,13 @@ verified now:
 `ActivityEvent` cannot carry source, output, test values, or FSRS state — the type has
 nowhere to put them, and a test asserts the exact field set so adding one is deliberate.
 
+The queue is **durable** (schema v3), keyed by the review's own session id so one solve
+cannot enqueue twice across a restart. `LeaderboardService` composes the three pieces, and
+`refreshLeaderboardActivity()` is deliberately *not* wired into finalization: "review
+finalization never waits for network" is only credible if finalization cannot fail for a
+Leaderboard reason. It is off until an account is linked, and unlinking clears the queue
+without touching a single review.
+
 **WebDAV works, on both clients.** A shared file is the zero-setup option; a WebDAV
 server — Nextcloud, ownCloud, Synology, `rclone serve webdav` — is the stronger one,
 because `If-Match` makes the *server* refuse a stale write. That closes the one limitation
@@ -125,8 +132,9 @@ merged from a remote one. That needed fixing rather than just adding — export 
 excluded exactly one key, so a password would have travelled by default into every backup
 and up to the server it authenticates to.
 
-Not built yet: the Leaderboard *server* and UI, and Google Drive sync (which needs OAuth,
-so WebDAV covers self-hosting without it).
+Not built yet: the Leaderboard *server* and its UI — the client half is complete and its
+transport is a parameter, so the server is separable work — and Google Drive sync (which
+needs OAuth, where WebDAV covers self-hosting without it).
 See [the year-one plan](goals/YEAR-ONE.md).
 
 ## What is honest about this build
