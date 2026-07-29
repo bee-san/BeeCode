@@ -218,6 +218,49 @@ class SnapshotMergeTest {
     }
 
     @Test
+    fun syncCredentialsAreNeverMerged() {
+        // Merging a remote password would spread one device's credential to every other,
+        // and it would already have been uploaded to the server it authenticates to.
+        val merged = assertMerged(
+            SnapshotMerge.merge(
+                snapshot(settings = mapOf("review.dailyLimit" to "10")),
+                snapshot(
+                    settings = mapOf(
+                        "sync.webdav.url" to "https://cloud.example.com/beecode-sync.json",
+                        "sync.webdav.username" to "someone",
+                        "sync.webdav.password" to "hunter2",
+                        "sync.file" to "/their/laptop/beecode-sync.json",
+                        "review.dailyLimit" to "25",
+                    ),
+                    settingStamps = mapOf(
+                        "sync.webdav.password" to 9_999L,
+                        "review.dailyLimit" to 9_999L,
+                    ),
+                ),
+            ),
+        )
+        assertEquals(null, merged.setting("sync.webdav.password"))
+        assertEquals(null, merged.setting("sync.webdav.username"))
+        assertEquals(null, merged.setting("sync.webdav.url"))
+        assertEquals(null, merged.setting("sync.file"))
+        assertTrue(
+            !merged.result.payloadText.contains("hunter2"),
+            "a credential must not appear anywhere in a merged snapshot",
+        )
+        // An ordinary setting still merges, so this is a targeted exclusion rather than
+        // settings merging being broken.
+        assertEquals("25", merged.setting("review.dailyLimit"))
+    }
+
+    @Test
+    fun theDeviceOnlyKeysMatchThePersistenceLayer() {
+        // The merge duplicates these as literals to avoid depending on persistence. This
+        // is what stops the duplicate drifting into a key that is no longer excluded —
+        // which for a password would be a silent credential leak.
+        assertEquals(SettingsRepository.DEVICE_ONLY_KEYS, SnapshotMerge.DEVICE_ONLY_KEYS)
+    }
+
+    @Test
     fun theDeviceIdKeyMatchesThePersistenceLayer() {
         // The merge duplicates this key as a literal to avoid depending on persistence.
         // This is what stops the duplicate drifting into a silently un-excluded key.

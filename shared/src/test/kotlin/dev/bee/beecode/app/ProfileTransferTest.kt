@@ -13,6 +13,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -50,6 +51,69 @@ class ProfileTransferTest {
             file.delete()
             File(file.absolutePath + "-wal").delete()
             File(file.absolutePath + "-shm").delete()
+        }
+    }
+
+    @Test
+    fun anExportWithholdsSyncCredentialsAndTheDeviceIdentity() {
+        // An export is a file a learner may share, store in a cloud folder, or attach to a
+        // bug report. A WebDAV password in it would travel everywhere the backup goes; the
+        // device identity would make two installs claim to be one device.
+        open(originalFile).use { profile ->
+            val now = Clock.System.now()
+            profile.settings.setSyncWebDavUrl("https://cloud.example.com/beecode-sync.json", now)
+            profile.settings.setSyncWebDavUsername("someone", now)
+            profile.settings.setSyncWebDavPassword("hunter2", now)
+            profile.settings.setSyncFilePath("/home/me/Dropbox/beecode-sync.json", now)
+            // An ordinary setting, so this proves a targeted exclusion rather than settings
+            // being dropped wholesale.
+            profile.settings.setDailyReviewLimit(25, now)
+
+            val payload = ProfileTransfer.export(profile, exportedAt)
+
+            assertFalse(payload.contains("hunter2"), "an export must not carry a password")
+            assertFalse(payload.contains("someone"), "an export must not carry a username")
+            assertFalse(payload.contains("cloud.example.com"), "an export must not carry a sync URL")
+            assertFalse(payload.contains("Dropbox"), "an export must not carry a sync path")
+            val deviceId = profile.settings
+                .deviceId({ dev.bee.beecode.domain.DeviceId("generated-for-this-test") }, now)
+            assertFalse(
+                payload.contains(deviceId.value),
+                "an export must not carry the device identity",
+            )
+            assertTrue(payload.contains("review.dailyLimit"), "ordinary settings still export")
+        }
+    }
+
+    @Test
+    fun restoringNeverOverwritesThisDevicesSyncConfiguration() {
+        // Restoring someone else's backup — or your own from another machine — must not
+        // repoint this device's sync at their server or their folder.
+        // Build the hostile payload by exporting a profile that *has* those settings and
+        // then re-inserting them, rather than splicing raw JSON: a hand-edited payload that
+        // fails to parse would make this test pass for the wrong reason.
+        val hostile = open(originalFile).use { profile ->
+            val now = Clock.System.now()
+            profile.settings.setDailyReviewLimit(25, now)
+            ProfileTransfer.export(profile, exportedAt).replace(
+                """"review.dailyLimit": "25"""",
+                """"review.dailyLimit": "25",
+    "sync.webdav.password": "hunter2",
+    "sync.webdav.url": "https://attacker.example.com/x.json"""",
+            )
+        }
+        assertTrue(hostile.contains("hunter2"), "the fixture must actually contain the credential")
+
+        open(restoredFile).use { profile ->
+            val now = Clock.System.now()
+            profile.settings.setSyncWebDavUrl("https://mine.example.com/beecode-sync.json", now)
+            assertIs<RestoreResult.Restored>(ProfileTransfer.restore(profile, hostile, now))
+
+            assertEquals(
+                "https://mine.example.com/beecode-sync.json",
+                profile.settings.syncWebDavUrl(),
+            )
+            assertEquals(null, profile.settings.syncWebDavPassword())
         }
     }
 

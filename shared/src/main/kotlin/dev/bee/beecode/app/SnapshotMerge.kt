@@ -186,7 +186,7 @@ object SnapshotMerge {
     ): Map<String, Pair<String, Long>> {
         fun stamped(payload: ProfilePayload): Map<String, Pair<String, Long>> =
             payload.settings
-                .filterKeys { it != DEVICE_ID_KEY }
+                .filterKeys { it !in DEVICE_ONLY_KEYS }
                 .mapValues { (key, value) ->
                     value to (payload.settingsUpdatedAtEpochMillis[key] ?: 0L)
                 }
@@ -226,6 +226,26 @@ object SnapshotMerge {
      * `SnapshotMergeTest` asserts the two agree.
      */
     internal const val DEVICE_ID_KEY = "device.id"
+
+    /**
+     * Settings that never cross a device boundary.
+     *
+     * The device identity, plus every sync target and credential. A password merged from a
+     * remote snapshot would spread one device's credential to every other, and uploading
+     * one puts it on the server it authenticates to.
+     *
+     * Duplicated as literals rather than imported from `SettingsRepository`, for the same
+     * reason as [DEVICE_ID_KEY]: merging a snapshot must not depend on the persistence
+     * layer, and these keys are part of the *wire format* so they are frozen regardless.
+     * `SnapshotMergeTest` asserts the two lists agree.
+     */
+    internal val DEVICE_ONLY_KEYS: Set<String> = setOf(
+        DEVICE_ID_KEY,
+        "sync.file",
+        "sync.webdav.url",
+        "sync.webdav.username",
+        "sync.webdav.password",
+    )
 }
 
 /** The outcome of merging two snapshots. */

@@ -97,6 +97,54 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         if (path.isNullOrBlank()) remove(KEY_SYNC_FILE) else put(KEY_SYNC_FILE, path, now)
     }
 
+    /**
+     * The WebDAV URL this device syncs through, if the learner chose that backend.
+     *
+     * Mutually exclusive with [syncFilePath] in practice, and the UI enforces that by
+     * offering one choice rather than two. Kept as separate keys rather than one tagged
+     * value so a learner who switches back does not have to re-enter the other.
+     */
+    fun syncWebDavUrl(): String? = get(KEY_SYNC_WEBDAV_URL)?.takeIf { it.isNotBlank() }
+
+    fun setSyncWebDavUrl(url: String?, now: Instant) {
+        if (url.isNullOrBlank()) remove(KEY_SYNC_WEBDAV_URL) else put(KEY_SYNC_WEBDAV_URL, url, now)
+    }
+
+    /** The WebDAV username, if the server needs one. */
+    fun syncWebDavUsername(): String? = get(KEY_SYNC_WEBDAV_USER)?.takeIf { it.isNotBlank() }
+
+    fun setSyncWebDavUsername(username: String?, now: Instant) {
+        if (username.isNullOrBlank()) {
+            remove(KEY_SYNC_WEBDAV_USER)
+        } else {
+            put(KEY_SYNC_WEBDAV_USER, username, now)
+        }
+    }
+
+    /**
+     * The WebDAV password.
+     *
+     * **Stored in plaintext in the profile database, and that is a real limitation rather
+     * than an oversight.** BeeCode's threat model is a single-user device: the same database
+     * already holds every solution the learner has written, so a reader who can open it has
+     * already got the thing worth protecting. Encrypting only this column would move the key
+     * problem rather than solve it, and platform keystores differ enough that doing it
+     * properly is its own piece of work.
+     *
+     * What follows from that: this value is excluded from export and from the sync payload —
+     * a snapshot that carried it would put the credential on the very server it authenticates
+     * to, and into any backup the learner shares.
+     */
+    fun syncWebDavPassword(): String? = get(KEY_SYNC_WEBDAV_PASSWORD)?.takeIf { it.isNotBlank() }
+
+    fun setSyncWebDavPassword(password: String?, now: Instant) {
+        if (password.isNullOrBlank()) {
+            remove(KEY_SYNC_WEBDAV_PASSWORD)
+        } else {
+            put(KEY_SYNC_WEBDAV_PASSWORD, password, now)
+        }
+    }
+
     /** Path to a Python interpreter chosen by the learner, if any. */
     fun pythonExecutable(): String? = get(KEY_PYTHON_EXECUTABLE)?.takeIf { it.isNotBlank() }
 
@@ -184,6 +232,24 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_DAILY_REVIEW_LIMIT = "review.dailyLimit"
         const val KEY_PYTHON_EXECUTABLE = "python.executable"
         const val KEY_SYNC_FILE = "sync.file"
+        const val KEY_SYNC_WEBDAV_URL = "sync.webdav.url"
+        const val KEY_SYNC_WEBDAV_USER = "sync.webdav.username"
+        const val KEY_SYNC_WEBDAV_PASSWORD = "sync.webdav.password"
+
+        /**
+         * Settings that must never leave this device.
+         *
+         * A credential in an export would end up in a backup the learner might share, and a
+         * credential in a sync payload would be uploaded to the very server it
+         * authenticates to. Consulted by `ProfileTransfer` and `SnapshotMerge`.
+         */
+        val DEVICE_ONLY_KEYS: Set<String> = setOf(
+            KEY_DEVICE_ID,
+            KEY_SYNC_FILE,
+            KEY_SYNC_WEBDAV_URL,
+            KEY_SYNC_WEBDAV_USER,
+            KEY_SYNC_WEBDAV_PASSWORD,
+        )
     }
 }
 

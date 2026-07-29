@@ -11,6 +11,7 @@ import dev.bee.beecode.domain.ProblemRevisionId
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.ReviewSessionId
 import dev.bee.beecode.domain.SolutionDraft
+import dev.bee.beecode.persistence.SettingsRepository
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -77,8 +78,14 @@ object ProfileTransfer {
         val payload = ProfilePayload(
             formatVersion = FORMAT_VERSION,
             exportedAtEpochMillis = exportedAt.toEpochMilliseconds(),
-            settings = profile.settings.all(),
+            // Device-only settings are withheld: the device identity, and any sync
+            // credential. A password in an export would travel into whatever backup the
+            // learner shares, and a password in a sync payload would be uploaded to the
+            // very server it authenticates to.
+            settings = profile.settings.all()
+                .filterKeys { it !in SettingsRepository.DEVICE_ONLY_KEYS },
             settingsUpdatedAtEpochMillis = profile.settings.allStamped()
+                .filterKeys { it !in SettingsRepository.DEVICE_ONLY_KEYS }
                 .mapValues { (_, stamped) -> stamped.updatedAt.toEpochMilliseconds() },
             drafts = profile.drafts.allDrafts().map { it.toWire() },
             reviews = profile.allReviews().map { review ->
@@ -179,10 +186,11 @@ object ProfileTransfer {
 
         var settingsApplied = 0
         for ((key, value) in payload.settings) {
-            // The device identity is per-installation and must not be imported, or
-            // two devices would claim the same identity and a future sync could not
-            // tell their writes apart.
-            if (key == dev.bee.beecode.persistence.SettingsRepository.KEY_DEVICE_ID) continue
+            // Device-only settings are never imported. The device identity is
+            // per-installation — two devices claiming one identity could not tell their
+            // writes apart — and a sync target or credential belongs to the device that
+            // configured it, not to whoever restores the file.
+            if (key in SettingsRepository.DEVICE_ONLY_KEYS) continue
             profile.settings.put(key, value, now)
             settingsApplied++
         }
