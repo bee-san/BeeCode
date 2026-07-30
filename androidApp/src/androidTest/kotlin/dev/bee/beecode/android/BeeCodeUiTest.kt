@@ -15,8 +15,10 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.CODE_EDITOR_TAG
 import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
+import dev.bee.beecode.android.ui.SYMBOL_ROW_TAG
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
 import android.os.SystemClock
@@ -166,6 +168,7 @@ class BeeCodeUiTest {
         compose.onNodeWithText("Your solution").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Run tests").assertIsDisplayed()
         // The editor is reachable by its accessibility label.
+        compose.onNodeWithTag(CODE_EDITOR_TAG).performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Python solution editor").assertIsDisplayed()
     }
 
@@ -178,7 +181,7 @@ class BeeCodeUiTest {
         // Below the fold of the Problem screen's scrolling column on a phone, so it
         // needs scrolling to before it has layout bounds. Found by the Robolectric
         // equivalent — this assertion was wrong for as long as it had never run.
-        compose.onNodeWithText("Your solution").performScrollTo()
+        compose.onNodeWithTag(SYMBOL_ROW_TAG).performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Insert indent")
             .performScrollTo()
             .assertIsDisplayed()
@@ -285,6 +288,11 @@ class BeeCodeUiTest {
         compose.onNode(hasText("not a security sandbox", substring = true))
             .performScrollTo()
             .assertIsDisplayed()
+        compose.waitUntil(timeoutMillis = 30_000) {
+            compose.onAllNodesWithText("In this app's process", substring = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
         compose.onNode(hasText("In this app's process", substring = true))
             .performScrollTo()
             .assertIsDisplayed()
