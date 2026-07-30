@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-long-chain
+    arguments: [[2, 7, 4, 1, 8, 1]]
+    expected: 1
+    comparator: exact
+
+  - name: example-single-stone
+    arguments: [[1]]
+    expected: 1
+    comparator: exact
+
+  - name: two-equal-stones-annihilate
+    # The pile empties, so an unguarded read of the heap root raises here.
+    arguments: [[3, 3]]
+    expected: 0
+    comparator: exact
+
+  - name: two-unequal-stones
+    arguments: [[7, 2]]
+    expected: 5
+    comparator: exact
+
+  - name: all-stones-equal-and-even-in-number
+    arguments: [[5, 5, 5, 5]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: all-stones-equal-and-odd-in-number
+    arguments: [[5, 5, 5]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: one-stone-dominates
+    # 100 and 1 leave 99; then 99 and 1 leave 98.
+    arguments: [[100, 1, 1]]
+    expected: 98
+    comparator: exact
+    hidden: true
+
+  - name: the-difference-outweighs-what-remains
+    # 10 and 3 leave 7, which is heavier than the remaining 2, so the new
+    # stone must be reinserted in order rather than appended.
+    arguments: [[10, 2, 3]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: ascending-run
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 1
+    comparator: exact
+    hidden: true

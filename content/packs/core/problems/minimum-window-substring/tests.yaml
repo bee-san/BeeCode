@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-banc
+    arguments: ["ADOBECODEBANC", "ABC"]
+    expected: "BANC"
+    comparator: exact
+
+  - name: example-multiplicity
+    # Catches solutions that only check set membership; they answer "a".
+    arguments: ["aa", "aa"]
+    expected: "aa"
+    comparator: exact
+
+  - name: no-window-exists
+    arguments: ["a", "b"]
+    expected: ""
+    comparator: exact
+
+  - name: needle-longer-than-haystack
+    arguments: ["a", "aa"]
+    expected: ""
+    comparator: exact
+
+  - name: whole-string-needed
+    arguments: ["abc", "cba"]
+    expected: "abc"
+    comparator: exact
+
+  - name: earliest-of-two-equally-short
+    # Windows "ab" at 0, "ba" at 1 and "ab" at 2 all qualify with length 2. A
+    # <= comparison on the best length returns the last one.
+    arguments: ["abab", "ab"]
+    expected: "ab"
+    comparator: exact
+    hidden: true
+
+  - name: surplus-copies-do-not-satisfy-early
+    # Four surplus as before the b. A count that decrements on every a rather
+    # than only on reaching the requirement misjudges validity.
+    arguments: ["aaaab", "ab"]
+    expected: "ab"
+    comparator: exact
+    hidden: true
+
+  - name: case-is-significant
+    arguments: ["aA", "A"]
+    expected: "A"
+    comparator: exact
+    hidden: true
+
+  - name: answer-is-the-final-character
+    arguments: ["bbbbbba", "a"]
+    expected: "a"
+    comparator: exact
+    hidden: true

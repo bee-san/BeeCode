@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Valid Sudoku
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - matrix
+  - hash-set
+algorithms:
+  - hashing
+  - simulation
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: is_valid_sudoku
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "a board whose first row is 5 3 . . 7 . . . ."
+    output: "true"
+    explanation: "No digit repeats in any row, column, or 3x3 box."
+  - input: "the same board with the leading 5 changed to 8"
+    output: "false"
+    explanation: "Its row and box are still fine, but column 0 now holds 8 twice \u2014 here and five rows down."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

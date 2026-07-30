@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-nodes
+    arguments: [[1, 2, 3, null, null, 4, 5]]
+    expected: ["1,2,#,#,3,4,#,#,5,#,#", [1, 2, 3, null, null, 4, 5]]
+    comparator: exact
+
+  - name: example-empty-tree
+    arguments: [[]]
+    expected: ["#", []]
+    comparator: exact
+
+  - name: single-node
+    arguments: [[1]]
+    expected: ["1,#,#", [1]]
+    comparator: exact
+
+  - name: left-child-only
+    # Without the markers this is indistinguishable from the right-child case.
+    arguments: [[1, 2]]
+    expected: ["1,2,#,#,#", [1, 2]]
+    comparator: exact
+
+  - name: right-child-only
+    # The other half of that pair. Both must round-trip to different trees.
+    arguments: [[1, null, 2]]
+    expected: ["1,#,2,#,#", [1, null, 2]]
+    comparator: exact
+    hidden: true
+
+  - name: negative-values
+    # A character-at-a-time parser reads the minus sign as a value.
+    arguments: [[-1, -2]]
+    expected: ["-1,-2,#,#,#", [-1, -2]]
+    comparator: exact
+    hidden: true
+
+  - name: zero-is-a-real-value
+    arguments: [[0, null, 1]]
+    expected: ["0,#,1,#,#", [0, null, 1]]
+    comparator: exact
+    hidden: true
+
+  - name: three-nodes
+    arguments: [[1, 2, 3]]
+    expected: ["1,2,#,#,3,#,#", [1, 2, 3]]
+    comparator: exact
+    hidden: true
+
+  - name: left-leaning-chain
+    # Four markers in a row, which is where a desynchronised cursor shows.
+    arguments: [[1, 2, null, 3]]
+    expected: ["1,2,3,#,#,#,#", [1, 2, null, 3]]
+    comparator: exact
+    hidden: true
+
+  - name: multi-digit-values
+    # Joining without a delimiter would make 1,02,0 ambiguous.
+    arguments: [[10, 20, 30]]
+    expected: ["10,20,#,#,30,#,#", [10, 20, 30]]
+    comparator: exact
+    hidden: true

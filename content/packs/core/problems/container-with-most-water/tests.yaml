@@ -1,0 +1,48 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-nine-walls
+    arguments: [[1, 8, 6, 2, 5, 4, 8, 3, 7]]
+    expected: 49
+    comparator: exact
+
+  - name: example-shortest-input
+    arguments: [[1, 1]]
+    expected: 1
+    comparator: exact
+
+  - name: tall-pair-is-not-the-answer
+    # The two tallest walls are adjacent, so their container is one unit wide.
+    # Width beats height here.
+    arguments: [[2, 3, 4, 5, 18, 17, 6]]
+    expected: 17
+    comparator: exact
+
+  - name: middle-wall-is-irrelevant
+    # The best container spans the whole list; the taller wall between is
+    # ignored.
+    arguments: [[1, 2, 1]]
+    expected: 2
+    comparator: exact
+
+  - name: all-zero-height
+    arguments: [[0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: strictly-increasing
+    # Best is the wall of height 5 with the last wall: 5 wide, 5 tall. Neither
+    # the widest nor the tallest pair wins.
+    arguments: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    expected: 25
+    comparator: exact
+    hidden: true
+
+  - name: one-tall-wall-among-flats
+    # The tall wall is useless without a partner; the flats give 6 x 1.
+    arguments: [[1, 1, 1, 100, 1, 1, 1]]
+    expected: 6
+    comparator: exact
+    hidden: true

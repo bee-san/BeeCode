@@ -72,3 +72,8 @@ algorithms:
   in-place: Rearranging the input itself under an O(1) extra-space budget.
   quickselect: Partitioning to find an order statistic without fully sorting.
   kadane: Running-best scanning for maximum-sum contiguous subarrays.
+  geometry: Reasoning about coordinates, distance, and shape.
+  design: Choosing and combining structures so every stated operation stays cheap.
+  bucketing: Grouping items by a derived key into a fixed number of buckets.
+  string-parsing: Turning flat text into structure, and back again.
+  prefix-tree-search: Walking a trie, often with backtracking over wildcards or a grid.

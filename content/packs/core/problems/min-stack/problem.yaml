@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Minimum-Tracking Stack
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - stack
+  - array
+algorithms:
+  - design
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: run_operations
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "[[\"push\", -2], [\"push\", 0], [\"push\", -3], [\"min\", null], [\"pop\", null], [\"top\", null], [\"min\", null]]"
+    output: "[-3, 0, -2]"
+    explanation: "min is -3; after popping it the top is 0 and the minimum is -2 again."
+  - input: "[[\"push\", 5], [\"min\", null], [\"push\", 5], [\"pop\", null], [\"min\", null]]"
+    output: "[5, 5]"
+    explanation: "Two equal minima. Popping one must leave the other."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-classic-terrain
+    arguments: [[0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]]
+    expected: 6
+    comparator: exact
+
+  - name: example-simple-gap
+    arguments: [[2, 0, 2]]
+    expected: 2
+    comparator: exact
+
+  - name: empty-terrain
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: single-bar
+    # Nothing to hold water against.
+    arguments: [[3]]
+    expected: 0
+    comparator: exact
+
+  - name: deep-narrow-basin
+    # Levels 2, 4, 1, 2 above the four inner positions.
+    arguments: [[4, 2, 0, 3, 2, 5]]
+    expected: 9
+    comparator: exact
+
+  - name: monotonic-holds-nothing
+    # Everything runs off to the right. Catches unclamped subtraction.
+    arguments: [[5, 4, 3, 2, 1]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: alternating-single-cells
+    # Two separate one-unit puddles, so basin-shaped reasoning must not merge
+    # them.
+    arguments: [[1, 0, 1, 0, 1]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: flat-terrain
+    arguments: [[3, 3, 3, 3]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: peak-in-the-middle
+    # Three units on each side of the tall middle bar. The tallest bar splits
+    # the terrain, which is where a one-sided maximum goes wrong.
+    arguments: [[0, 3, 0, 5, 0, 3, 0]]
+    expected: 6
+    comparator: exact
+    hidden: true

@@ -1,0 +1,66 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-follow-and-unfollow
+    arguments: [[["post", 1, 5], ["feed", 1], ["follow", 1, 2], ["post", 2, 6], ["feed", 1], ["unfollow", 1, 2], ["feed", 1]]]
+    expected: [[5], [6, 5], [5]]
+    comparator: exact
+
+  - name: example-empty-feed
+    arguments: [[["feed", 1], ["post", 1, 1], ["feed", 1]]]
+    expected: [[], [1]]
+    comparator: exact
+
+  - name: own-posts-without-following-anyone
+    # A user is not in their own follow set, so this fails if they are not
+    # added.
+    arguments: [[["post", 1, 1], ["post", 1, 2], ["feed", 1]]]
+    expected: [[2, 1]]
+    comparator: exact
+
+  - name: unfollowing-someone-never-followed
+    # Must not raise. remove on a missing element would.
+    arguments: [[["post", 1, 9], ["unfollow", 1, 2], ["feed", 1]]]
+    expected: [[9]]
+    comparator: exact
+
+  - name: feed-is-capped-at-ten
+    # Twelve posts, ten reported, newest first.
+    arguments: [[["post", 1, 1], ["post", 1, 2], ["post", 1, 3], ["post", 1, 4], ["post", 1, 5], ["post", 1, 6], ["post", 1, 7], ["post", 1, 8], ["post", 1, 9], ["post", 1, 10], ["post", 1, 11], ["post", 1, 12], ["feed", 1]]]
+    expected: [[12, 11, 10, 9, 8, 7, 6, 5, 4, 3]]
+    comparator: exact
+    hidden: true
+
+  - name: interleaved-posts-order-by-time
+    # Ordering by message id would give the same answer; ordering per user
+    # would not.
+    arguments: [[["follow", 1, 2], ["post", 2, 100], ["post", 1, 200], ["post", 2, 300], ["feed", 1]]]
+    expected: [[300, 200, 100]]
+    comparator: exact
+    hidden: true
+
+  - name: following-yourself-is-a-no-op
+    # The post must appear once, not twice.
+    arguments: [[["post", 1, 7], ["follow", 1, 1], ["feed", 1]]]
+    expected: [[7]]
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-follow
+    arguments: [[["follow", 1, 2], ["follow", 1, 2], ["post", 2, 4], ["feed", 1]]]
+    expected: [[4]]
+    comparator: exact
+    hidden: true
+
+  - name: feed-of-a-user-who-never-acted
+    arguments: [[["post", 1, 1], ["feed", 2]]]
+    expected: [[]]
+    comparator: exact
+    hidden: true
+
+  - name: several-followed-users-merged
+    arguments: [[["follow", 1, 2], ["follow", 1, 3], ["post", 2, 20], ["post", 3, 30], ["post", 1, 10], ["feed", 1]]]
+    expected: [[10, 30, 20]]
+    comparator: exact
+    hidden: true

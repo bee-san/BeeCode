@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Copy a List With Random Pointers
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - linked-list
+  - hash-map
+algorithms:
+  - hashing
+  - simulation
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: copy_list
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "nodes = [[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]"
+    output: "[[7, null], [13, 7], [11, 1], [10, 11], [1, 7]]"
+    explanation: "Node 13's random aims at index 0, whose value is 7."
+  - input: "nodes = [[5, 0]]"
+    output: "[[5, 5]]"
+    explanation: "A single node whose random aims at itself."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

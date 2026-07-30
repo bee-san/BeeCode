@@ -1,0 +1,51 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-through-the-root
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 3
+    comparator: exact
+
+  - name: example-two-nodes
+    arguments: [[1, 2]]
+    expected: 1
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: single-node
+    # One node, no edges. A node-counting answer says 1 here.
+    arguments: [[1]]
+    expected: 0
+    comparator: exact
+
+  - name: three-nodes-through-the-root
+    arguments: [[1, 2, 3]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: left-leaning-chain
+    # A chain of four nodes, so the diameter is the whole chain.
+    arguments: [[1, 2, null, 3, null, null, null, 4]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: longest-path-avoids-the-root
+    # The root has one child. The best path is 5 -> 3 -> 2 -> 4 -> 6, which
+    # never reaches the root; assuming it does gives 3.
+    arguments: [[1, 2, null, 3, 4, null, null, 5, null, 6]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: perfect-tree-of-three-levels
+    arguments: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: 4
+    comparator: exact
+    hidden: true

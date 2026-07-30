@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-ones
+    arguments: [[1, 1, 1], 2]
+    expected: 2
+    comparator: exact
+
+  - name: example-crossing-zero
+    arguments: [[1, -1, 0], 0]
+    expected: 3
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[], 0]
+    expected: 0
+    comparator: exact
+
+  - name: prefix-from-the-first-element
+    # The subarray starts at index 0, so the empty prefix must be pre-seeded.
+    arguments: [[3], 3]
+    expected: 1
+    comparator: exact
+
+  - name: no-subarray-matches
+    arguments: [[1, 2, 3], 100]
+    expected: 0
+    comparator: exact
+
+  - name: repeated-prefix-sums
+    # The prefix sum 14 occurs twice, so a map from sum to a single index
+    # undercounts here.
+    arguments: [[3, 4, 7, 2, -3, 1, 4, 2], 7]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: all-zeros-with-k-zero
+    # Three singles, two pairs, one triple. A set of prefix sums reports 3.
+    arguments: [[0, 0, 0], 0]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: negative-target
+    arguments: [[-1, -1, 1], -2]
+    expected: 1
+    comparator: exact
+    hidden: true

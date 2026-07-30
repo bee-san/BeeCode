@@ -1,0 +1,56 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-identical
+    arguments: [[1, 2, 3], [1, 2, 3]]
+    expected: true
+    comparator: exact
+
+  - name: example-mirrored-child
+    arguments: [[1, 2], [1, null, 2]]
+    expected: false
+    comparator: exact
+
+  - name: both-empty
+    arguments: [[], []]
+    expected: true
+    comparator: exact
+
+  - name: one-empty
+    arguments: [[], [1]]
+    expected: false
+    comparator: exact
+
+  - name: padding-differs-but-the-trees-match
+    # Comparing the lists directly fails here. The trees are the same.
+    arguments: [[1, 2], [1, 2, null, null]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-single-deep-value-differs
+    # Only the deepest node differs, so a solution that stops early passes it.
+    arguments: [[1, 2, 3, 4], [1, 2, 3, 5]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: same-values-different-shape
+    arguments: [[1, 2, 3, 4], [1, 2, 3, null, 4]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: zero-is-not-absent
+    # A root holding 0 is a node. A truthiness check calls this tree empty.
+    arguments: [[0], []]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: identical-and-deep
+    arguments: [[5, 4, 7, null, null, 6, 8], [5, 4, 7, null, null, 6, 8]]
+    expected: true
+    comparator: exact
+    hidden: true
