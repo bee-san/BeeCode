@@ -72,6 +72,50 @@ data class BeeCodePalette(
     val surfaceDim: Long,
     val surfaceContainer: Long,
     val surfaceContainerHigh: Long,
+    /**
+     * What a `Card` fills with — and so the background every inset surface sits on.
+     *
+     * ## Why this role is called out
+     *
+     * Because getting it wrong is what let an invisible boundary ship *twice*.
+     *
+     * Both clients drew code blocks, examples, test output, and the activity chart's
+     * empty bars on `surfaceVariant`, and every one of those sits inside a `Card`. On a
+     * device that came back with the pixel `(237,225,207)` on both sides of the boundary
+     * — light `surfaceVariant` `#EDE1CF` on this role's `#ECE3D1` is **1.012:1**. A code
+     * block was not a block at all, just monospace text lying on the card.
+     *
+     * That defect was light-only: dark `surfaceVariant` is 1.135:1 against a card, which is
+     * visible. It was recorded as "1.012:1 in dark too", and that number came from
+     * measuring against `surfaceContainerHigh` — the same wrong background as the first
+     * fix below.
+     *
+     * The first fix reached for [surfaceDim] in light and [surfaceBright] in dark, on the
+     * reasoning that M3 defines those as surfaces *off* the elevation ramp and that they
+     * move in opposite directions. Sound reasoning, wrong background: it was measured
+     * against `surfaceContainerHigh`, giving 1.157:1 and 1.199:1, and the new test
+     * asserted the same wrong pairing — so it passed while the device rendered dark
+     * `surfaceBright` `#383327` on `#353024`, **1.045:1**. Which is what a screenshot
+     * showed, and what closed the question: `FilledCardTokens.ContainerColor` is
+     * `SurfaceContainerHighest`, verified by `javap` on the shipped `material3-android`
+     * bytecode, and the probed card pixel `#353024` is this field exactly.
+     *
+     * ## What an inset surface uses instead
+     *
+     * `surface` — the page's own colour. 1.207:1 in light, 1.447:1 in dark, both clear of
+     * the floor, with body text at 8.87:1 or better. No other role manages both schemes:
+     * light `surfaceDim` is 1.087:1 here and dark `surfaceBright` 1.045:1, and the
+     * container ramp is no help above a card because every step in it is a *lift* —
+     * `surfaceContainerHigh` under `Highest` is 1.065:1 in light.
+     *
+     * It also needs no branch on the active scheme, which is the part that matters
+     * structurally. The scheme-dependent version needed a composition local in each
+     * client to carry the choice down; "the same colour as the page behind the card"
+     * needs nothing, and there is no second place to keep in step. Reading as *recessed*
+     * rather than raised is the honest description of a code block anyway.
+     *
+     * `PaletteContrastTest` asserts against this role, by name, for both schemes.
+     */
     val surfaceContainerHighest: Long,
     val surfaceContainerLow: Long,
     val surfaceContainerLowest: Long,

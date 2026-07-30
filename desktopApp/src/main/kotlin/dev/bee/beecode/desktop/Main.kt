@@ -120,11 +120,7 @@ fun BeeCodeTheme(
     systemIsDark: Boolean? = systemDarkOrNull(),
     content: @Composable () -> Unit,
 ) {
-    val palette = if (choice.resolvesToDark(systemIsDark)) {
-        BeeCodePalette.Dark
-    } else {
-        BeeCodePalette.Light
-    }
+    val palette = if (choice.resolvesToDark(systemIsDark)) BeeCodePalette.Dark else BeeCodePalette.Light
     MaterialTheme(
         colorScheme = palette.toColorScheme(),
         typography = beeCodeTypography(),

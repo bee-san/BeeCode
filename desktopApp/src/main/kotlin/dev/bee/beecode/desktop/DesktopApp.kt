@@ -21,14 +21,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Hive
-import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.LocalFireDepartment
-import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -63,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -147,8 +149,14 @@ fun DesktopApp(
         // Vector icons rather than emoji. An emoji renders in whatever font the OS
         // happens to substitute — full-colour and off-baseline on one machine, a
         // monochrome box on another — so it cannot be aligned or tinted with the
-        // selected state. `materialIconsExtended` was already a declared dependency
-        // and entirely unused.
+        // selected state.
+        //
+        // The three destination icons come from `material-icons-core` so they are the
+        // same ones Android's bottom bar uses; a learner with both clients should not
+        // have to learn two symbols for "Study". The rail's Hive mark and the due badges
+        // below stay on `-extended`, which desktop can afford: it ships as a bundle with
+        // its own JVM, where those megabytes are noise, and on a phone they measured
+        // +3.9 MB of APK for four icons. See androidApp/build.gradle.kts.
         NavigationRail(
             header = {
                 // The one place the brand mark belongs: at the top of the rail, in the
@@ -164,13 +172,13 @@ fun DesktopApp(
             NavigationRailItem(
                 selected = screen is DesktopScreen.Queue,
                 onClick = { screen = DesktopScreen.Queue; refreshToken++ },
-                icon = { Icon(Icons.Outlined.School, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.List, contentDescription = null) },
                 label = { Text("Study") },
             )
             NavigationRailItem(
                 selected = screen is DesktopScreen.Progress,
                 onClick = { screen = DesktopScreen.Progress; refreshToken++ },
-                icon = { Icon(Icons.Outlined.Insights, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
                 label = { Text("Progress") },
             )
             NavigationRailItem(
@@ -534,7 +542,7 @@ private fun ProblemPane(
                             Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surface,
                                     RoundedCornerShape(6.dp),
                                 )
                                 .padding(10.dp),
@@ -889,7 +897,7 @@ private fun ResultBlock(run: ExecutionRun) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(8.dp),
@@ -927,7 +935,7 @@ private fun TestRow(result: TestCaseResult) {
                         .fillMaxWidth()
                         .padding(top = 2.dp, start = 20.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(4.dp),
                         )
                         .padding(6.dp),
@@ -1054,7 +1062,14 @@ private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
                                     .height((4 + fraction * 72).dp)
                                     .background(
                                         if (day.reviews == 0) {
-                                            MaterialTheme.colorScheme.surfaceVariant
+                                            // The 4dp floor above only tells the truth if
+                                            // the stub is visible: `surfaceVariant` was
+                                            // 1.012:1 against this card in light, so a zero
+                                            // day *was* missing data. `surface` — the page
+                                            // behind the card — is 1.207:1 in light and
+                                            // 1.447:1 in dark. See
+                                            // BeeCodePalette.surfaceContainerHighest.
+                                            MaterialTheme.colorScheme.surface
                                         } else {
                                             MaterialTheme.colorScheme.primary
                                         },
@@ -1085,10 +1100,16 @@ private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(6.dp))
                             LinearProgressIndicator(
                                 progress = { progress.fraction },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().height(6.dp),
+                                // See AchievementRow: the default track is
+                                // `secondaryContainer`, 1.021:1 against this card in
+                                // light, so "3 of 12 solved" had no visible denominator.
+                                trackColor = MaterialTheme.colorScheme.surface,
+                                gapSize = 0.dp,
+                                drawStopIndicator = {},
                             )
                         }
                     }
@@ -1136,11 +1157,37 @@ private fun StatTile(label: String, value: String, modifier: Modifier = Modifier
     }
 }
 
+/**
+ * One achievement: earned, or how far along.
+ *
+ * Kept in step with Android's row of the same name, which is where the three defects
+ * this fixes are described: an emoji marker that could not take a theme colour, centring
+ * that floated it beside the middle of a multi-line row rather than beside its title, and
+ * a progress bar whose track was 1.021:1 against the card — so an unearned achievement
+ * showed a bar with no visible extent, plus a stop indicator at 0% that read as a stray
+ * dot.
+ */
 @Composable
 private fun AchievementRow(state: AchievementState) {
     Card {
-        Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (state.earned) "🏆" else "○", fontSize = 22.sp)
+        Row(Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Box(
+                Modifier.height(with(LocalDensity.current) {
+                    MaterialTheme.typography.titleSmall.lineHeight.toDp()
+                }),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (state.earned) Icons.Filled.Star else Icons.Outlined.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (state.earned) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -1153,18 +1200,23 @@ private fun AchievementRow(state: AchievementState) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (!state.earned) {
-                    Spacer(Modifier.height(6.dp))
+                if (!state.earned && state.fraction > 0f) {
+                    Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { state.fraction },
-                        modifier = Modifier.fillMaxWidth(0.5f),
+                        modifier = Modifier.fillMaxWidth(0.5f).height(6.dp),
+                        trackColor = MaterialTheme.colorScheme.surface,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
             Text(
                 state.detail,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }
@@ -1682,7 +1734,7 @@ internal fun MarkdownBlock(markdown: String) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(10.dp),

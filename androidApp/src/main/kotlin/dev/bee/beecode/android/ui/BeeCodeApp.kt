@@ -22,8 +22,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
@@ -43,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -120,22 +128,33 @@ fun BeeCodeApp(viewModel: StudyViewModel) {
     Scaffold(
         bottomBar = {
             NavigationBar {
+                // Vector icons, not emoji. These three were `Text("🐝")`, `Text("📊")`
+                // and `Text("⚙")`, and on the device that came out as two full-colour
+                // glyphs sitting off the text baseline beside one flat monochrome one —
+                // because the OS picks the font for an emoji and BeeCode does not get a
+                // say. Worse, none of them could take the selected tint, so the active
+                // tab was signalled only by the pill behind it.
+                //
+                // The same three icons desktop's rail uses, so both clients name the same
+                // destinations with the same symbols. All from `material-icons-core`,
+                // which is already a dependency: see the build file for the +3.9 MB the
+                // extended library measured, and why a phone does not pay it.
                 NavigationBarItem(
                     selected = screen is Screen.Queue,
                     onClick = viewModel::showQueue,
-                    icon = { Text("🐝", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Outlined.List, contentDescription = null) },
                     label = { Text("Study") },
                 )
                 NavigationBarItem(
                     selected = screen is Screen.Statistics,
                     onClick = viewModel::showStatistics,
-                    icon = { Text("📊", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
                     label = { Text("Progress") },
                 )
                 NavigationBarItem(
                     selected = screen is Screen.Settings,
                     onClick = viewModel::showSettings,
-                    icon = { Text("⚙", fontSize = 20.sp) },
+                    icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                     label = { Text("Settings") },
                 )
             }
@@ -555,7 +574,14 @@ private fun ActivityChart(stats: StudyStatistics) {
                             .height((4 + fraction * 56).dp)
                             .background(
                                 if (day.reviews == 0) {
-                                    MaterialTheme.colorScheme.surfaceVariant
+                                    // That 4dp floor only tells the truth if the stub is
+                                    // visible: `surfaceVariant` here was 1.012:1 against
+                                    // the card, so a zero day *was* missing data, exactly
+                                    // what the comment above says it must not be. `surface`
+                                    // — the page behind the card — is 1.207:1 in light and
+                                    // 1.447:1 in dark. See
+                                    // BeeCodePalette.surfaceContainerHighest.
+                                    MaterialTheme.colorScheme.surface
                                 } else {
                                     MaterialTheme.colorScheme.primary
                                 },
@@ -592,10 +618,16 @@ private fun DifficultyBreakdown(stats: StudyStatistics) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     LinearProgressIndicator(
                         progress = { progress.fraction },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        // See AchievementRow: the default track is 1.021:1 against this
+                        // card, so "3 of 12 solved" had no visible denominator. `surface`
+                        // is the same fill the code blocks use, for the same reason.
+                        trackColor = MaterialTheme.colorScheme.surface,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
                     )
                 }
             }
@@ -603,14 +635,56 @@ private fun DifficultyBreakdown(stats: StudyStatistics) {
     }
 }
 
+/**
+ * One achievement: earned, or how far along.
+ *
+ * Three things were wrong here on the device, all of them about alignment and contrast
+ * rather than about what it says:
+ *
+ * - The marker was `Text("🏆")` or `Text("○")`, so an earned row rendered a full-colour
+ *   emoji and an unearned one a thin monochrome ring — two different visual weights for
+ *   two states of the same list, and neither able to take a theme colour.
+ * - `Alignment.CenterVertically` centred that marker against the *whole* row, which is
+ *   two or three lines tall once the description wraps and a progress bar appears. The
+ *   marker floated beside the middle of the text instead of beside its title.
+ * - The bar's default track is `secondaryContainer`, 1.021:1 against the card in light —
+ *   so an unearned achievement showed a bar with no visible extent, and at 0% Material
+ *   still draws its stop indicator, which read as a stray dot with no bar attached.
+ */
 @Composable
 private fun AchievementRow(state: AchievementState) {
     Card {
         Row(
             Modifier.padding(14.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            // Top, not centre: the marker belongs beside the title, which is the first
+            // line, whatever the rest of the row grows to. `Top` alone would hang it a
+            // couple of dp high against the title's own line height, so the icon box
+            // gets that line's height and centres within it.
+            verticalAlignment = Alignment.Top,
         ) {
-            Text(if (state.earned) "🏆" else "○", fontSize = 22.sp)
+            Box(
+                Modifier.height(with(LocalDensity.current) {
+                    MaterialTheme.typography.titleSmall.lineHeight.toDp()
+                }),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (state.earned) Icons.Filled.Star else Icons.Outlined.Lock,
+                    // The list is read top to bottom and the title says what the
+                    // achievement is; the icon repeats the state the detail text on the
+                    // right already gives, so announcing it would be noise.
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    // Earned is the app's own amber and unearned is deliberately muted:
+                    // the state should be legible from colour at a glance, without
+                    // reading either the icon shape or the detail text.
+                    tint = if (state.earned) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -623,11 +697,22 @@ private fun AchievementRow(state: AchievementState) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (!state.earned) {
-                    Spacer(Modifier.height(6.dp))
+                // Only once there is progress to show. A 0% bar is not information — it
+                // is the same as no bar, plus Material's stop indicator floating alone at
+                // the far end where it reads as a rendering fault.
+                if (!state.earned && state.fraction > 0f) {
+                    Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { state.fraction },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        // An explicit track: the default `secondaryContainer` is 1.021:1
+                        // against this card, so the bar's full extent — the thing that
+                        // makes a fraction legible — was invisible.
+                        trackColor = MaterialTheme.colorScheme.surface,
+                        // The gap Material draws between bar and stop indicator assumes a
+                        // track you can see. With one, it just breaks the bar up.
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
                     )
                 }
             }
@@ -636,6 +721,9 @@ private fun AchievementRow(state: AchievementState) {
                 state.detail,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Aligned to the title for the same reason as the marker, and given the
+                // title's line height so a wrapped detail still starts on that line.
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }

@@ -154,6 +154,25 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    // `-core` only, deliberately, and it is what the UI's icons come from.
+    //
+    // The bottom bar used to be emoji — 🐝, 📊, ⚙ as plain `Text`. The OS picks the font
+    // for those, so on the device two rendered full-colour and off-baseline beside one
+    // flat monochrome glyph, and none could take the selected tint. Vector icons fix
+    // that, and the first attempt reached for `material-icons-extended` because desktop
+    // already declares it.
+    //
+    // Measured before keeping it: that dependency costs **+3.9 MB** on the debug APK,
+    // 61,544,946 → 65,442,560 bytes, +6.33%. `isMinifyEnabled` is off by choice above —
+    // the Chaquopy runner reaches Python by name and JDBC loads reflectively — so
+    // nothing shrinks the ~2,000 unused icons away. Paying that for four icons is not a
+    // trade worth making when `-core` already ships `List`, `CheckCircle`, `Settings`,
+    // `Lock`, and `Star`, which is the whole set BeeCode's Android UI uses.
+    //
+    // Desktop keeps `-extended` for its rail's brand mark and due badges: it ships as a
+    // ~117 MB self-contained bundle with its own JVM, so the same megabytes are noise
+    // there and a phone download is not. Both clients name the three destinations with
+    // the same `-core` icons, so the shared ones cannot drift.
     implementation("androidx.compose.material:material-icons-core")
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel)

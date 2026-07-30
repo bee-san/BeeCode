@@ -230,7 +230,7 @@ private fun StatementCard(state: ProblemUiState) {
                             Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surface,
                                     RoundedCornerShape(6.dp),
                                 )
                                 .padding(10.dp),
@@ -352,7 +352,7 @@ private fun CodeEditor(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 200.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)),
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp)),
             ) {
                 BasicTextField(
                     value = value,
@@ -580,7 +580,7 @@ private fun ResultCard(run: ExecutionRun) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(8.dp),
@@ -617,7 +617,7 @@ private fun TestResultRow(result: TestCaseResult) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(4.dp),
                         )
                         .padding(6.dp),
@@ -853,7 +853,7 @@ private fun MarkdownText(markdown: String) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(10.dp),
