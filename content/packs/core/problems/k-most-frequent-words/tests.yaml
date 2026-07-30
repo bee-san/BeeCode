@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-clear-winners
+    arguments: [["i", "love", "code", "i", "love", "you"], 2]
+    expected: ["i", "love"]
+    comparator: exact
+
+  - name: example-a-tie-decided-by-spelling
+    # Sorting by frequency and reversing gives [b, a] here.
+    arguments: [["b", "a"], 2]
+    expected: ["a", "b"]
+    comparator: exact
+
+  - name: a-single-word
+    arguments: [["hello"], 1]
+    expected: ["hello"]
+    comparator: exact
+
+  - name: every-word-distinct-and-tied
+    # Frequency decides nothing, so the whole order is lexicographic.
+    arguments: [["c", "b", "a"], 3]
+    expected: ["a", "b", "c"]
+    comparator: exact
+
+  - name: a-tie-below-a-clear-winner
+    arguments: [["x", "x", "z", "y"], 3]
+    expected: ["x", "y", "z"]
+    comparator: exact
+    hidden: true
+
+  - name: asking-for-one-of-many
+    arguments: [["a", "a", "b", "b", "b"], 1]
+    expected: ["b"]
+    comparator: exact
+    hidden: true
+
+  - name: longer-words-tied
+    # Equal frequencies, and apple precedes apricot.
+    arguments: [["apple", "apricot", "apple", "apricot", "banana"], 2]
+    expected: ["apple", "apricot"]
+    comparator: exact
+    hidden: true
+
+  - name: a-prefix-and-its-extension
+    # A shorter word precedes its own extension lexicographically.
+    arguments: [["ab", "abc", "ab", "abc"], 2]
+    expected: ["ab", "abc"]
+    comparator: exact
+    hidden: true
+
+  - name: one-word-repeated
+    arguments: [["z", "z", "z"], 1]
+    expected: ["z"]
+    comparator: exact
+    hidden: true
+
+  - name: three-frequency-levels
+    arguments: [["a", "a", "a", "b", "b", "c"], 3]
+    expected: ["a", "b", "c"]
+    comparator: exact
+    hidden: true
+
+  - name: a-tie-spanning-the-cut
+    # All four are tied, so the first two lexicographically are taken.
+    arguments: [["d", "c", "b", "a"], 2]
+    expected: ["a", "b"]
+    comparator: exact
+    hidden: true

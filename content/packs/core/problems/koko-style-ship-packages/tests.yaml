@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-days
+    # Capacity 5 splits into 1+2, 3, 4, 5 -- four days, one too many.
+    arguments: [[1, 2, 3, 4, 5], 3]
+    expected: 6
+    comparator: exact
+
+  - name: example-an-uneven-conveyor
+    arguments: [[3, 2, 2, 4, 1, 4], 3]
+    expected: 6
+    comparator: exact
+
+  - name: one-day-for-everything
+    # The upper bound is the answer.
+    arguments: [[1, 2, 3], 1]
+    expected: 6
+    comparator: exact
+
+  - name: a-day-per-package
+    # The lower bound is the answer.
+    arguments: [[1, 2, 3], 3]
+    expected: 3
+    comparator: exact
+
+  - name: a-single-package
+    arguments: [[7], 1]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: one-heavy-package-among-light-ones
+    # Starting the search below the maximum weight breaks here.
+    arguments: [[1, 1, 500, 1, 1], 5]
+    expected: 500
+    comparator: exact
+    hidden: true
+
+  - name: equal-weights
+    arguments: [[3, 3, 3, 3], 2]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: more-days-than-needed-at-the-lower-bound
+    arguments: [[1, 1, 1, 1], 4]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: the-greedy-split-is-uneven
+    # 5+4 then 3+2+1 -- nine and six, so the days need not carry equal loads.
+    arguments: [[5, 4, 3, 2, 1], 2]
+    expected: 9
+    comparator: exact
+    hidden: true
+
+  - name: two-days-over-many-packages
+    arguments: [[1, 2, 3, 1, 1], 2]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-conveyor
+    arguments: [[10, 50, 100, 100, 50, 100, 100, 100, 200, 200], 5]
+    expected: 250
+    comparator: exact
+    hidden: true
