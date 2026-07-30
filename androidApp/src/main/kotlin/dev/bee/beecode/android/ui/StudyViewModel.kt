@@ -17,6 +17,9 @@ import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.setThemeChoice
+import dev.bee.beecode.design.themeChoice
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ProblemDefinition
 import dev.bee.beecode.domain.ProblemId
@@ -227,6 +230,29 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun dailyLimit(): Int? = profile.settings.dailyReviewLimit()
+
+    /**
+     * The learner's theme preference, as state so the whole tree recomposes on a change.
+     *
+     * A `StateFlow` rather than a getter because the theme control lives *inside* the tree
+     * the theme wraps — a plain read would store the choice and go on rendering the old
+     * palette until the next launch, which is a setting that looks broken while working.
+     */
+    private val _themeChoice = MutableStateFlow(profile.settings.themeChoice())
+    val themeChoice: StateFlow<ThemeChoice> = _themeChoice.asStateFlow()
+
+    fun setThemeChoice(choice: ThemeChoice) {
+        profile.settings.setThemeChoice(choice, kotlinx.datetime.Clock.System.now())
+        _themeChoice.value = choice
+    }
+
+    /**
+     * A Problem's title, for the few places statistics carry ids rather than Problems.
+     *
+     * Narrower than exposing the catalogue: the schedule card names its leeches, and a
+     * leech the learner cannot identify is a number they can do nothing about.
+     */
+    fun problemTitle(problemId: ProblemId): String? = profile.catalogue.problem(problemId)?.title
 
     /**
      * Serialize the whole profile for the learner to save.

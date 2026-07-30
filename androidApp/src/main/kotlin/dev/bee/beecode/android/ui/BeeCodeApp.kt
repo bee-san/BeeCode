@@ -62,9 +62,18 @@ import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.WebDavSyncStore
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.design.BeeCodeAccents
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.domain.DueDescription
+import dev.bee.beecode.domain.DueUrgency
 import dev.bee.beecode.domain.ProblemDefinition
 import dev.bee.beecode.domain.ProblemDifficulty
+import dev.bee.beecode.domain.ProblemId
+import dev.bee.beecode.domain.describeDue
+import dev.bee.beecode.domain.formatIntervalDays
 import dev.bee.beecode.python.RunnerCapability
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlin.math.roundToInt
 
 /**
@@ -136,6 +145,11 @@ private fun QueueScreen(viewModel: StudyViewModel) {
     val queue by viewModel.queue.collectAsStateWithLifecycle()
     val statistics by viewModel.statistics.collectAsStateWithLifecycle()
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
+    // One instant per queue, not one per row: every row must describe its due time against
+    // the same moment, or two Problems due at the same instant can render with different
+    // labels. Keyed on the queue itself so a finalized review — which emits a new queue —
+    // re-reads the clock, and an ordinary recomposition does not.
+    val now = remember(queue) { Clock.System.now() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -192,7 +206,7 @@ private fun QueueScreen(viewModel: StudyViewModel) {
             if (current.due.isNotEmpty()) {
                 item { SectionHeader("Due now", current.due.size) }
                 items(current.due, key = { it.problem.id.value }) { due ->
-                    DueProblemCard(due) { viewModel.openProblem(due.problem.id) }
+                    DueProblemCard(due, now) { viewModel.openProblem(due.problem.id) }
                 }
             }
             if (current.new.isNotEmpty()) {
@@ -225,15 +239,23 @@ private fun SectionHeader(title: String, count: Int) {
 }
 
 @Composable
-private fun DueProblemCard(due: DueProblem, onClick: () -> Unit) {
+private fun DueProblemCard(due: DueProblem, now: Instant, onClick: () -> Unit) {
     ProblemCard(
         problem = due.problem,
         // "Reviewed 5 times" means something to a learner; a stability number is
-        // FSRS's business rather than theirs.
+        // FSRS's business rather than theirs. The interval is the exception — it is the
+        // scheduler's actual decision about this Problem, in days the learner can check
+        // against their own sense of whether they still remember it.
         subtitle = buildString {
             append("Reviewed ${due.schedule.reviewCount}×")
+            append(" · ${formatIntervalDays(due.schedule.intervalDays)} interval")
             if (due.schedule.lapseCount > 0) append(" · ${due.schedule.lapseCount} lapses")
         },
+        // The scheduler's verdict, on the row where the learner picks what to work on.
+        // Without it every due Problem looked identical, so the ordering the queue had
+        // already computed — soonest due first — was information the UI threw away, and
+        // FSRS looked like it was doing nothing because nothing it decided was visible.
+        due = describeDue(due.schedule.dueAt, now),
         onClick = onClick,
     )
 }
@@ -244,7 +266,12 @@ private fun NewProblemCard(problem: ProblemDefinition, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ProblemCard(problem: ProblemDefinition, subtitle: String, onClick: () -> Unit) {
+private fun ProblemCard(
+    problem: ProblemDefinition,
+    subtitle: String,
+    onClick: () -> Unit,
+    due: DueDescription? = null,
+) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier.padding(16.dp).fillMaxWidth(),
@@ -266,17 +293,38 @@ private fun ProblemCard(problem: ProblemDefinition, subtitle: String, onClick: (
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            due?.let {
+                DueBadge(it)
+                Spacer(Modifier.width(8.dp))
+            }
             DifficultyBadge(problem.difficulty)
         }
     }
 }
 
+/**
+ * The scheduler's verdict on one Problem, coloured by how far past due it is.
+ *
+ * Deliberately the same three states, wording, and colours as desktop's badge. A learner
+ * with both clients is looking at one schedule, and two vocabularies for it would read as
+ * two different answers.
+ */
+@Composable
+private fun DueBadge(due: DueDescription) {
+    val color = when (due.urgency) {
+        DueUrgency.OVERDUE -> Color(BeeCodeAccents.Danger)
+        DueUrgency.DUE -> MaterialTheme.colorScheme.primary
+        DueUrgency.UPCOMING -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(due.label, style = MaterialTheme.typography.labelSmall, color = color)
+}
+
 @Composable
 private fun DifficultyBadge(difficulty: ProblemDifficulty) {
     val (label, color) = when (difficulty) {
-        ProblemDifficulty.EASY -> "Easy" to Color(0xFF6BBF59)
-        ProblemDifficulty.MEDIUM -> "Medium" to Color(0xFFE0A030)
-        ProblemDifficulty.HARD -> "Hard" to Color(0xFFE05A4F)
+        ProblemDifficulty.EASY -> "Easy" to Color(BeeCodeAccents.Success)
+        ProblemDifficulty.MEDIUM -> "Medium" to Color(BeeCodeAccents.Caution)
+        ProblemDifficulty.HARD -> "Hard" to Color(BeeCodeAccents.Danger)
     }
     Surface(color = color.copy(alpha = 0.18f), shape = RoundedCornerShape(6.dp)) {
         Text(
@@ -343,6 +391,7 @@ private fun StatisticsScreen(viewModel: StudyViewModel) {
             )
         } else {
             StatGrid(stats)
+            ScheduleCard(stats) { viewModel.problemTitle(it) }
             ActivityChart(stats)
             DifficultyBreakdown(stats)
         }
@@ -375,6 +424,72 @@ private fun StatGrid(stats: StudyStatistics) {
             )
             StatTile("Today", "${stats.reviewsToday}", Modifier.weight(1f))
         }
+    }
+}
+
+/**
+ * The scheduler's own view of the collection.
+ *
+ * Every number here was already computed by `Statistics` and rendered nowhere on Android,
+ * which is why the app gave no evidence it was scheduling anything at all — the complaint
+ * this answers was "I'm not sure fsrs / studying is hooked up?", asked about a scheduler
+ * that was working correctly and saying nothing.
+ *
+ * @param titleOf resolves a leech's id to its title. Named rather than counted: a leech is
+ *   a Problem the learner keeps failing, and the useful response is to go learn it properly
+ *   rather than to keep drilling it.
+ */
+@Composable
+private fun ScheduleCard(stats: StudyStatistics, titleOf: (ProblemId) -> String?) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Your schedule", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "FSRS-7 picks each interval from how well you recalled the Problem, not " +
+                    "from a fixed ladder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            ScheduleFact("Due now", "${stats.dueNow}")
+            ScheduleFact("Due tomorrow", "${stats.dueTomorrow}")
+            ScheduleFact(
+                "Average interval",
+                stats.averageIntervalDays?.let { formatIntervalDays(it) } ?: "—",
+            )
+            ScheduleFact("Not yet attempted", "${stats.notYetAttempted}")
+
+            if (stats.leeches.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${stats.leeches.size} ${if (stats.leeches.size == 1) "leech" else "leeches"}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(BeeCodeAccents.Danger),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stats.leeches.mapNotNull(titleOf).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScheduleFact(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -514,6 +629,7 @@ private fun AchievementRow(state: AchievementState) {
 @Composable
 private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
+    val theme by viewModel.themeChoice.collectAsStateWithLifecycle()
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncTarget by remember { mutableStateOf(viewModel.syncTarget()) }
     var webDavUrl by remember { mutableStateOf(viewModel.webDavUrl() ?: "") }
@@ -594,6 +710,40 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
+
+        // Mirrors desktop's Appearance card, with the honest difference that Android always
+        // knows what the system theme is — so "System" here is a real answer rather than
+        // desktop's best guess on a Linux desktop that will not say.
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("Appearance", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "BeeCode follows your system setting unless you say otherwise.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeChoice.entries.forEach { candidate ->
+                        val label = when (candidate) {
+                            ThemeChoice.SYSTEM -> "System"
+                            ThemeChoice.DARK -> "Dark"
+                            ThemeChoice.LIGHT -> "Light"
+                        }
+                        if (theme == candidate) {
+                            Button(onClick = { viewModel.setThemeChoice(candidate) }) {
+                                Text(label)
+                            }
+                        } else {
+                            OutlinedButton(onClick = { viewModel.setThemeChoice(candidate) }) {
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         Card {
             Column(Modifier.padding(16.dp)) {

@@ -1,4 +1,4 @@
-package dev.bee.beecode.desktop
+package dev.bee.beecode.design
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -107,6 +107,111 @@ class EditorEditsTest {
         val edit = EditorEdits.dedent("        x", 8)
         assertEquals("    x", edit!!.text)
         assertEquals(4, edit.caret)
+    }
+
+    @Test
+    fun tabWithABlockSelectedIndentsEveryLineItTouches() {
+        // The destructive case. `insert` — which is what Tab used to call unconditionally
+        // — would have returned "def f():\n    " here: the selected body replaced by four
+        // spaces. The learner selects a loop body, presses Tab the way every editor
+        // expects, and their code is gone.
+        val text = "def f():\nx = 1\ny = 2"
+        val edit = EditorEdits.indentBlock(text, start = 9, end = text.length)
+        assertEquals("def f():\n    x = 1\n    y = 2", edit.text)
+    }
+
+    @Test
+    fun anIndentedBlockStaysSelectedSoASecondTabAddsASecondLevel() {
+        // The reason BlockEdit carries a selection rather than a caret. Losing the
+        // selection after one Tab makes indenting by two levels impossible without
+        // reselecting, which is the point at which a learner gives up and uses spaces.
+        val text = "x = 1\ny = 2"
+        val first = EditorEdits.indentBlock(text, 0, text.length)
+        val second = EditorEdits.indentBlock(first.text, first.selectionStart, first.selectionEnd)
+        assertEquals("        x = 1\n        y = 2", second.text)
+    }
+
+    @Test
+    fun aPartialSelectionStillIndentsWholeLines() {
+        // Selecting from the middle of one line to the middle of the next indents both in
+        // full. Indenting from the selection's own edges would insert four spaces into the
+        // middle of a statement, which is not what "indent this" means anywhere.
+        val text = "alpha = 1\nbeta = 2"
+        val edit = EditorEdits.indentBlock(text, start = 3, end = 12)
+        assertEquals("    alpha = 1\n    beta = 2", edit.text)
+        // And the returned selection covers the whole of both lines, since a selection
+        // still clipped mid-line would no longer describe anything the learner can see.
+        assertEquals(0, edit.selectionStart)
+        assertEquals(edit.text.length, edit.selectionEnd)
+    }
+
+    @Test
+    fun blankLinesInABlockAreNotIndented() {
+        // Indenting whitespace-only lines leaves trailing spaces nobody asked for, and
+        // flake8's W291/W293 complain about them.
+        val text = "x = 1\n\ny = 2"
+        val edit = EditorEdits.indentBlock(text, 0, text.length)
+        assertEquals("    x = 1\n\n    y = 2", edit.text)
+    }
+
+    @Test
+    fun shiftTabRemovesOneLevelFromEveryLine() {
+        val text = "        x = 1\n        y = 2"
+        val edit = EditorEdits.dedentBlock(text, 0, text.length)
+        assertEquals("    x = 1\n    y = 2", edit.text)
+    }
+
+    @Test
+    fun shiftTabWithNoSelectionDedentsTheLineTheCaretIsOn() {
+        // Shift+Tab has no selection most of the time, and this is the case that used to
+        // *indent*: `event.key` is `Key.Tab` whether or not Shift is held, so the dedent
+        // shortcut fell through to the plain-insert branch and did the opposite of its name.
+        val text = "def f():\n        pass"
+        // A collapsed range inside "pass" — start == end, as a caret is.
+        val edit = EditorEdits.dedentBlock(text, 20, 20)
+        assertEquals("def f():\n    pass", edit.text)
+    }
+
+    @Test
+    fun dedentingAtTheLeftMarginChangesNothing() {
+        // No exception, no borrowed characters from the line above. A learner holding
+        // Shift+Tab must simply arrive at the margin and stop.
+        val text = "x = 1\ny = 2"
+        val edit = EditorEdits.dedentBlock(text, 0, text.length)
+        assertEquals(text, edit.text)
+    }
+
+    @Test
+    fun aRaggedBlockConvergesOnTheLeftMarginRatherThanStayingRagged() {
+        // Two spaces is less than a level, so that line loses what it has instead of being
+        // skipped. Skipping it would preserve the misalignment forever: the aligned lines
+        // would keep moving left and the ragged one would not.
+        val text = "        x = 1\n  y = 2\nz = 3"
+        val edit = EditorEdits.dedentBlock(text, 0, text.length)
+        assertEquals("    x = 1\ny = 2\nz = 3", edit.text)
+    }
+
+    @Test
+    fun aBlockEditIsExactlyReversedByItsOpposite() {
+        // Indent then dedent must be the identity, which is the property a learner relies
+        // on when they Tab by mistake and immediately Shift+Tab. Asserted as a round trip
+        // because it can hold for each direction's own test and still fail together.
+        val text = "def f():\n    if x:\n        return 1\n\n    return 0"
+        val indented = EditorEdits.indentBlock(text, 0, text.length)
+        val restored = EditorEdits.dedentBlock(
+            indented.text,
+            indented.selectionStart,
+            indented.selectionEnd,
+        )
+        assertEquals(text, restored.text)
+    }
+
+    @Test
+    fun blockEditsClampOutOfRangePositions() {
+        // Same defensive contract as the single-caret edits: the composable's state and
+        // the incoming source can briefly disagree during a reset.
+        assertEquals("    abc", EditorEdits.indentBlock("abc", -5, 99).text)
+        assertEquals("abc", EditorEdits.dedentBlock("abc", 99, -5).text)
     }
 
     @Test

@@ -167,11 +167,17 @@ class DesktopUiTest {
         // the default must be off and the UI must say off rather than showing a dead
         // button with no explanation.
         ui.onNodeWithText("Settings").performClick()
-        ui.onNodeWithText("Sync between devices").assertIsDisplayed()
-        ui.onNodeWithText("Not set — sync is off").assertIsDisplayed()
+        // Scrolled to, like every other assertion further down this pane. Settings is
+        // a scrolling Column and the sync card is not the first thing in it, so
+        // asserting it visible without scrolling was really asserting that the cards
+        // above it stayed short enough — which broke the moment one was added.
+        ui.onNodeWithText("Sync between devices").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Not set — sync is off").performScrollTo().assertIsDisplayed()
         // And the privacy consequence is stated before a learner picks a folder, not
         // after — the file carries their solutions.
-        ui.onNode(hasText("contains your solutions", substring = true)).assertIsDisplayed()
+        ui.onNode(hasText("contains your solutions", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
         assertEquals(null, profile.settings.syncFilePath())
     }
 

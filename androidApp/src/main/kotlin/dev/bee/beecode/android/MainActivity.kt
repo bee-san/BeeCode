@@ -4,17 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bee.beecode.android.ui.BeeCodeApp
 import dev.bee.beecode.android.ui.StudyViewModel
+import dev.bee.beecode.design.BeeCodePalette
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.resolvesToDark
 
 /**
  * The single Activity.
@@ -39,7 +43,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BeeCodeTheme {
+            // Read as state rather than once: the theme control lives *inside* this tree, so
+            // a plain read would store the learner's choice and go on rendering the old
+            // palette until the next launch — a setting that looks broken while working.
+            val choice by viewModel.themeChoice.collectAsStateWithLifecycle()
+            BeeCodeTheme(choice) {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     BeeCodeApp(viewModel)
                 }
@@ -49,48 +57,105 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * BeeCode's colours.
+ * BeeCode's theme, from the palette both clients share.
  *
- * Honey amber on near-black, because the app is for practising at 5am and a bright
- * white screen at that hour is hostile. Contrast ratios are kept above 4.5:1
- * against their backgrounds for the accessibility baseline.
+ * ## What this replaced
+ *
+ * Two hand-written schemes declared here, setting 14 of Material's 48 colour roles
+ * through the `darkColorScheme`/`lightColorScheme` factories — whose remaining
+ * parameters default to the M3 *baseline*, which is purple. So `surfaceContainerHighest`
+ * (what every `Card` fills with), `outlineVariant` (every divider), and
+ * `secondaryContainer` (the navigation bar's active pill) were all lavender on an amber
+ * app, and nothing could catch it.
+ *
+ * They had also drifted from desktop's copy of the same intent: `surface` was `#1C1A15`
+ * here and `#12100C` there, and light `background` was `#FFF8F0` against `#FFF8EC`. Two
+ * clients cannot be checked against each other while each declares its own colours in a
+ * composable — `BeeCodePaletteTest` on desktop and `AndroidThemeTest` here now assert
+ * both mappings against the one palette, so a divergence fails a build.
+ *
+ * @param systemIsDark what the platform reports. Android always knows, unlike desktop
+ *   Linux where skiko returns UNKNOWN — so this takes the OS signal directly rather than
+ *   going through [ThemeChoice.resolvesToDark]'s null case.
  */
 @Composable
-fun BeeCodeTheme(content: @Composable () -> Unit) {
-    val dark = darkColorScheme(
-        primary = Color(0xFFF2B32C),
-        onPrimary = Color(0xFF241A00),
-        primaryContainer = Color(0xFF3A2E0A),
-        onPrimaryContainer = Color(0xFFFFDF9E),
-        secondary = Color(0xFFD3C4A0),
-        background = Color(0xFF14120E),
-        onBackground = Color(0xFFE9E2D4),
-        surface = Color(0xFF1C1A15),
-        onSurface = Color(0xFFE9E2D4),
-        surfaceVariant = Color(0xFF2A2720),
-        onSurfaceVariant = Color(0xFFCEC6B4),
-        error = Color(0xFFFFB4A4),
-        onError = Color(0xFF5F1600),
-        outline = Color(0xFF98917F),
-    )
-    val light = lightColorScheme(
-        primary = Color(0xFF7A5900),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFFFDF9E),
-        onPrimaryContainer = Color(0xFF261A00),
-        secondary = Color(0xFF6A5D3F),
-        background = Color(0xFFFFF8F0),
-        onBackground = Color(0xFF1E1B16),
-        surface = Color(0xFFFFF8F0),
-        onSurface = Color(0xFF1E1B16),
-        surfaceVariant = Color(0xFFEDE1CF),
-        onSurfaceVariant = Color(0xFF4C4639),
-        error = Color(0xFFBA1A1A),
-        onError = Color(0xFFFFFFFF),
-        outline = Color(0xFF7E7767),
-    )
+fun BeeCodeTheme(
+    choice: ThemeChoice = ThemeChoice.SYSTEM,
+    systemIsDark: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    val palette = if (choice.resolvesToDark(systemIsDark)) {
+        BeeCodePalette.Dark
+    } else {
+        BeeCodePalette.Light
+    }
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) dark else light,
+        colorScheme = palette.toColorScheme(),
+        typography = beeCodeTypography(),
         content = content,
     )
 }
+
+/**
+ * Map the shared palette onto Material's scheme.
+ *
+ * All 48 roles, via the `ColorScheme` constructor rather than the `darkColorScheme`
+ * factory. That choice is load-bearing: the factory's parameters all have baseline
+ * defaults, so omitting a role compiles and renders purple. The constructor has no
+ * defaults, so omitting one is a compile error — the class of bug this replaced cannot
+ * be reintroduced silently.
+ *
+ * Deliberately identical in structure to desktop's `toColorScheme`. The duplication is
+ * unavoidable — `:shared` is a plain JVM module and cannot hold a Compose type an
+ * Android client could consume — and [AndroidThemeTest] is what keeps the two honest.
+ */
+internal fun BeeCodePalette.toColorScheme(): ColorScheme = ColorScheme(
+    primary = Color(primary),
+    onPrimary = Color(onPrimary),
+    primaryContainer = Color(primaryContainer),
+    onPrimaryContainer = Color(onPrimaryContainer),
+    inversePrimary = Color(inversePrimary),
+    secondary = Color(secondary),
+    onSecondary = Color(onSecondary),
+    secondaryContainer = Color(secondaryContainer),
+    onSecondaryContainer = Color(onSecondaryContainer),
+    tertiary = Color(tertiary),
+    onTertiary = Color(onTertiary),
+    tertiaryContainer = Color(tertiaryContainer),
+    onTertiaryContainer = Color(onTertiaryContainer),
+    background = Color(background),
+    onBackground = Color(onBackground),
+    surface = Color(surface),
+    onSurface = Color(onSurface),
+    surfaceVariant = Color(surfaceVariant),
+    onSurfaceVariant = Color(onSurfaceVariant),
+    surfaceTint = Color(surfaceTint),
+    inverseSurface = Color(inverseSurface),
+    inverseOnSurface = Color(inverseOnSurface),
+    error = Color(error),
+    onError = Color(onError),
+    errorContainer = Color(errorContainer),
+    onErrorContainer = Color(onErrorContainer),
+    outline = Color(outline),
+    outlineVariant = Color(outlineVariant),
+    scrim = Color(scrim),
+    surfaceBright = Color(surfaceBright),
+    surfaceDim = Color(surfaceDim),
+    surfaceContainer = Color(surfaceContainer),
+    surfaceContainerHigh = Color(surfaceContainerHigh),
+    surfaceContainerHighest = Color(surfaceContainerHighest),
+    surfaceContainerLow = Color(surfaceContainerLow),
+    surfaceContainerLowest = Color(surfaceContainerLowest),
+    primaryFixed = Color(primaryFixed),
+    primaryFixedDim = Color(primaryFixedDim),
+    onPrimaryFixed = Color(onPrimaryFixed),
+    onPrimaryFixedVariant = Color(onPrimaryFixedVariant),
+    secondaryFixed = Color(secondaryFixed),
+    secondaryFixedDim = Color(secondaryFixedDim),
+    onSecondaryFixed = Color(onSecondaryFixed),
+    onSecondaryFixedVariant = Color(onSecondaryFixedVariant),
+    tertiaryFixed = Color(tertiaryFixed),
+    tertiaryFixedDim = Color(tertiaryFixedDim),
+    onTertiaryFixed = Color(onTertiaryFixed),
+    onTertiaryFixedVariant = Color(onTertiaryFixedVariant),
+)
