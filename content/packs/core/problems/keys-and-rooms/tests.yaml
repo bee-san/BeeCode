@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-chain
+    arguments: [[[1], [2], [3], []]]
+    expected: true
+    comparator: exact
+
+  - name: example-an-unreachable-room
+    arguments: [[[1, 3], [3, 0, 1], [2], [0]]]
+    expected: false
+    comparator: exact
+
+  - name: a-single-room-with-no-keys
+    # You start in room 0, so it needs no key.
+    arguments: [[[]]]
+    expected: true
+    comparator: exact
+
+  - name: a-key-cycle
+    # Without a visited set this never terminates.
+    arguments: [[[1], [0]]]
+    expected: true
+    comparator: exact
+
+  - name: a-room-holding-its-own-key
+    arguments: [[[0, 1], [1]]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: an-isolated-room
+    # Room 1 has a key to room 0, which does not help you reach room 1.
+    arguments: [[[], [0]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: repeated-keys
+    arguments: [[[1, 1, 1], [2, 2], []]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-room-opens-all-the-others
+    arguments: [[[1, 2, 3], [], [], []]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-branch-that-dead-ends
+    arguments: [[[1, 2], [3], [], []]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-last-room-is-unreachable
+    arguments: [[[1], [2], [], []]]
+    expected: false
+    comparator: exact
+    hidden: true

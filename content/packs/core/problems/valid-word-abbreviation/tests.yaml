@@ -1,0 +1,68 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-multi-digit-skips
+    # Reading 1 and 2 as separate skips fails here.
+    arguments: ["internationalization", "i12iz4n"]
+    expected: true
+    comparator: exact
+
+  - name: example-a-letter-lands-wrong
+    arguments: ["apple", "a2e"]
+    expected: false
+    comparator: exact
+
+  - name: the-whole-word-as-one-number
+    arguments: ["apple", "5"]
+    expected: true
+    comparator: exact
+
+  - name: a-leading-zero-is-rejected
+    # A zero-length skip would make this match.
+    arguments: ["apple", "a0pple"]
+    expected: false
+    comparator: exact
+
+  - name: the-abbreviation-is-the-word
+    arguments: ["apple", "apple"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-abbreviation-runs-out-early
+    # The final length comparison is what catches this.
+    arguments: ["apple", "a"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: the-number-overshoots-the-word
+    arguments: ["apple", "a10"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-wrong-letter-at-the-start
+    arguments: ["apple", "b4"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-skip-then-a-tail
+    arguments: ["substitution", "s10n"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-word-length-written-out
+    arguments: ["substitution", "12"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-short-of-the-word-length
+    arguments: ["substitution", "11"]
+    expected: false
+    comparator: exact
+    hidden: true

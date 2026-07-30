@@ -1,0 +1,39 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Average Journey Times on the Underground
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - hash-map
+algorithms:
+  - design
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: run_operations
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "operations = [[\"in\", [1, \"kings\", 3]], [\"out\", [1, \"bank\", 8]], [\"average\", [\"kings\", \"bank\"]]]"
+    output: "[5.0]"
+  - input: "operations = [[\"in\", [1, \"a\", 0]], [\"out\", [1, \"b\", 4]], [\"in\", [2, \"a\", 10]], [\"out\", [2, \"b\", 16]], [\"average\", [\"a\", \"b\"]]]"
+    output: "[5.0]"
+    explanation: "Journeys of 4 and 6."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

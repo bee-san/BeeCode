@@ -1,0 +1,73 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-including-a-single-point
+    # A strict comparison drops the [5, 5].
+    arguments: [[[0, 2], [5, 10]], [[1, 5], [8, 12]]]
+    expected: [[1, 2], [5, 5], [8, 10]]
+    comparator: exact
+
+  - name: example-no-overlap
+    arguments: [[[1, 3]], [[4, 6]]]
+    expected: []
+    comparator: exact
+
+  - name: one-long-interval-against-many-short-ones
+    # Advancing the earlier-starting pointer reports only the first.
+    arguments: [[[0, 100]], [[1, 2], [3, 4], [5, 6]]]
+    expected: [[1, 2], [3, 4], [5, 6]]
+    comparator: exact
+
+  - name: the-first-list-is-empty
+    arguments: [[], [[1, 2]]]
+    expected: []
+    comparator: exact
+
+  - name: the-second-list-is-empty
+    arguments: [[[1, 2]], []]
+    expected: []
+    comparator: exact
+    hidden: true
+
+  - name: identical-lists
+    arguments: [[[1, 3], [5, 7]], [[1, 3], [5, 7]]]
+    expected: [[1, 3], [5, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: intervals-that-only-touch
+    arguments: [[[1, 2]], [[2, 3]]]
+    expected: [[2, 2]]
+    comparator: exact
+    hidden: true
+
+  - name: one-interval-inside-another
+    arguments: [[[1, 10]], [[4, 5]]]
+    expected: [[4, 5]]
+    comparator: exact
+    hidden: true
+
+  - name: single-point-intervals
+    arguments: [[[3, 3]], [[3, 3]]]
+    expected: [[3, 3]]
+    comparator: exact
+    hidden: true
+
+  - name: interleaved-with-gaps
+    arguments: [[[1, 4], [6, 9]], [[2, 3], [5, 7], [10, 11]]]
+    expected: [[2, 3], [6, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: the-lists-are-far-apart
+    arguments: [[[1, 2], [3, 4]], [[100, 200]]]
+    expected: []
+    comparator: exact
+    hidden: true
+
+  - name: large-coordinates
+    arguments: [[[0, 1000000000]], [[999999999, 1000000000]]]
+    expected: [[999999999, 1000000000]]
+    comparator: exact
+    hidden: true

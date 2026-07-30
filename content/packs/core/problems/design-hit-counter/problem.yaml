@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Count the Hits in the Last Five Minutes
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - queue
+  - deque
+algorithms:
+  - design
+  - two-pointers
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: run_operations
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "operations = [[\"hit\", 1], [\"hit\", 2], [\"hit\", 300], [\"count\", 300], [\"count\", 301]]"
+    output: "[3, 2]"
+    explanation: "By second 301 the hit at second 1 has dropped out."
+  - input: "operations = [[\"hit\", 1], [\"count\", 302]]"
+    output: "[0]"
+    explanation: "The hit at second 1 has left the window."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536
