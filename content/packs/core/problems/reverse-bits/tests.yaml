@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-the-lowest-bit
+    # A loop that stops when the input runs out returns 1 here.
+    arguments: [1]
+    expected: 2147483648
+    comparator: exact
+
+  - name: example-all-bits-set
+    arguments: [4294967295]
+    expected: 4294967295
+    comparator: exact
+
+  - name: zero
+    arguments: [0]
+    expected: 0
+    comparator: exact
+
+  - name: the-highest-bit
+    arguments: [2147483648]
+    expected: 1
+    comparator: exact
+
+  - name: a-known-pair
+    arguments: [43261596]
+    expected: 964176192
+    comparator: exact
+    hidden: true
+
+  - name: reversing-twice-is-the-identity
+    # The previous case run backwards.
+    arguments: [964176192]
+    expected: 43261596
+    comparator: exact
+    hidden: true
+
+  - name: two
+    arguments: [2]
+    expected: 1073741824
+    comparator: exact
+    hidden: true
+
+  - name: a-palindrome-in-binary
+    # Bits 0 and 31 set, so the word reads the same reversed.
+    arguments: [2147483649]
+    expected: 2147483649
+    comparator: exact
+    hidden: true
+
+  - name: alternating-bits
+    # 1010... reverses to 0101...
+    arguments: [2863311530]
+    expected: 1431655765
+    comparator: exact
+    hidden: true
+
+  - name: the-other-alternation
+    arguments: [1431655765]
+    expected: 2863311530
+    comparator: exact
+    hidden: true
+
+  - name: a-low-byte-only
+    # The bottom byte moves to the top.
+    arguments: [255]
+    expected: 4278190080
+    comparator: exact
+    hidden: true

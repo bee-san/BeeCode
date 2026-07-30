@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-to-the-ten
+    arguments: [2.0, 10]
+    expected: 1024.0
+    comparator: approximate_numeric
+
+  - name: example-a-negative-exponent
+    arguments: [2.0, -2]
+    expected: 0.25
+    comparator: approximate_numeric
+
+  - name: an-exponent-of-zero
+    # True for any base.
+    arguments: [5.0, 0]
+    expected: 1.0
+    comparator: approximate_numeric
+
+  - name: an-exponent-of-one
+    arguments: [3.0, 1]
+    expected: 3.0
+    comparator: approximate_numeric
+
+  - name: an-odd-exponent
+    # 13 is 1101 in binary, so three of the four squarings contribute.
+    arguments: [2.0, 13]
+    expected: 8192.0
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-negative-base-and-an-odd-exponent
+    arguments: [-2.0, 3]
+    expected: -8.0
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-negative-base-and-an-even-exponent
+    arguments: [-2.0, 4]
+    expected: 16.0
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-fractional-base
+    arguments: [0.5, 3]
+    expected: 0.125
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-base-of-one
+    arguments: [1.0, 1000]
+    expected: 1.0
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-large-exponent
+    # Multiplying one at a time would need a thousand steps; squaring needs
+    # ten, and the two disagree in the last bits, which is why this is
+    # compared approximately.
+    arguments: [1.0001, 1000]
+    expected: 1.1051653926032
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: a-large-negative-exponent
+    arguments: [2.0, -10]
+    expected: 0.0009765625
+    comparator: approximate_numeric
+    hidden: true

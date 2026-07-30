@@ -23,6 +23,7 @@ schemaVersion: 1
 
 # ---- Data structures: what the input is, or what you must build to solve it ----
 dataStructures:
+  number: A bare integer or float, where the arithmetic is the subject and there is no containing structure.
   array: A contiguous, index-addressable sequence.
   string: A sequence of characters, with its own alphabet and substring questions.
   hash-map: A key-to-value dictionary offering expected O(1) lookup.

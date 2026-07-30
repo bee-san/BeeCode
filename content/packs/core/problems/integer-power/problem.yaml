@@ -1,0 +1,40 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Raise a Number to a Power
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - number
+algorithms:
+  - divide-and-conquer
+  - math
+  - recursion
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: power
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "base = 2.0, exponent = 10"
+    output: "1024.0"
+  - input: "base = 2.0, exponent = -2"
+    output: "0.25"
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-no-carry
+    arguments: [[1, 2, 3]]
+    expected: [1, 2, 4]
+    comparator: exact
+
+  - name: example-all-nines
+    # The only case where the result is longer than the input.
+    arguments: [[9, 9]]
+    expected: [1, 0, 0]
+    comparator: exact
+
+  - name: zero
+    arguments: [[0]]
+    expected: [1]
+    comparator: exact
+
+  - name: a-single-nine
+    arguments: [[9]]
+    expected: [1, 0]
+    comparator: exact
+
+  - name: a-carry-that-stops-partway
+    # The carry stops at the 1 rather than running off the front.
+    arguments: [[1, 9, 9]]
+    expected: [2, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: one-digit-below-nine
+    arguments: [[8]]
+    expected: [9]
+    comparator: exact
+    hidden: true
+
+  - name: a-nine-in-the-middle
+    # The interior nine is untouched, since the last digit absorbs the
+    # increment.
+    arguments: [[1, 9, 1]]
+    expected: [1, 9, 2]
+    comparator: exact
+    hidden: true
+
+  - name: a-long-number
+    arguments: [[4, 3, 2, 1]]
+    expected: [4, 3, 2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: three-nines
+    arguments: [[9, 9, 9]]
+    expected: [1, 0, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-hundred-digit-carry
+    # Converting to a fixed-width integer would overflow well before this.
+    arguments: [[9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]]
+    expected: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    comparator: exact
+    hidden: true

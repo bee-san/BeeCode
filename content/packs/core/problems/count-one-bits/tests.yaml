@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-eleven
+    arguments: [11]
+    expected: 3
+    comparator: exact
+
+  - name: example-a-power-of-two
+    # One iteration, where bit-by-bit testing would take 32.
+    arguments: [128]
+    expected: 1
+    comparator: exact
+
+  - name: zero
+    arguments: [0]
+    expected: 0
+    comparator: exact
+
+  - name: one
+    arguments: [1]
+    expected: 1
+    comparator: exact
+
+  - name: every-bit-set
+    # The worst case for the clearing trick.
+    arguments: [4294967295]
+    expected: 32
+    comparator: exact
+    hidden: true
+
+  - name: alternating-bits
+    # 1010.
+    arguments: [10]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: the-other-alternation
+    # 101.
+    arguments: [5]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: the-top-bit-only
+    # A bit-by-bit loop that stops at 31 bits misses this.
+    arguments: [2147483648]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-run-of-ones-in-the-middle
+    # 1111000.
+    arguments: [120]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: seven
+    arguments: [7]
+    expected: 3
+    comparator: exact
+    hidden: true
