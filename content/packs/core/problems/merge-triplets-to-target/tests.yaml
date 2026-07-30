@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-reachable
+    # The middle triple is unusable, since 8 exceeds 7.
+    arguments: [[[2, 5, 3], [1, 8, 4], [1, 7, 5]], [2, 7, 5]]
+    expected: true
+    comparator: exact
+
+  - name: example-a-match-on-an-unusable-triple
+    # The first triple matches at positions 0 and 2 but its 4 exceeds the
+    # target's 2, so it may not be used at all.
+    arguments: [[[3, 4, 5], [4, 5, 6]], [3, 2, 5]]
+    expected: false
+    comparator: exact
+
+  - name: a-single-exact-triple
+    arguments: [[[1, 2, 3]], [1, 2, 3]]
+    expected: true
+    comparator: exact
+
+  - name: a-single-triple-that-falls-short
+    # Nothing can raise the third position.
+    arguments: [[[1, 2, 2]], [1, 2, 3]]
+    expected: false
+    comparator: exact
+
+  - name: three-triples-each-covering-one-position
+    # No single triple matches everywhere, which is why merging exists.
+    arguments: [[[1, 1, 1], [5, 1, 1], [1, 5, 1], [1, 1, 5]], [5, 5, 5]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: every-triple-overshoots
+    arguments: [[[9, 9, 9]], [1, 1, 1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-usable-triple-with-no-exact-match
+    arguments: [[[1, 1, 1]], [2, 2, 2]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: two-positions-covered-but-not-the-third
+    arguments: [[[3, 1, 1], [1, 3, 1]], [3, 3, 3]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: duplicated-triples
+    # Merging a triple with itself changes nothing, which is harmless.
+    arguments: [[[2, 2, 2], [2, 2, 2]], [2, 2, 2]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-list
+    arguments: [[[1, 3, 4], [2, 5, 8], [1, 3, 6], [2, 5, 6], [5, 2, 5]], [5, 5, 6]]
+    expected: true
+    comparator: exact
+    hidden: true

@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-reachable
+    arguments: [[2, 3, 1, 1, 4]]
+    expected: true
+    comparator: exact
+
+  - name: example-blocked-by-a-zero
+    # Extending the reach before checking reachability lets the 4 at the end
+    # rescue this, wrongly.
+    arguments: [[3, 2, 1, 0, 4]]
+    expected: false
+    comparator: exact
+
+  - name: a-single-element
+    # Already at the last index.
+    arguments: [[0]]
+    expected: true
+    comparator: exact
+
+  - name: a-zero-at-the-end-does-not-matter
+    # The final index needs no onward jump.
+    arguments: [[1, 0]]
+    expected: true
+    comparator: exact
+
+  - name: a-zero-at-the-start
+    arguments: [[0, 1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: one-long-jump-clears-everything
+    arguments: [[5, 0, 0, 0, 0, 0]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: all-ones
+    arguments: [[1, 1, 1, 1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-in-the-middle
+    # Index 1 and 2 are reachable but neither can move on.
+    arguments: [[2, 0, 0, 1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-shorter-jump-is-allowed
+    # Jumping two from index 0 skips the 0 entirely.
+    arguments: [[2, 0, 1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-long-alternating-run
+    arguments: [[2, 1, 2, 1, 2, 1, 2]]
+    expected: true
+    comparator: exact
+    hidden: true

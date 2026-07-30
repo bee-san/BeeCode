@@ -1,0 +1,72 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-groups
+    arguments: [[1, 2, 3, 6, 2, 3, 4, 7, 8], 3]
+    expected: true
+    comparator: exact
+
+  - name: example-does-not-divide
+    arguments: [[1, 2, 3, 4, 5], 4]
+    expected: false
+    comparator: exact
+
+  - name: groups-of-one
+    # Every card is its own group.
+    arguments: [[5, 1, 9], 1]
+    expected: true
+    comparator: exact
+
+  - name: a-gap-breaks-the-run
+    # Consecutive means consecutive integers, not merely sorted neighbours.
+    arguments: [[1, 3], 2]
+    expected: false
+    comparator: exact
+
+  - name: the-whole-hand-is-one-group
+    arguments: [[3, 4, 5], 3]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: duplicates-need-parallel-groups
+    # Two copies of [1,2,3], which is what consuming all copies at once
+    # handles.
+    arguments: [[1, 1, 2, 2, 3, 3], 3]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: unbalanced-duplicates
+    # Two groups must start at 1, but only one 2 is available.
+    arguments: [[1, 1, 2, 3, 3, 4], 3]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-single-card
+    arguments: [[7], 1]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: all-cards-identical
+    # A group of two needs 2 and 3, not two 2s.
+    arguments: [[2, 2], 2]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: two-separated-runs
+    arguments: [[1, 2, 10, 11], 2]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-long-hand
+    # [6,7,8], [8,9,10] and [10,11,12].
+    arguments: [[8, 10, 12, 7, 9, 11, 6, 8, 10], 3]
+    expected: true
+    comparator: exact
+    hidden: true

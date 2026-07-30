@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-start-at-three
+    arguments: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2]]
+    expected: 3
+    comparator: exact
+
+  - name: example-impossible
+    # The surpluses sum to -1. Returning the surviving candidate without the
+    # total check would answer 2 here.
+    arguments: [[2, 3, 4], [3, 4, 3]]
+    expected: -1
+    comparator: exact
+
+  - name: a-single-station-that-works
+    arguments: [[5], [3]]
+    expected: 0
+    comparator: exact
+
+  - name: a-single-station-that-does-not
+    arguments: [[3], [5]]
+    expected: -1
+    comparator: exact
+
+  - name: the-first-station-works
+    arguments: [[4, 1], [1, 4]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: the-last-station-works
+    arguments: [[1, 4], [4, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: every-station-breaks-even
+    # A total of exactly 0 is enough; the tank touches zero but never goes
+    # under.
+    arguments: [[2, 2, 2], [2, 2, 2]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-total-of-zero-with-a-later-start
+    arguments: [[1, 3], [3, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: no-fuel-anywhere
+    arguments: [[0, 0], [0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-circuit
+    arguments: [[3, 1, 1, 1, 5], [2, 2, 2, 2, 2]]
+    expected: 4
+    comparator: exact
+    hidden: true
