@@ -29,7 +29,10 @@ or with `brew install python@3.12`, and if it still cannot find it you can set t
 exact path in Settings.
 
 The DMG is built on an Apple Silicon runner. **Intel Macs are not covered by this
-release.**
+release**, and will not be in future ones: GitHub retired its free Intel macOS
+runners, and the replacements are billed per-minute with no free allowance. On an
+Intel Mac you can still build your own with `./gradlew :desktopApp:packageDmg`,
+which is the same command that produces the DMG above.
 
 ### Linux
 
