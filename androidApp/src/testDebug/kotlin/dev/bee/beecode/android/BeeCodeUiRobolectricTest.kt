@@ -1,6 +1,7 @@
 package dev.bee.beecode.android
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,6 +20,7 @@ import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
+import dev.bee.beecode.app.StatisticsPeriod
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -153,6 +155,64 @@ class BeeCodeUiRobolectricTest {
 
         compose.onNodeWithText("Study").performClick()
         compose.onNodeWithText("New Problems").assertIsDisplayed()
+    }
+
+    @Test
+    fun progressTabsRangesAndEmptyMetricsAreUsableAtPhoneWidth() {
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+
+        compose.onNodeWithText("Overview").assertIsDisplayed()
+        compose.onNodeWithText("Coverage").assertIsDisplayed()
+        compose.onNodeWithText("Achievements").assertIsDisplayed()
+        compose.onNodeWithText("No review activity yet. Catalogue and schedule totals are still available.")
+            .assertIsDisplayed()
+
+        listOf("Reviews", "Successful reviews", "Success rate", "Active days").forEach { label ->
+            compose.onNodeWithText(label).performScrollTo().assertIsDisplayed()
+        }
+
+        compose.onNodeWithText("7 days").performScrollTo().performClick()
+        compose.onNodeWithText("Activity - 7 days").performScrollTo().assertIsDisplayed()
+
+        compose.onNodeWithText("Coverage").performScrollTo().performClick()
+        compose.onNodeWithText("Difficulty progress").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Techniques").performScrollTo().performClick()
+        compose.onAllNodesWithText("Techniques").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun activityBarsExposeTheirExactDateAndCounts() {
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+        val bucket = profile.statistics().activity(StatisticsPeriod.THIRTY_DAYS).last()
+
+        compose.onNodeWithContentDescription(
+            "${bucket.startDate}: 0 reviews, 0 successful reviews",
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun visibilitySettingsApplyImmediatelyAndPersist() {
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+
+        compose.onNodeWithContentDescription("Show streaks and achievements")
+            .performScrollTo()
+            .performClick()
+        assertTrue(!profile.settings.showStreaksAndAchievements())
+
+        compose.onNodeWithText("Progress").performClick()
+        compose.onNodeWithText("Achievements").assertDoesNotExist()
+
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Show Progress").performScrollTo().performClick()
+        assertTrue(!profile.settings.showProgress())
+        compose.onNodeWithText("Progress").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Show Progress").performClick()
+        assertTrue(profile.settings.showProgress())
+        compose.onNodeWithText("Progress").assertIsDisplayed()
     }
 
     @Test

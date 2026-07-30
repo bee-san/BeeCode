@@ -3,6 +3,7 @@ package dev.bee.beecode.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,6 +45,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -66,12 +73,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bee.beecode.app.AchievementState
+import dev.bee.beecode.app.ActivityBucket
 import dev.bee.beecode.app.BeeCodeProfile
+import dev.bee.beecode.app.IntervalRange
 import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.FinalizeResult
@@ -79,6 +90,8 @@ import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.app.StatisticsPeriod
+import dev.bee.beecode.app.TopicProgress
 import dev.bee.beecode.design.BeeCodeAccents
 import dev.bee.beecode.design.Markdown
 import dev.bee.beecode.design.ThemeChoice
@@ -128,8 +141,21 @@ fun DesktopApp(
     var openProblem by remember { mutableStateOf<ProblemId?>(null) }
     var refreshToken by remember { mutableStateOf(0) }
     var runnerStatus by remember { mutableStateOf<RunnerStatus?>(null) }
+    var showProgress by remember { mutableStateOf(profile.settings.showProgress()) }
+    var showMotivation by remember {
+        mutableStateOf(profile.settings.showStreaksAndAchievements())
+    }
 
     LaunchedEffect(Unit) { runnerStatus = profile.study.runnerStatus() }
+
+    val refreshVisibility = {
+        showProgress = profile.settings.showProgress()
+        showMotivation = profile.settings.showStreaksAndAchievements()
+        if (!showProgress && screen is DesktopScreen.Progress) {
+            screen = DesktopScreen.Queue
+        }
+        refreshToken++
+    }
 
     val active = openProblem
     if (active != null) {
@@ -175,12 +201,14 @@ fun DesktopApp(
                 icon = { Icon(Icons.Outlined.List, contentDescription = null) },
                 label = { Text("Study") },
             )
-            NavigationRailItem(
-                selected = screen is DesktopScreen.Progress,
-                onClick = { screen = DesktopScreen.Progress; refreshToken++ },
-                icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
-                label = { Text("Progress") },
-            )
+            if (showProgress) {
+                NavigationRailItem(
+                    selected = screen is DesktopScreen.Progress,
+                    onClick = { screen = DesktopScreen.Progress; refreshToken++ },
+                    icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
+                    label = { Text("Progress") },
+                )
+            }
             NavigationRailItem(
                 selected = screen is DesktopScreen.Settings,
                 onClick = { screen = DesktopScreen.Settings },
@@ -195,14 +223,20 @@ fun DesktopApp(
                     profile = profile,
                     refreshToken = refreshToken,
                     runnerStatus = runnerStatus,
+                    showMotivation = showMotivation,
                     onOpen = { openProblem = it },
                 )
-                is DesktopScreen.Progress -> ProgressPane(profile, refreshToken)
+                is DesktopScreen.Progress -> ProgressPane(
+                    profile = profile,
+                    refreshToken = refreshToken,
+                    showMotivation = showMotivation,
+                )
                 is DesktopScreen.Settings -> SettingsPane(
                     profile = profile,
                     runnerStatus = runnerStatus,
                     theme = theme,
                     onThemeChange = onThemeChange,
+                    onVisibilityChanged = refreshVisibility,
                 )
             }
         }
@@ -233,6 +267,7 @@ private fun QueuePane(
     profile: BeeCodeProfile,
     refreshToken: Int,
     runnerStatus: RunnerStatus?,
+    showMotivation: Boolean,
     onOpen: (ProblemId) -> Unit,
 ) {
     // Re-read whenever the token changes, which happens after a review is
@@ -265,7 +300,7 @@ private fun QueuePane(
                     buildString {
                         append("${statistics.distinctProblemsSolved} of ")
                         append("${statistics.totalProblems} solved")
-                        if (statistics.currentStreakDays > 0) {
+                        if (showMotivation && statistics.currentStreakDays > 0) {
                             append(" · ${statistics.currentStreakDays} day streak")
                         }
                     },
@@ -964,9 +999,22 @@ private fun TestRow(result: TestCaseResult) {
 }
 
 @Composable
-private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
+private fun ProgressPane(
+    profile: BeeCodeProfile,
+    refreshToken: Int,
+    showMotivation: Boolean,
+) {
     val stats = remember(refreshToken) { profile.statistics() }
     val achievements = remember(refreshToken) { profile.achievements() }
+    var selectedTab by remember { mutableStateOf(ProgressTab.OVERVIEW) }
+    var selectedPeriod by remember { mutableStateOf(StatisticsPeriod.THIRTY_DAYS) }
+    val tabs = if (showMotivation) ProgressTab.entries else ProgressTab.entries.dropLast(1)
+
+    LaunchedEffect(showMotivation) {
+        if (!showMotivation && selectedTab == ProgressTab.ACHIEVEMENTS) {
+            selectedTab = ProgressTab.OVERVIEW
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -978,169 +1026,377 @@ private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
             fontWeight = FontWeight.Bold,
         )
 
-        if (!stats.hasActivity) {
-            Text(
-                "Solve a Problem and your progress will appear here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile("Solved", "${stats.distinctProblemsSolved}", Modifier.weight(1f))
-                StatTile("Reviews", "${stats.totalReviews}", Modifier.weight(1f))
-                StatTile("Streak", "${stats.currentStreakDays}d", Modifier.weight(1f))
-                StatTile("Due now", "${stats.dueNow}", Modifier.weight(1f))
-                StatTile(
-                    "Accuracy",
-                    stats.accuracy?.let { "${(it * 100).roundToInt()}%" } ?: "—",
-                    Modifier.weight(1f),
+        PrimaryTabRow(selectedTabIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)) {
+            tabs.forEach { tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                    text = { Text(tab.label, maxLines = 1) },
                 )
-            }
-
-            // The scheduler's own view of the collection. Every number here was
-            // already computed by Statistics and rendered nowhere, which is why
-            // the app gave no evidence it was scheduling anything at all.
-            Card {
-                Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Outlined.Schedule,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text("Your schedule", style = MaterialTheme.typography.titleSmall)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "FSRS-7 picks each interval from how well you recalled the " +
-                            "Problem, not from a fixed ladder.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    ScheduleFact("Due now", "${stats.dueNow}")
-                    ScheduleFact("Due tomorrow", "${stats.dueTomorrow}")
-                    ScheduleFact(
-                        "Average interval",
-                        stats.averageIntervalDays?.let { formatIntervalDays(it) } ?: "—",
-                    )
-                    ScheduleFact("Not yet attempted", "${stats.notYetAttempted}")
-                    if (stats.leeches.isNotEmpty()) {
-                        Spacer(Modifier.height(10.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Outlined.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = Color(BeeCodeAccents.Danger),
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "${stats.leeches.size} " +
-                                    if (stats.leeches.size == 1) "leech" else "leeches",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color(BeeCodeAccents.Danger),
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            // Named, not just counted. A leech is a Problem the
-                            // learner keeps failing, and the useful response is to
-                            // go and learn it properly rather than to keep drilling.
-                            stats.leeches.mapNotNull { profile.catalogue.problem(it)?.title }
-                                .joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            Card {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Last 30 days", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(12.dp))
-                    val peak = stats.reviewsPerDay.maxOfOrNull { it.reviews }?.coerceAtLeast(1) ?: 1
-                    Row(
-                        Modifier.fillMaxWidth().height(90.dp),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        // Empty days are drawn, not skipped: a streak app that hides
-                        // gaps is not telling the learner the truth.
-                        stats.reviewsPerDay.forEach { day ->
-                            val fraction = day.reviews.toFloat() / peak
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .height((4 + fraction * 72).dp)
-                                    .background(
-                                        if (day.reviews == 0) {
-                                            // The 4dp floor above only tells the truth if
-                                            // the stub is visible: `surfaceVariant` was
-                                            // 1.012:1 against this card in light, so a zero
-                                            // day *was* missing data. `surface` — the page
-                                            // behind the card — is 1.207:1 in light and
-                                            // 1.447:1 in dark. See
-                                            // BeeCodePalette.surfaceContainerHighest.
-                                            MaterialTheme.colorScheme.surface
-                                        } else {
-                                            MaterialTheme.colorScheme.primary
-                                        },
-                                        RoundedCornerShape(2.dp),
-                                    ),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Card {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("By difficulty", style = MaterialTheme.typography.titleSmall)
-                    ProblemDifficulty.entries.forEach { difficulty ->
-                        val progress = stats.byDifficulty[difficulty] ?: return@forEach
-                        if (progress.total == 0) return@forEach
-                        Column {
-                            Row {
-                                Text(
-                                    difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(
-                                    "${progress.solved}/${progress.total}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { progress.fraction },
-                                modifier = Modifier.fillMaxWidth().height(6.dp),
-                                // See AchievementRow: the default track is
-                                // `secondaryContainer`, 1.021:1 against this card in
-                                // light, so "3 of 12 solved" had no visible denominator.
-                                trackColor = MaterialTheme.colorScheme.surface,
-                                gapSize = 0.dp,
-                                drawStopIndicator = {},
-                            )
-                        }
-                    }
-                }
             }
         }
 
-        Text(
-            "Achievements",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+        when (selectedTab) {
+            ProgressTab.OVERVIEW -> DesktopOverview(
+                profile = profile,
+                stats = stats,
+                selectedPeriod = selectedPeriod,
+                onPeriodSelected = { selectedPeriod = it },
+                showMotivation = showMotivation,
+            )
+            ProgressTab.COVERAGE -> DesktopCoverage(stats)
+            ProgressTab.ACHIEVEMENTS -> achievements.states.forEach { AchievementRow(it) }
+        }
+    }
+}
+
+@Composable
+private fun DesktopOverview(
+    profile: BeeCodeProfile,
+    stats: StudyStatistics,
+    selectedPeriod: StatisticsPeriod,
+    onPeriodSelected: (StatisticsPeriod) -> Unit,
+    showMotivation: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DesktopPeriodSelector(selectedPeriod, onPeriodSelected)
+        if (!stats.hasActivity) {
+            Text(
+                "No review activity yet. Catalogue and schedule totals are still available.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (stats.comparison(selectedPeriod).current.reviews == 0) {
+            Text(
+                "No reviews in this period.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DesktopPeriodSummary(stats, selectedPeriod)
+        DesktopActivityChart(stats, selectedPeriod)
+        DesktopCatalogueProgress(stats, showMotivation)
+        DesktopScheduleCard(profile, stats)
+        DesktopIntervalDistribution(stats)
+    }
+}
+
+@Composable
+private fun DesktopPeriodSelector(
+    selected: StatisticsPeriod,
+    onSelected: (StatisticsPeriod) -> Unit,
+) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        StatisticsPeriod.entries.forEachIndexed { index, period ->
+            SegmentedButton(
+                selected = selected == period,
+                onClick = { onSelected(period) },
+                shape = SegmentedButtonDefaults.itemShape(index, StatisticsPeriod.entries.size),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("${period.days} days", maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopPeriodSummary(stats: StudyStatistics, period: StatisticsPeriod) {
+    val comparison = stats.comparison(period)
+    val metrics = listOf(
+        MetricPresentation(
+            "Reviews",
+            comparison.current.reviews.toString(),
+            comparison.countChange(comparison.reviewChange),
+        ),
+        MetricPresentation(
+            "Successful reviews",
+            comparison.current.successfulReviews.toString(),
+            comparison.countChange(comparison.successfulReviewChange),
+        ),
+        MetricPresentation(
+            "Success rate",
+            comparison.current.successRate?.let { "${(it * 100).roundToInt()}%" } ?: "-",
+            comparison.rateChange(),
+        ),
+        MetricPresentation(
+            "Active days",
+            comparison.current.activeDays.toString(),
+            comparison.dayChange(),
+        ),
+    )
+
+    BoxWithConstraints {
+        if (maxWidth < 700.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                metrics.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEach { metric ->
+                            PeriodMetricTile(metric, Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                metrics.forEach { metric ->
+                    PeriodMetricTile(metric, Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodMetricTile(metric: MetricPresentation, modifier: Modifier = Modifier) {
+    Card(modifier) {
+        Column(
+            Modifier.fillMaxWidth().height(104.dp).padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(metric.value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                metric.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                metric.comparison,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DesktopActivityChart(stats: StudyStatistics, period: StatisticsPeriod) {
+    val buckets = stats.activity(period)
+    val peak = buckets.maxOfOrNull { it.reviews }?.coerceAtLeast(1) ?: 1
+
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Activity - ${period.days} days", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth().height(90.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (buckets.size > 20) 3.dp else 5.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                buckets.forEach { bucket ->
+                    val fraction = bucket.reviews.toFloat() / peak
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height((4 + fraction * 72).dp)
+                            .background(
+                                if (bucket.reviews == 0) {
+                                    MaterialTheme.colorScheme.surface
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                RoundedCornerShape(2.dp),
+                            )
+                            .semantics { contentDescription = bucket.activityDescription() },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopCatalogueProgress(stats: StudyStatistics, showMotivation: Boolean) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("All-time catalogue progress", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${stats.catalogueProblemsSolved} of ${stats.totalProblems} Problems solved",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { stats.catalogueCompletionFraction },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                trackColor = MaterialTheme.colorScheme.surface,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
+            )
+            if (showMotivation && stats.currentStreakDays > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${stats.currentStreakDays} day streak",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopScheduleCard(profile: BeeCodeProfile, stats: StudyStatistics) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Your schedule", style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "FSRS-7 picks each interval from how well you recalled the Problem, not " +
+                    "from a fixed ladder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            ScheduleFact("Due now", "${stats.dueNow}")
+            ScheduleFact("Due tomorrow", "${stats.dueTomorrow}")
+            ScheduleFact(
+                "Average interval",
+                stats.averageIntervalDays?.let { formatIntervalDays(it) } ?: "-",
+            )
+            ScheduleFact("Not yet attempted", "${stats.notYetAttempted}")
+            if (stats.leeches.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = Color(BeeCodeAccents.Danger),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "${stats.leeches.size} " +
+                            if (stats.leeches.size == 1) "leech" else "leeches",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(BeeCodeAccents.Danger),
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stats.leeches.mapNotNull { profile.catalogue.problem(it)?.title }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopIntervalDistribution(stats: StudyStatistics) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Current interval distribution", style = MaterialTheme.typography.titleSmall)
+            stats.intervalDistribution.forEach { bucket ->
+                ProgressRow(
+                    label = bucket.range.displayLabel(),
+                    solved = bucket.count,
+                    total = bucket.total,
+                    fraction = bucket.fraction,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopCoverage(stats: StudyStatistics) {
+    var axis by remember { mutableStateOf(TopicAxis.DATA_STRUCTURES) }
+    val topics = when (axis) {
+        TopicAxis.DATA_STRUCTURES -> stats.dataStructureProgress
+        TopicAxis.TECHNIQUES -> stats.techniqueProgress
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DifficultyBreakdown(stats)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            TopicAxis.entries.forEachIndexed { index, candidate ->
+                SegmentedButton(
+                    selected = axis == candidate,
+                    onClick = { axis = candidate },
+                    shape = SegmentedButtonDefaults.itemShape(index, TopicAxis.entries.size),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(candidate.label, maxLines = 1)
+                }
+            }
+        }
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(axis.label, style = MaterialTheme.typography.titleSmall)
+                if (topics.isEmpty()) {
+                    Text(
+                        "No topics in this catalogue.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    topics.forEach { TopicProgressRow(it) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DifficultyBreakdown(stats: StudyStatistics) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Difficulty progress", style = MaterialTheme.typography.titleSmall)
+            ProblemDifficulty.entries.forEach { difficulty ->
+                val progress = stats.byDifficulty[difficulty] ?: return@forEach
+                if (progress.total == 0) return@forEach
+                ProgressRow(
+                    label = difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
+                    solved = progress.solved,
+                    total = progress.total,
+                    fraction = progress.fraction,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopicProgressRow(progress: TopicProgress) {
+    ProgressRow(progress.topic, progress.solved, progress.total, progress.fraction)
+}
+
+@Composable
+private fun ProgressRow(label: String, solved: Int, total: Int, fraction: Float) {
+    Column {
+        Row(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            Text(
+                "$solved/$total",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth().height(6.dp),
+            trackColor = MaterialTheme.colorScheme.surface,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
         )
-        achievements.states.forEach { AchievementRow(it) }
     }
 }
 
@@ -1158,21 +1414,75 @@ private fun ScheduleFact(label: String, value: String) {
     }
 }
 
-@Composable
-private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier) {
-        Column(
-            Modifier.padding(14.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+private data class MetricPresentation(
+    val label: String,
+    val value: String,
+    val comparison: String,
+)
+
+private enum class ProgressTab(val label: String) {
+    OVERVIEW("Overview"),
+    COVERAGE("Coverage"),
+    ACHIEVEMENTS("Achievements"),
+}
+
+private enum class TopicAxis(val label: String) {
+    DATA_STRUCTURES("Data structures"),
+    TECHNIQUES("Techniques"),
+}
+
+private fun dev.bee.beecode.app.PeriodComparison.countChange(change: Int): String =
+    if (!hasEarlierActivity) "No earlier activity" else changeDescription(change)
+
+private fun dev.bee.beecode.app.PeriodComparison.dayChange(): String =
+    if (!hasEarlierActivity) {
+        "No earlier activity"
+    } else {
+        val amount = kotlin.math.abs(activeDayChange)
+        when {
+            activeDayChange > 0 -> "$amount more active ${plural(amount, "day")}"
+            activeDayChange < 0 -> "$amount fewer active ${plural(amount, "day")}"
+            else -> "No change"
         }
     }
+
+private fun dev.bee.beecode.app.PeriodComparison.rateChange(): String {
+    if (!hasEarlierActivity) return "No earlier activity"
+    val change = successRatePercentagePointChange ?: return "No comparable rate"
+    return when {
+        change > 0.0 -> "+${formatPercentagePoints(change)} pp"
+        change < 0.0 -> "${formatPercentagePoints(change)} pp"
+        else -> "No change"
+    }
+}
+
+private fun changeDescription(change: Int): String {
+    val amount = kotlin.math.abs(change)
+    return when {
+        change > 0 -> "$amount more"
+        change < 0 -> "$amount fewer"
+        else -> "No change"
+    }
+}
+
+private fun formatPercentagePoints(value: Double): String =
+    if (value == value.roundToInt().toDouble()) value.roundToInt().toString() else "%.1f".format(value)
+
+private fun plural(count: Int, singular: String): String =
+    if (count == 1) singular else "${singular}s"
+
+private fun ActivityBucket.activityDescription(): String {
+    val dates = if (isSingleDay) "$startDate" else "$startDate to $endDate"
+    return "$dates: $reviews ${plural(reviews, "review")}, " +
+        "$successfulReviews successful ${plural(successfulReviews, "review")}"
+}
+
+private fun IntervalRange.displayLabel(): String = when (this) {
+    IntervalRange.LESS_THAN_ONE_DAY -> "<1 day"
+    IntervalRange.ONE_TO_SIX_DAYS -> "1-6 days"
+    IntervalRange.ONE_TO_FOUR_WEEKS -> "1-4 weeks"
+    IntervalRange.ONE_TO_SIX_MONTHS -> "1-6 months"
+    IntervalRange.SIX_MONTHS_OR_MORE -> "6+ months"
 }
 
 /**
@@ -1246,8 +1556,13 @@ private fun SettingsPane(
     runnerStatus: RunnerStatus?,
     theme: ThemeChoice,
     onThemeChange: (ThemeChoice) -> Unit,
+    onVisibilityChanged: () -> Unit,
 ) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
+    var showProgress by remember { mutableStateOf(profile.settings.showProgress()) }
+    var showMotivation by remember {
+        mutableStateOf(profile.settings.showStreaksAndAchievements())
+    }
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncPath by remember { mutableStateOf(profile.settings.syncFilePath()) }
     var webDavUrl by remember { mutableStateOf(profile.settings.syncWebDavUrl() ?: "") }
@@ -1318,6 +1633,30 @@ private fun SettingsPane(
                         )
                     }
                 }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Progress visibility", style = MaterialTheme.typography.titleSmall)
+                VisibilitySettingRow(
+                    label = "Show Progress",
+                    checked = showProgress,
+                    onCheckedChange = { show ->
+                        profile.settings.setShowProgress(show, Clock.System.now())
+                        showProgress = show
+                        onVisibilityChanged()
+                    },
+                )
+                VisibilitySettingRow(
+                    label = "Show streaks and achievements",
+                    checked = showMotivation,
+                    onCheckedChange = { show ->
+                        profile.settings.setShowStreaksAndAchievements(show, Clock.System.now())
+                        showMotivation = show
+                        onVisibilityChanged()
+                    },
+                )
             }
         }
 
@@ -1404,6 +1743,9 @@ private fun SettingsPane(
                     }) { Text("Export…") }
                     OutlinedButton(onClick = {
                         transferMessage = ProfileFiles.restoreFrom(profile)
+                        showProgress = profile.settings.showProgress()
+                        showMotivation = profile.settings.showStreaksAndAchievements()
+                        onVisibilityChanged()
                     }) { Text("Restore…") }
                 }
                 transferMessage?.let { message ->
@@ -1470,6 +1812,9 @@ private fun SettingsPane(
                                 syncMessage = withContext(Dispatchers.IO) {
                                     ProfileFiles.sync(profile, File(target))
                                 }
+                                showProgress = profile.settings.showProgress()
+                                showMotivation = profile.settings.showStreaksAndAchievements()
+                                onVisibilityChanged()
                                 syncing = false
                             }
                         },
@@ -1567,6 +1912,9 @@ private fun SettingsPane(
                                     password = webDavPassword.ifBlank { null },
                                 )
                             }
+                            showProgress = profile.settings.showProgress()
+                            showMotivation = profile.settings.showStreaksAndAchievements()
+                            onVisibilityChanged()
                             syncing = false
                         }
                     },

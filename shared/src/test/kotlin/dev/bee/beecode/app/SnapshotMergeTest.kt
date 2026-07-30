@@ -180,6 +180,36 @@ class SnapshotMergeTest {
     }
 
     @Test
+    fun visibilitySettingsUseTheOrdinarySyncMergeRule() {
+        val local = snapshot(
+            settings = mapOf(
+                "progress.show" to "true",
+                "motivation.show" to "false",
+            ),
+            settingStamps = mapOf(
+                "progress.show" to 1_000L,
+                "motivation.show" to 9_000L,
+            ),
+        )
+        val remote = snapshot(
+            settings = mapOf(
+                "progress.show" to "false",
+                "motivation.show" to "true",
+            ),
+            settingStamps = mapOf(
+                "progress.show" to 5_000L,
+                "motivation.show" to 2_000L,
+            ),
+        )
+
+        val merged = assertMerged(SnapshotMerge.merge(local, remote))
+
+        assertEquals("false", merged.setting("progress.show"))
+        assertEquals("false", merged.setting("motivation.show"))
+        assertEquals(1, merged.result.settingsFromRemote)
+    }
+
+    @Test
     fun aSettingTieKeepsTheLocalValue() {
         // Same rule as drafts, and asserted for the same reason: a mutation from `>` to
         // `>=` in the settings comparison passed the whole suite, because every other

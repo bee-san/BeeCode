@@ -3,6 +3,7 @@ package dev.bee.beecode.android.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -37,13 +38,20 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bee.beecode.app.AchievementState
+import dev.bee.beecode.app.ActivityBucket
 import dev.bee.beecode.android.DocumentSyncStore
 import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
@@ -71,6 +80,9 @@ import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.WebDavSyncStore
 import dev.bee.beecode.app.DueProblem
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.app.StatisticsPeriod
+import dev.bee.beecode.app.TopicProgress
+import dev.bee.beecode.app.IntervalRange
 import dev.bee.beecode.design.BeeCodeAccents
 import dev.bee.beecode.design.ThemeChoice
 import dev.bee.beecode.domain.DueDescription
@@ -106,6 +118,7 @@ internal const val QUEUE_LIST_TAG = "queue-list"
 fun BeeCodeApp(viewModel: StudyViewModel) {
     val screen by viewModel.screen.collectAsStateWithLifecycle()
     val problem by viewModel.problem.collectAsStateWithLifecycle()
+    val showProgress by viewModel.showProgress.collectAsStateWithLifecycle()
 
     // The Problem view takes the whole screen, navigation bar included. While
     // solving, the learner needs every pixel for code, and an accidental tab tap
@@ -145,12 +158,14 @@ fun BeeCodeApp(viewModel: StudyViewModel) {
                     icon = { Icon(Icons.Outlined.List, contentDescription = null) },
                     label = { Text("Study") },
                 )
-                NavigationBarItem(
-                    selected = screen is Screen.Statistics,
-                    onClick = viewModel::showStatistics,
-                    icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
-                    label = { Text("Progress") },
-                )
+                if (showProgress) {
+                    NavigationBarItem(
+                        selected = screen is Screen.Statistics,
+                        onClick = viewModel::showStatistics,
+                        icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
+                        label = { Text("Progress") },
+                    )
+                }
                 NavigationBarItem(
                     selected = screen is Screen.Settings,
                     onClick = viewModel::showSettings,
@@ -175,6 +190,7 @@ private fun QueueScreen(viewModel: StudyViewModel) {
     val queue by viewModel.queue.collectAsStateWithLifecycle()
     val statistics by viewModel.statistics.collectAsStateWithLifecycle()
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
+    val showMotivation by viewModel.showStreaksAndAchievements.collectAsStateWithLifecycle()
     // One instant per queue, not one per row: every row must describe its due time against
     // the same moment, or two Problems due at the same instant can render with different
     // labels. Keyed on the queue itself so a finalized review — which emits a new queue —
@@ -201,7 +217,7 @@ private fun QueueScreen(viewModel: StudyViewModel) {
                     Text(
                         buildString {
                             append("${stats.distinctProblemsSolved} of ${stats.totalProblems} solved")
-                            if (stats.currentStreakDays > 0) {
+                            if (showMotivation && stats.currentStreakDays > 0) {
                                 append(" · ${stats.currentStreakDays} day streak")
                             }
                         },
@@ -403,6 +419,16 @@ private fun LoadingRow() {
 private fun StatisticsScreen(viewModel: StudyViewModel) {
     val statistics by viewModel.statistics.collectAsStateWithLifecycle()
     val achievements by viewModel.achievements.collectAsStateWithLifecycle()
+    val showMotivation by viewModel.showStreaksAndAchievements.collectAsStateWithLifecycle()
+    var selectedTab by remember { mutableStateOf(ProgressTab.OVERVIEW) }
+    var selectedPeriod by remember { mutableStateOf(StatisticsPeriod.THIRTY_DAYS) }
+    val tabs = if (showMotivation) ProgressTab.entries else ProgressTab.entries.dropLast(1)
+
+    LaunchedEffect(showMotivation) {
+        if (!showMotivation && selectedTab == ProgressTab.ACHIEVEMENTS) {
+            selectedTab = ProgressTab.OVERVIEW
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -414,49 +440,160 @@ private fun StatisticsScreen(viewModel: StudyViewModel) {
             fontWeight = FontWeight.Bold,
         )
 
+        PrimaryTabRow(selectedTabIndex = tabs.indexOf(selectedTab).coerceAtLeast(0)) {
+            tabs.forEach { tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                    text = { Text(tab.label, maxLines = 1) },
+                )
+            }
+        }
+
         val stats = statistics
         if (stats == null) {
             LoadingRow()
-        } else if (!stats.hasActivity) {
-            Text(
-                "Solve a Problem and your progress will appear here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         } else {
-            StatGrid(stats)
-            ScheduleCard(stats) { viewModel.problemTitle(it) }
-            ActivityChart(stats)
-            DifficultyBreakdown(stats)
-        }
-
-        achievements?.let { projection ->
-            Text(
-                "Achievements",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            projection.states.forEach { AchievementRow(it) }
+            when (selectedTab) {
+                ProgressTab.OVERVIEW -> OverviewTab(
+                    stats = stats,
+                    selectedPeriod = selectedPeriod,
+                    onPeriodSelected = { selectedPeriod = it },
+                    showMotivation = showMotivation,
+                    titleOf = viewModel::problemTitle,
+                )
+                ProgressTab.COVERAGE -> CoverageTab(stats)
+                ProgressTab.ACHIEVEMENTS -> achievements?.states?.forEach { AchievementRow(it) }
+            }
         }
     }
 }
 
 @Composable
-private fun StatGrid(stats: StudyStatistics) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile("Solved", "${stats.distinctProblemsSolved}", Modifier.weight(1f))
-            StatTile("Reviews", "${stats.totalReviews}", Modifier.weight(1f))
-            StatTile("Streak", "${stats.currentStreakDays}d", Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile("Due now", "${stats.dueNow}", Modifier.weight(1f))
-            StatTile(
-                "Accuracy",
-                stats.accuracy?.let { "${(it * 100).roundToInt()}%" } ?: "—",
-                Modifier.weight(1f),
+private fun OverviewTab(
+    stats: StudyStatistics,
+    selectedPeriod: StatisticsPeriod,
+    onPeriodSelected: (StatisticsPeriod) -> Unit,
+    showMotivation: Boolean,
+    titleOf: (ProblemId) -> String?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        PeriodSelector(selectedPeriod, onPeriodSelected)
+        if (!stats.hasActivity) {
+            Text(
+                "No review activity yet. Catalogue and schedule totals are still available.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            StatTile("Today", "${stats.reviewsToday}", Modifier.weight(1f))
+        } else if (stats.comparison(selectedPeriod).current.reviews == 0) {
+            Text(
+                "No reviews in this period.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        PeriodSummary(stats, selectedPeriod)
+        ActivityChart(stats, selectedPeriod)
+        CatalogueProgress(stats, showMotivation)
+        ScheduleCard(stats, titleOf)
+        IntervalDistribution(stats)
+    }
+}
+
+@Composable
+private fun PeriodSelector(
+    selected: StatisticsPeriod,
+    onSelected: (StatisticsPeriod) -> Unit,
+) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        StatisticsPeriod.entries.forEachIndexed { index, period ->
+            SegmentedButton(
+                selected = selected == period,
+                onClick = { onSelected(period) },
+                shape = SegmentedButtonDefaults.itemShape(index, StatisticsPeriod.entries.size),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("${period.days} days", maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodSummary(stats: StudyStatistics, period: StatisticsPeriod) {
+    val comparison = stats.comparison(period)
+    val metrics = listOf(
+        MetricPresentation(
+            label = "Reviews",
+            value = comparison.current.reviews.toString(),
+            comparison = comparison.countChange(comparison.reviewChange),
+        ),
+        MetricPresentation(
+            label = "Successful reviews",
+            value = comparison.current.successfulReviews.toString(),
+            comparison = comparison.countChange(comparison.successfulReviewChange),
+        ),
+        MetricPresentation(
+            label = "Success rate",
+            value = comparison.current.successRate
+                ?.let { "${(it * 100).roundToInt()}%" }
+                ?: "-",
+            comparison = comparison.rateChange(),
+        ),
+        MetricPresentation(
+            label = "Active days",
+            value = comparison.current.activeDays.toString(),
+            comparison = comparison.dayChange(),
+        ),
+    )
+
+    BoxWithConstraints {
+        if (maxWidth < 520.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                metrics.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { metric ->
+                            PeriodMetricTile(metric, Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                metrics.forEach { metric ->
+                    PeriodMetricTile(metric, Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodMetricTile(metric: MetricPresentation, modifier: Modifier = Modifier) {
+    Card(modifier) {
+        Column(
+            Modifier.fillMaxWidth().height(104.dp).padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                metric.value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                metric.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                metric.comparison,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
         }
     }
 }
@@ -528,59 +665,27 @@ private fun ScheduleFact(label: String, value: String) {
 }
 
 @Composable
-private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier) {
-        Column(
-            Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/**
- * A fourteen-day activity chart.
- *
- * Empty days are drawn, not skipped. Compressing them would hide a gap, and a
- * streak app that hides gaps is not telling the learner the truth.
- */
-@Composable
-private fun ActivityChart(stats: StudyStatistics) {
-    val recent = stats.reviewsPerDay.takeLast(14)
-    val peak = recent.maxOfOrNull { it.reviews }?.coerceAtLeast(1) ?: 1
+private fun ActivityChart(stats: StudyStatistics, period: StatisticsPeriod) {
+    val buckets = stats.activity(period)
+    val peak = buckets.maxOfOrNull { it.reviews }?.coerceAtLeast(1) ?: 1
 
     Card {
         Column(Modifier.padding(16.dp)) {
-            Text("Last 14 days", style = MaterialTheme.typography.titleSmall)
+            Text("Activity - ${period.days} days", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth().height(72.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (buckets.size > 20) 2.dp else 4.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
-                recent.forEach { day ->
-                    val fraction = day.reviews.toFloat() / peak
+                buckets.forEach { bucket ->
+                    val fraction = bucket.reviews.toFloat() / peak
                     Box(
                         Modifier
                             .weight(1f)
-                            // A floor of 4dp so a zero day reads as a zero day
-                            // rather than as missing data.
                             .height((4 + fraction * 56).dp)
                             .background(
-                                if (day.reviews == 0) {
-                                    // That 4dp floor only tells the truth if the stub is
-                                    // visible: `surfaceVariant` here was 1.012:1 against
-                                    // the card, so a zero day *was* missing data, exactly
-                                    // what the comment above says it must not be. `surface`
-                                    // — the page behind the card — is 1.207:1 in light and
-                                    // 1.447:1 in dark. See
-                                    // BeeCodePalette.surfaceContainerHighest.
+                                if (bucket.reviews == 0) {
                                     MaterialTheme.colorScheme.surface
                                 } else {
                                     MaterialTheme.colorScheme.primary
@@ -588,9 +693,95 @@ private fun ActivityChart(stats: StudyStatistics) {
                                 RoundedCornerShape(3.dp),
                             )
                             .semantics {
-                                contentDescription = "${day.date}: ${day.reviews} reviews"
+                                contentDescription = bucket.activityDescription()
                             },
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CatalogueProgress(stats: StudyStatistics, showMotivation: Boolean) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("All-time catalogue progress", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${stats.catalogueProblemsSolved} of ${stats.totalProblems} Problems solved",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { stats.catalogueCompletionFraction },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                trackColor = MaterialTheme.colorScheme.surface,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
+            )
+            if (showMotivation && stats.currentStreakDays > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${stats.currentStreakDays} day streak",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IntervalDistribution(stats: StudyStatistics) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Current interval distribution", style = MaterialTheme.typography.titleSmall)
+            stats.intervalDistribution.forEach { bucket ->
+                ProgressRow(
+                    label = bucket.range.displayLabel(),
+                    solved = bucket.count,
+                    total = bucket.total,
+                    fraction = bucket.fraction,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverageTab(stats: StudyStatistics) {
+    var axis by remember { mutableStateOf(TopicAxis.DATA_STRUCTURES) }
+    val topics = when (axis) {
+        TopicAxis.DATA_STRUCTURES -> stats.dataStructureProgress
+        TopicAxis.TECHNIQUES -> stats.techniqueProgress
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DifficultyBreakdown(stats)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            TopicAxis.entries.forEachIndexed { index, candidate ->
+                SegmentedButton(
+                    selected = axis == candidate,
+                    onClick = { axis = candidate },
+                    shape = SegmentedButtonDefaults.itemShape(index, TopicAxis.entries.size),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(candidate.label, maxLines = 1)
+                }
+            }
+        }
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(axis.label, style = MaterialTheme.typography.titleSmall)
+                if (topics.isEmpty()) {
+                    Text(
+                        "No topics in this catalogue.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    topics.forEach { TopicProgressRow(it) }
                 }
             }
         }
@@ -601,38 +792,126 @@ private fun ActivityChart(stats: StudyStatistics) {
 private fun DifficultyBreakdown(stats: StudyStatistics) {
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("By difficulty", style = MaterialTheme.typography.titleSmall)
+            Text("Difficulty progress", style = MaterialTheme.typography.titleSmall)
             ProblemDifficulty.entries.forEach { difficulty ->
                 val progress = stats.byDifficulty[difficulty] ?: return@forEach
                 if (progress.total == 0) return@forEach
-                Column {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(
-                            difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "${progress.solved}/${progress.total}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { progress.fraction },
-                        modifier = Modifier.fillMaxWidth().height(6.dp),
-                        // See AchievementRow: the default track is 1.021:1 against this
-                        // card, so "3 of 12 solved" had no visible denominator. `surface`
-                        // is the same fill the code blocks use, for the same reason.
-                        trackColor = MaterialTheme.colorScheme.surface,
-                        gapSize = 0.dp,
-                        drawStopIndicator = {},
-                    )
-                }
+                ProgressRow(
+                    label = difficulty.name.lowercase().replaceFirstChar { it.uppercase() },
+                    solved = progress.solved,
+                    total = progress.total,
+                    fraction = progress.fraction,
+                )
             }
         }
     }
+}
+
+@Composable
+private fun TopicProgressRow(progress: TopicProgress) {
+    ProgressRow(
+        label = progress.topic,
+        solved = progress.solved,
+        total = progress.total,
+        fraction = progress.fraction,
+    )
+}
+
+@Composable
+private fun ProgressRow(label: String, solved: Int, total: Int, fraction: Float) {
+    Column {
+        Row(Modifier.fillMaxWidth()) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "$solved/$total",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth().height(6.dp),
+            trackColor = MaterialTheme.colorScheme.surface,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
+        )
+    }
+}
+
+private data class MetricPresentation(
+    val label: String,
+    val value: String,
+    val comparison: String,
+)
+
+private enum class ProgressTab(val label: String) {
+    OVERVIEW("Overview"),
+    COVERAGE("Coverage"),
+    ACHIEVEMENTS("Achievements"),
+}
+
+private enum class TopicAxis(val label: String) {
+    DATA_STRUCTURES("Data structures"),
+    TECHNIQUES("Techniques"),
+}
+
+private fun dev.bee.beecode.app.PeriodComparison.countChange(change: Int): String =
+    if (!hasEarlierActivity) "No earlier activity" else changeDescription(change)
+
+private fun dev.bee.beecode.app.PeriodComparison.dayChange(): String =
+    if (!hasEarlierActivity) {
+        "No earlier activity"
+    } else {
+        val amount = kotlin.math.abs(activeDayChange)
+        when {
+            activeDayChange > 0 -> "$amount more active ${plural(amount, "day")}"
+            activeDayChange < 0 -> "$amount fewer active ${plural(amount, "day")}"
+            else -> "No change"
+        }
+    }
+
+private fun dev.bee.beecode.app.PeriodComparison.rateChange(): String {
+    if (!hasEarlierActivity) return "No earlier activity"
+    val change = successRatePercentagePointChange ?: return "No comparable rate"
+    return when {
+        change > 0.0 -> "+${formatPercentagePoints(change)} pp"
+        change < 0.0 -> "${formatPercentagePoints(change)} pp"
+        else -> "No change"
+    }
+}
+
+private fun changeDescription(change: Int): String {
+    val amount = kotlin.math.abs(change)
+    return when {
+        change > 0 -> "$amount more"
+        change < 0 -> "$amount fewer"
+        else -> "No change"
+    }
+}
+
+private fun formatPercentagePoints(value: Double): String =
+    if (value == value.roundToInt().toDouble()) value.roundToInt().toString() else "%.1f".format(value)
+
+private fun plural(count: Int, singular: String): String =
+    if (count == 1) singular else "${singular}s"
+
+private fun ActivityBucket.activityDescription(): String {
+    val dates = if (isSingleDay) "$startDate" else "$startDate to $endDate"
+    return "$dates: $reviews ${plural(reviews, "review")}, " +
+        "$successfulReviews successful ${plural(successfulReviews, "review")}"
+}
+
+private fun IntervalRange.displayLabel(): String = when (this) {
+    IntervalRange.LESS_THAN_ONE_DAY -> "<1 day"
+    IntervalRange.ONE_TO_SIX_DAYS -> "1-6 days"
+    IntervalRange.ONE_TO_FOUR_WEEKS -> "1-4 weeks"
+    IntervalRange.ONE_TO_SIX_MONTHS -> "1-6 months"
+    IntervalRange.SIX_MONTHS_OR_MORE -> "6+ months"
 }
 
 /**
@@ -733,6 +1012,8 @@ private fun AchievementRow(state: AchievementState) {
 private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
     val theme by viewModel.themeChoice.collectAsStateWithLifecycle()
+    val showProgress by viewModel.showProgress.collectAsStateWithLifecycle()
+    val showMotivation by viewModel.showStreaksAndAchievements.collectAsStateWithLifecycle()
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncTarget by remember { mutableStateOf(viewModel.syncTarget()) }
     var webDavUrl by remember { mutableStateOf(viewModel.webDavUrl() ?: "") }
@@ -845,6 +1126,22 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                         }
                     }
                 }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Progress visibility", style = MaterialTheme.typography.titleSmall)
+                VisibilitySettingRow(
+                    label = "Show Progress",
+                    checked = showProgress,
+                    onCheckedChange = viewModel::setShowProgress,
+                )
+                VisibilitySettingRow(
+                    label = "Show streaks and achievements",
+                    checked = showMotivation,
+                    onCheckedChange = viewModel::setShowStreaksAndAchievements,
+                )
             }
         }
 
@@ -1190,6 +1487,26 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun VisibilitySettingRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = label },
+        )
     }
 }
 

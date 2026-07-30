@@ -61,6 +61,14 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     private val _runnerStatus = MutableStateFlow<RunnerStatus?>(null)
     val runnerStatus: StateFlow<RunnerStatus?> = _runnerStatus.asStateFlow()
 
+    private val _showProgress = MutableStateFlow(profile.settings.showProgress())
+    val showProgress: StateFlow<Boolean> = _showProgress.asStateFlow()
+
+    private val _showStreaksAndAchievements =
+        MutableStateFlow(profile.settings.showStreaksAndAchievements())
+    val showStreaksAndAchievements: StateFlow<Boolean> =
+        _showStreaksAndAchievements.asStateFlow()
+
     private var runJob: Job? = null
 
     init {
@@ -72,6 +80,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _queue.value = profile.study.queue()
         _statistics.value = profile.statistics()
         _achievements.value = profile.achievements()
+        refreshVisibility()
     }
 
     fun showQueue() {
@@ -80,6 +89,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun showStatistics() {
+        if (!_showProgress.value) return
         refresh()
         _screen.value = Screen.Statistics
     }
@@ -244,6 +254,28 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     fun setThemeChoice(choice: ThemeChoice) {
         profile.settings.setThemeChoice(choice, kotlinx.datetime.Clock.System.now())
         _themeChoice.value = choice
+    }
+
+    fun setShowProgress(show: Boolean) {
+        profile.settings.setShowProgress(show, kotlinx.datetime.Clock.System.now())
+        _showProgress.value = show
+        if (!show && _screen.value is Screen.Statistics) {
+            _screen.value = Screen.Queue
+        }
+    }
+
+    fun setShowStreaksAndAchievements(show: Boolean) {
+        profile.settings.setShowStreaksAndAchievements(show, kotlinx.datetime.Clock.System.now())
+        _showStreaksAndAchievements.value = show
+    }
+
+    private fun refreshVisibility() {
+        val progress = profile.settings.showProgress()
+        _showProgress.value = progress
+        _showStreaksAndAchievements.value = profile.settings.showStreaksAndAchievements()
+        if (!progress && _screen.value is Screen.Statistics) {
+            _screen.value = Screen.Queue
+        }
     }
 
     /**
