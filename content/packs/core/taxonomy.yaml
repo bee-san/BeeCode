@@ -53,6 +53,7 @@ algorithms:
   prefix-sum: Precomputed cumulative totals answering range queries in O(1).
   greedy: Committing to the locally best choice and proving it is globally safe.
   dynamic-programming: Solving overlapping subproblems once and reusing the results.
+  two-dimensional-dp: Dynamic programming over a table of two indices rather than a line.
   memoization: Top-down dynamic programming that caches recursive calls.
   recursion: Solving an instance in terms of smaller instances of itself.
   divide-and-conquer: Splitting into independent halves and combining the answers.
@@ -75,6 +76,7 @@ algorithms:
   in-place: Rearranging the input itself under an O(1) extra-space budget.
   quickselect: Partitioning to find an order statistic without fully sorting.
   kadane: Running-best scanning for maximum-sum contiguous subarrays.
+  expand-around-centre: Growing outwards from each candidate centre of a palindrome.
   geometry: Reasoning about coordinates, distance, and shape.
   design: Choosing and combining structures so every stated operation stays cheap.
   bucketing: Grouping items by a derived key into a fixed number of buckets.

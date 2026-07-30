@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-digits
+    arguments: ["12"]
+    expected: 2
+    comparator: exact
+
+  - name: example-three-digits
+    arguments: ["226"]
+    expected: 3
+    comparator: exact
+
+  - name: example-leading-zero
+    # Checking only the upper bound of the pair returns 1 here.
+    arguments: ["06"]
+    expected: 0
+    comparator: exact
+
+  - name: a-single-zero
+    arguments: ["0"]
+    expected: 0
+    comparator: exact
+
+  - name: a-single-digit
+    arguments: ["7"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-pair-above-twenty-six
+    # Only 2 then 7; 27 is past z.
+    arguments: ["27"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-that-must-pair
+    # The 0 cannot stand alone, so only the pair 10 works.
+    arguments: ["10"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-that-cannot-pair
+    # The final 0 has nothing valid to pair with, so the count collapses.
+    arguments: ["100"]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-followed-by-a-digit
+    # 10 then 1. Compare with 100, which is undecodable.
+    arguments: ["101"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-run-of-ones
+    # The Fibonacci shape, since every single digit and every pair is valid.
+    arguments: ["1111"]
+    expected: 5
+    comparator: exact
+    hidden: true

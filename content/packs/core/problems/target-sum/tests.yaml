@@ -1,0 +1,76 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-ones
+    # Equal values at different positions are distinct choices.
+    arguments: [[1, 1, 1, 1, 1], 3]
+    expected: 5
+    comparator: exact
+
+  - name: example-single-value
+    arguments: [[1], 1]
+    expected: 1
+    comparator: exact
+
+  - name: an-unreachable-target
+    # The largest reachable sum is 3.
+    arguments: [[1, 2], 5]
+    expected: 0
+    comparator: exact
+
+  - name: a-zero-takes-either-sign
+    # Both +0 and -0 reach the target, so the answer counts assignments, not
+    # sums.
+    arguments: [[0], 0]
+    expected: 2
+    comparator: exact
+
+  - name: the-negative-target
+    arguments: [[1], -1]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: two-zeroes
+    # Each zero doubles the count.
+    arguments: [[0, 0], 0]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: both-signs-reach-zero
+    # Plus-minus and minus-plus.
+    arguments: [[1, 1], 0]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: every-entry-must-be-signed
+    # All positive. Skipping entries is not allowed.
+    arguments: [[1, 2, 3], 6]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-target-of-the-wrong-parity
+    # The reachable sums are 3, 1, -1 and -3, all odd. This is the case the
+    # subset-sum route needs its parity guard for, since target + total is
+    # odd.
+    arguments: [[1, 2], 2]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-sign-reaches-the-target
+    # Minus 1 plus 2.
+    arguments: [[1, 2], 1]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: several-routes-to-the-target
+    arguments: [[1, 1, 2, 3], 1]
+    expected: 3
+    comparator: exact
+    hidden: true

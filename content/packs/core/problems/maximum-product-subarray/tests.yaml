@@ -1,0 +1,66 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-positive-run
+    arguments: [[2, 3, -2, 4]]
+    expected: 6
+    comparator: exact
+
+  - name: example-zero-is-best
+    arguments: [[-2, 0, -1]]
+    expected: 0
+    comparator: exact
+
+  - name: single-negative-value
+    # A run must be non-empty, so the answer is negative.
+    arguments: [[-3]]
+    expected: -3
+    comparator: exact
+
+  - name: two-negatives-multiply-to-the-answer
+    # The answer comes from the smallest running product, -6, times -4.
+    # Tracking only the maximum gives 3.
+    arguments: [[-2, 3, -4]]
+    expected: 24
+    comparator: exact
+
+  - name: a-single-value
+    arguments: [[5]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: three-negatives
+    # The best run is the first two; using all three gives -6.
+    arguments: [[-1, -2, -3]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-splits-the-list
+    # The run cannot cross the zero.
+    arguments: [[2, 3, 0, 4, 5]]
+    expected: 20
+    comparator: exact
+    hidden: true
+
+  - name: all-zeroes
+    arguments: [[0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-surrounded-by-positives
+    # Crossing the -1 gives -36, so a single 6 wins.
+    arguments: [[6, -1, 6]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: four-negatives
+    # An even count of negatives, so the whole list is the best run.
+    arguments: [[-1, -2, -3, -4]]
+    expected: 24
+    comparator: exact
+    hidden: true

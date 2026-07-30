@@ -1,0 +1,75 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-leading-zero-width-group
+    # c* matches nothing, which is what the empty-text row makes possible.
+    arguments: ["aab", "c*a*b"]
+    expected: true
+    comparator: exact
+
+  - name: example-dot-star
+    arguments: ["ab", ".*"]
+    expected: true
+    comparator: exact
+
+  - name: a-star-may-match-nothing
+    # Zero or more, not one or more.
+    arguments: ["", "a*"]
+    expected: true
+    comparator: exact
+
+  - name: the-match-must-cover-the-whole-text
+    # A prefix match is not enough.
+    arguments: ["aa", "a"]
+    expected: false
+    comparator: exact
+
+  - name: an-empty-pattern-and-an-empty-text
+    arguments: ["", ""]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: an-empty-pattern-with-text
+    arguments: ["a", ""]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-dot-matches-one-character
+    arguments: ["a", "."]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-star-absorbing-several
+    arguments: ["aaa", "a*"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-star-must-give-some-back
+    # The group takes only aa, which a greedy scan would not try.
+    arguments: ["aab", ".*b"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-wrong-character-after-a-star
+    arguments: ["aaa", "a*c"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: two-star-groups
+    arguments: ["mississippi", "mis*is*p*."]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: two-star-groups-that-do-match
+    arguments: ["mississippi", "mis*is*ip*i"]
+    expected: true
+    comparator: exact
+    hidden: true
