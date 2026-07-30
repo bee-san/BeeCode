@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-minutes
+    arguments: [[[2, 1, 1], [1, 1, 0], [0, 1, 1]]]
+    expected: 4
+    comparator: exact
+
+  - name: example-unreachable-orange
+    arguments: [[[2, 1, 1], [0, 1, 1], [1, 0, 1]]]
+    expected: -1
+    comparator: exact
+
+  - name: example-nothing-fresh
+    arguments: [[[0, 2]]]
+    expected: 0
+    comparator: exact
+
+  - name: no-spoiled-orange-at-all
+    # One fresh orange and no source, so it never spoils.
+    arguments: [[[1]]]
+    expected: -1
+    comparator: exact
+
+  - name: empty-grid-of-zeroes
+    arguments: [[[0, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: one-minute
+    # A single level. Counting a trailing empty level would give 2.
+    arguments: [[[2, 1]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: two-sources-meet-in-the-middle
+    # Seeded from both ends the answer is 2, not 4. A single-source search
+    # from the left would say 4.
+    arguments: [[[2, 1, 1, 1, 2]]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: already-all-spoiled
+    arguments: [[[2, 2], [2, 2]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-gap-blocks-the-spread
+    # Empty cells are not passable.
+    arguments: [[[2, 0, 1]]]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: spread-around-a-corner
+    # The bottom-left orange is two rows below the source but six steps away,
+    # because the empty cells force the spread round the right edge. Straight-
+    # line distance would say 2.
+    arguments: [[[2, 1, 1], [0, 0, 1], [1, 1, 1]]]
+    expected: 6
+    comparator: exact
+    hidden: true

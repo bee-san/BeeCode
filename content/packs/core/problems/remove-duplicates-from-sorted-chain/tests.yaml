@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-duplicate
+    arguments: [[1, 1, 2]]
+    expected: [1, 2]
+    comparator: exact
+
+  - name: example-two-runs
+    arguments: [[1, 1, 2, 3, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+
+  - name: an-empty-chain
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: a-run-of-three
+    # Advancing the pointer after a removal returns [1, 1] here.
+    arguments: [[1, 1, 1]]
+    expected: [1]
+    comparator: exact
+
+  - name: no-duplicates
+    arguments: [[1, 2, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-node
+    arguments: [[9]]
+    expected: [9]
+    comparator: exact
+    hidden: true
+
+  - name: every-value-the-same
+    arguments: [[2, 2, 2, 2, 2]]
+    expected: [2]
+    comparator: exact
+    hidden: true
+
+  - name: the-run-is-at-the-end
+    arguments: [[1, 2, 3, 3, 3, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+    hidden: true
+
+  - name: negative-values
+    arguments: [[-3, -3, -1, 0, 0]]
+    expected: [-3, -1, 0]
+    comparator: exact
+    hidden: true
+
+  - name: alternating-single-and-repeated
+    arguments: [[1, 2, 2, 3, 4, 4, 4, 5]]
+    expected: [1, 2, 3, 4, 5]
+    comparator: exact
+    hidden: true

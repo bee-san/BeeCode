@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-parts
+    arguments: ["ababcbacadefegdehijhklij"]
+    expected: [9, 7, 8]
+    comparator: exact
+
+  - name: example-all-distinct
+    # No letter repeats, so every character is its own part.
+    arguments: ["abc"]
+    expected: [1, 1, 1]
+    comparator: exact
+
+  - name: one-letter-repeated
+    # A single part; the a cannot be split.
+    arguments: ["aaa"]
+    expected: [3]
+    comparator: exact
+
+  - name: a-single-character
+    arguments: ["a"]
+    expected: [1]
+    comparator: exact
+
+  - name: the-first-letter-returns-at-the-end
+    # The a at the end forces everything into one part.
+    arguments: ["abca"]
+    expected: [4]
+    comparator: exact
+    hidden: true
+
+  - name: two-clean-halves
+    arguments: ["aabb"]
+    expected: [2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: nested-repeats
+    arguments: ["abba"]
+    expected: [4]
+    comparator: exact
+    hidden: true
+
+  - name: interleaved-then-separate
+    arguments: ["ababcd"]
+    expected: [4, 1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: a-letter-spanning-almost-everything
+    # The a closes immediately, but from the first x onwards nothing can be
+    # cut, since the x runs to the last index.
+    arguments: ["axbxcx"]
+    expected: [1, 5]
+    comparator: exact
+    hidden: true
+
+  - name: many-small-parts
+    arguments: ["aabbccddee"]
+    expected: [2, 2, 2, 2, 2]
+    comparator: exact
+    hidden: true

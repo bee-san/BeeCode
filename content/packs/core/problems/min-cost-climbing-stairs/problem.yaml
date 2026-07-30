@@ -1,0 +1,40 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Cheapest Way Up the Stairs
+difficulty: easy
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - array
+algorithms:
+  - dynamic-programming
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: min_cost
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "cost = [10, 15, 20]"
+    output: "15"
+    explanation: "Start at stair 1, pay 15, and climb two stairs to the top."
+  - input: "cost = [1, 100, 1, 1, 1, 100, 1, 1, 100, 1]"
+    output: "6"
+    explanation: "Six single-cost stairs, skipping every 100."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

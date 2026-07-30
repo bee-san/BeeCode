@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Merge K Sorted Lists
+difficulty: hard
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - heap
+  - linked-list
+  - array
+algorithms:
+  - divide-and-conquer
+  - sorting
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: merge_all
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "lists = [[1, 4, 5], [1, 3, 4], [2, 6]]"
+    output: "[1, 1, 2, 3, 4, 4, 5, 6]"
+  - input: "lists = [[], [1]]"
+    output: "[1]"
+    explanation: "Empty inputs contribute nothing."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

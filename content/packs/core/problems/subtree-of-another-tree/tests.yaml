@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-subtree-present
+    arguments: [[3, 4, 5, 1, 2], [4, 1, 2]]
+    expected: true
+    comparator: exact
+
+  - name: example-extra-descendant-breaks-the-match
+    # The strictness test. A match that stops when sub runs out says True.
+    arguments: [[3, 4, 5, 1, 2, null, null, null, null, 0], [4, 1, 2]]
+    expected: false
+    comparator: exact
+
+  - name: empty-sub-is-always-present
+    arguments: [[1], []]
+    expected: true
+    comparator: exact
+
+  - name: nothing-can-be-found-in-an-empty-tree
+    arguments: [[], [1]]
+    expected: false
+    comparator: exact
+
+  - name: both-empty
+    arguments: [[], []]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: sub-is-a-single-leaf
+    # The tree's leaf matches, though its root -- also holding 1 -- does not.
+    arguments: [[1, 1], [1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: partial-shape-match
+    # The tree's node 4 has two children; sub's has one.
+    arguments: [[3, 4, 5, 1, 2], [4, 1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: whole-tree-is-the-subtree
+    arguments: [[1, 2, 3], [1, 2, 3]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: value-matches-but-the-shape-does-not
+    # Sub is 2 with a left child 3; the tree's 2 is a leaf.
+    arguments: [[1, 2, 3], [2, 3]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: match-nested-two-levels-down
+    arguments: [[1, 2, 3, 4, 5], [2, 4, 5]]
+    expected: true
+    comparator: exact
+    hidden: true

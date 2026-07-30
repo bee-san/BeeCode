@@ -1,0 +1,54 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-needs-the-whole-array
+    arguments: [[2, -1, 2], 3]
+    expected: 3
+    comparator: exact
+
+  - name: example-unreachable
+    arguments: [[1, 2], 4]
+    expected: -1
+    comparator: exact
+
+  - name: single-element-exactly-k
+    arguments: [[1], 1]
+    expected: 1
+    comparator: exact
+
+  - name: empty-array
+    arguments: [[], 5]
+    expected: -1
+    comparator: exact
+
+  - name: all-negative
+    arguments: [[-1, -2], 1]
+    expected: -1
+    comparator: exact
+
+  - name: a-negative-must-be-crossed
+    # 84 + 95 = 179 would be shorter but they are not adjacent; the -37 has to
+    # be paid for, so the answer spans three elements.
+    arguments: [[84, -37, 32, 40, 95], 167]
+    expected: 3
+    comparator: exact
+
+  - name: prefer-a-later-short-window
+    # A greedy scan that commits to the first qualifying window returns 7 here.
+    arguments: [[1, -1, 1, -1, 1, -1, 10], 10]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: whole-array-needed-with-equal-values
+    arguments: [[1, 1, 1, 1], 4]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: two-of-six
+    arguments: [[2, 3, 1, 2, 4, 3], 7]
+    expected: 2
+    comparator: exact
+    hidden: true

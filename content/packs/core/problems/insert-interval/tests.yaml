@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-merge-one
+    arguments: [[[1, 3], [6, 9]], [2, 5]]
+    expected: [[1, 5], [6, 9]]
+    comparator: exact
+
+  - name: example-merge-three
+    # Absorbing one interval extends the reach far enough to absorb the next.
+    arguments: [[[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], [4, 8]]
+    expected: [[1, 2], [3, 10], [12, 16]]
+    comparator: exact
+
+  - name: an-empty-list
+    arguments: [[], [4, 8]]
+    expected: [[4, 8]]
+    comparator: exact
+
+  - name: touching-at-a-point-merges
+    # Sharing a single point counts as overlapping.
+    arguments: [[[1, 3]], [3, 5]]
+    expected: [[1, 5]]
+    comparator: exact
+
+  - name: the-new-interval-goes-first
+    arguments: [[[5, 7]], [1, 2]]
+    expected: [[1, 2], [5, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: the-new-interval-goes-last
+    arguments: [[[1, 2]], [5, 7]]
+    expected: [[1, 2], [5, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: the-new-interval-fits-in-a-gap
+    arguments: [[[1, 2], [7, 8]], [4, 5]]
+    expected: [[1, 2], [4, 5], [7, 8]]
+    comparator: exact
+    hidden: true
+
+  - name: the-new-interval-is-swallowed
+    # The result is one interval, not two.
+    arguments: [[[1, 10]], [3, 4]]
+    expected: [[1, 10]]
+    comparator: exact
+    hidden: true
+
+  - name: the-new-interval-swallows-everything
+    arguments: [[[2, 3], [5, 6], [8, 9]], [1, 10]]
+    expected: [[1, 10]]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-point-interval
+    # A start equal to an end is a legitimate interval.
+    arguments: [[[1, 2], [5, 6]], [3, 3]]
+    expected: [[1, 2], [3, 3], [5, 6]]
+    comparator: exact
+    hidden: true

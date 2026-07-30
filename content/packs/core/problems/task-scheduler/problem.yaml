@@ -1,0 +1,44 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Task Scheduler With a Cooldown
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - counter
+  - heap
+  - array
+algorithms:
+  - greedy
+  - bucketing
+  - counting
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: least_interval
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "tasks = [\"A\", \"A\", \"A\", \"B\", \"B\", \"B\"], cooldown = 2"
+    output: "8"
+    explanation: "A B idle A B idle A B, so 8 units."
+  - input: "tasks = [\"A\", \"A\", \"A\", \"B\", \"B\", \"B\"], cooldown = 0"
+    output: "6"
+    explanation: "No cooldown, so no idling."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

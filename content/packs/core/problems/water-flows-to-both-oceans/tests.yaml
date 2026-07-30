@@ -1,0 +1,52 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-by-two
+    arguments: [[[1, 2], [4, 3]]]
+    expected: [[0, 1], [1, 0], [1, 1]]
+    comparator: unordered_list
+
+  - name: example-single-cell
+    arguments: [[[1]]]
+    expected: [[0, 0]]
+    comparator: unordered_list
+
+  - name: flat-grid-drains-everywhere
+    # Level ground is passable, so a strict height comparison returns too few.
+    arguments: [[[5, 5], [5, 5]]]
+    expected: [[0, 0], [0, 1], [1, 0], [1, 1]]
+    comparator: unordered_list
+
+  - name: single-row
+    # Every cell in a single row touches both the top and the bottom edge.
+    arguments: [[[1, 2, 3]]]
+    expected: [[0, 0], [0, 1], [0, 2]]
+    comparator: unordered_list
+
+  - name: single-column
+    arguments: [[[3], [2], [1]]]
+    expected: [[0, 0], [1, 0], [2, 0]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: a-basin-reaches-neither
+    # The low centre cannot climb out, so it appears in neither reached set.
+    arguments: [[[9, 9, 9], [9, 1, 9], [9, 9, 9]]]
+    expected: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1], [2, 2]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: a-peak-reaches-both
+    # From the summit water runs off in every direction.
+    arguments: [[[1, 1, 1], [1, 9, 1], [1, 1, 1]]]
+    expected: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: descending-diagonal-terrain
+    # Mixed terrain where only seven of twenty-five cells drain both ways.
+    arguments: [[[1, 2, 2, 3, 5], [3, 2, 3, 4, 4], [2, 4, 5, 3, 1], [6, 7, 1, 4, 5], [5, 1, 1, 2, 4]]]
+    expected: [[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]
+    comparator: unordered_list
+    hidden: true

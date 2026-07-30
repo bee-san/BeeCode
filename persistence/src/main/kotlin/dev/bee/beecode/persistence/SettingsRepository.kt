@@ -172,6 +172,41 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         }
     }
 
+    /**
+     * The learner's colour-scheme preference, or null to follow the system.
+     *
+     * Stored as an opaque string rather than a typed enum because the enum lives in
+     * `:shared`, which depends on this module and not the other way round. The typed
+     * accessors are extensions there; this is the storage.
+     *
+     * Syncable and exportable on purpose: it is a preference, not a device secret, and
+     * a learner who restores a backup should get their own app back.
+     */
+    fun appTheme(): String? = get(KEY_APP_THEME)?.takeIf { it.isNotBlank() }
+
+    fun setAppTheme(theme: String?, now: Instant) {
+        if (theme.isNullOrBlank()) remove(KEY_APP_THEME) else put(KEY_APP_THEME, theme, now)
+    }
+
+    /** Whether the Progress destination is available. Missing or damaged values stay enabled. */
+    fun showProgress(): Boolean = enabledByDefault(KEY_SHOW_PROGRESS)
+
+    fun setShowProgress(show: Boolean, now: Instant) =
+        put(KEY_SHOW_PROGRESS, show.toString(), now)
+
+    /**
+     * Whether motivational streak and achievement surfaces are shown.
+     *
+     * Neutral study analytics remain available when this is off. As with Progress
+     * visibility, a missing or malformed value fails open so an old or damaged profile
+     * cannot strand the learner without an obvious way to restore the UI.
+     */
+    fun showStreaksAndAchievements(): Boolean =
+        enabledByDefault(KEY_SHOW_STREAKS_AND_ACHIEVEMENTS)
+
+    fun setShowStreaksAndAchievements(show: Boolean, now: Instant) =
+        put(KEY_SHOW_STREAKS_AND_ACHIEVEMENTS, show.toString(), now)
+
     /** Path to a Python interpreter chosen by the learner, if any. */
     fun pythonExecutable(): String? = get(KEY_PYTHON_EXECUTABLE)?.takeIf { it.isNotBlank() }
 
@@ -236,6 +271,9 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
             statement.executeQuery().use { rows -> if (rows.next()) rows.getString("value") else null }
         }
 
+    private fun enabledByDefault(key: String): Boolean =
+        get(key)?.toBooleanStrictOrNull() ?: true
+
     private fun writeValue(connection: Connection, key: String, value: String, now: Instant) {
         connection.prepareStatement(
             """
@@ -257,6 +295,9 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_MAX_INTERVAL_DAYS = "fsrs.maximumIntervalDays"
         const val KEY_FSRS_PARAMETERS = "fsrs.parameters"
         const val KEY_DAILY_REVIEW_LIMIT = "review.dailyLimit"
+        const val KEY_APP_THEME = "app.theme"
+        const val KEY_SHOW_PROGRESS = "progress.show"
+        const val KEY_SHOW_STREAKS_AND_ACHIEVEMENTS = "motivation.show"
         const val KEY_PYTHON_EXECUTABLE = "python.executable"
         const val KEY_SYNC_FILE = "sync.file"
         const val KEY_SYNC_WEBDAV_URL = "sync.webdav.url"

@@ -1,0 +1,55 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-prefix-is-not-a-word
+    arguments: [[["insert", "apple"], ["search", "apple"], ["search", "app"], ["starts_with", "app"]]]
+    expected: [true, false, true]
+    comparator: exact
+
+  - name: example-searching-an-empty-tree
+    arguments: [[["search", "a"], ["insert", "a"], ["search", "a"]]]
+    expected: [false, true]
+    comparator: exact
+
+  - name: prefix-becomes-a-word
+    # Inserting a prefix of an existing word must not disturb the longer one.
+    arguments: [[["insert", "apple"], ["insert", "app"], ["search", "app"], ["search", "apple"]]]
+    expected: [true, true]
+    comparator: exact
+
+  - name: longer-than-anything-stored
+    # The walk runs off the end of the tree, so both queries fail.
+    arguments: [[["insert", "app"], ["search", "apple"], ["starts_with", "apple"]]]
+    expected: [false, false]
+    comparator: exact
+
+  - name: shared-prefix-diverging
+    arguments: [[["insert", "car"], ["insert", "cat"], ["search", "car"], ["search", "cat"], ["search", "ca"], ["starts_with", "ca"]]]
+    expected: [true, true, false, true]
+    comparator: exact
+    hidden: true
+
+  - name: single-character-words
+    arguments: [[["insert", "a"], ["starts_with", "a"], ["search", "b"]]]
+    expected: [true, false]
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-inserts
+    arguments: [[["insert", "x"], ["insert", "x"], ["search", "x"]]]
+    expected: [true]
+    comparator: exact
+    hidden: true
+
+  - name: unrelated-words
+    arguments: [[["insert", "dog"], ["insert", "elephant"], ["starts_with", "do"], ["starts_with", "el"], ["starts_with", "ed"]]]
+    expected: [true, true, false]
+    comparator: exact
+    hidden: true
+
+  - name: query-before-any-insert
+    arguments: [[["starts_with", "any"]]]
+    expected: [false]
+    comparator: exact
+    hidden: true

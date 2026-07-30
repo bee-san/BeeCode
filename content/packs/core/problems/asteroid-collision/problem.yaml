@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Asteroid Collision
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - array
+  - stack
+algorithms:
+  - simulation
+  - monotonic-stack
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: collide
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "asteroids = [5, 10, -5]"
+    output: "[5, 10]"
+    explanation: "The 10 and the -5 collide and the -5 loses. The 5 is shielded by the 10."
+  - input: "asteroids = [8, -8]"
+    output: "[]"
+    explanation: "Equal sizes, so both are destroyed."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

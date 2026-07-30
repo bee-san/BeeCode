@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-stairs
+    arguments: [[10, 15, 20]]
+    expected: 15
+    comparator: exact
+
+  - name: example-ten-stairs
+    arguments: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]]
+    expected: 6
+    comparator: exact
+
+  - name: two-stairs
+    # Start on stair 0 and climb two stairs past the top.
+    arguments: [[1, 2]]
+    expected: 1
+    comparator: exact
+
+  - name: the-last-stair-can-be-skipped
+    # Stepping off stair 1 clears the top without ever paying 100. Stopping on
+    # the last stair would return 100.
+    arguments: [[0, 0, 100]]
+    expected: 0
+    comparator: exact
+
+  - name: all-equal-costs
+    # Two steps of two: pay for stairs 0 and 2.
+    arguments: [[5, 5, 5, 5]]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: free-stairs
+    arguments: [[0, 0, 0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: the-cheaper-first-step-is-not-the-cheaper-route
+    # Starting on stair 1 costs 2, then stair 3 costs 2, total 4. Starting on
+    # the cheaper stair 0 forces a 100 or a longer route.
+    arguments: [[1, 2, 100, 2]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: a-long-alternating-run
+    # Every odd stair is skipped.
+    arguments: [[1, 50, 1, 50, 1, 50, 1]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: the-cost-is-charged-on-departure
+    # Start on stair 1, pay 1, and climb two stairs clear of the top. The 100
+    # is never paid because stair 0 is never left.
+    arguments: [[100, 1, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true

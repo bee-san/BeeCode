@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-positive-number
+    arguments: [123]
+    expected: 321
+    comparator: exact
+
+  - name: example-an-overflowing-reversal
+    arguments: [1534236469]
+    expected: 0
+    comparator: exact
+
+  - name: a-negative-number
+    # The sign is kept, not reversed onto the end.
+    arguments: [-123]
+    expected: -321
+    comparator: exact
+
+  - name: zero
+    arguments: [0]
+    expected: 0
+    comparator: exact
+
+  - name: trailing-zeroes-vanish
+    # Not 021, and reversing again does not recover 120.
+    arguments: [120]
+    expected: 21
+    comparator: exact
+    hidden: true
+
+  - name: a-single-digit
+    arguments: [7]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: the-largest-value-that-still-fits
+    # The step guard must allow this, since the last digit is below 8.
+    arguments: [1463847412]
+    expected: 2147483641
+    comparator: exact
+    hidden: true
+
+  - name: one-past-what-fits
+    # The reversal is 2147483691, which is over the limit.
+    arguments: [1963847412]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-overflow
+    arguments: [-1534236469]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: the-most-negative-input
+    # Its reversal is ten digits and far out of range.
+    arguments: [-2147483648]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-palindrome
+    arguments: [12321]
+    expected: 12321
+    comparator: exact
+    hidden: true

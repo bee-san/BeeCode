@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-block-in-the-middle
+    arguments: [[[0, 0, 0], [0, 1, 0], [0, 0, 0]]]
+    expected: 2
+    comparator: exact
+
+  - name: example-a-block-in-the-top-row
+    arguments: [[[0, 1], [0, 0]]]
+    expected: 1
+    comparator: exact
+
+  - name: the-start-is-blocked
+    arguments: [[[1, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+
+  - name: the-destination-is-blocked
+    arguments: [[[0, 0], [0, 1]]]
+    expected: 0
+    comparator: exact
+
+  - name: no-blocks-at-all
+    # Four choose two, the unobstructed count.
+    arguments: [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: a-single-free-cell
+    arguments: [[[0]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-single-blocked-cell
+    arguments: [[[1]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-wall-across-the-grid
+    # No route can cross a fully blocked row.
+    arguments: [[[0, 0], [1, 1], [0, 0]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-single-row-with-a-block
+    arguments: [[[0, 1, 0]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-single-column-with-no-blocks
+    arguments: [[[0], [0], [0]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: blocks-forcing-one-route
+    arguments: [[[0, 0, 1], [1, 0, 0], [1, 1, 0]]]
+    expected: 1
+    comparator: exact
+    hidden: true

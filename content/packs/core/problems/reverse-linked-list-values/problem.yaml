@@ -4,9 +4,15 @@ schemaVersion: 1
 
 title: Reverse a Sequence of Values
 difficulty: easy
-topics:
-  - arrays
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - array
+  - linked-list
+algorithms:
   - two-pointers
+  - in-place
 
 # The function BeeCode calls to test the solution. Must match starter.py and
 # reference.py.

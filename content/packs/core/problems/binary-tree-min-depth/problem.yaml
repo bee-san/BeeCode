@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: The Shallowest Leaf
+difficulty: easy
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - binary-tree
+  - queue
+algorithms:
+  - breadth-first-search
+  - depth-first-search
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: min_depth
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "tree = [3, 9, 20, null, null, 15, 7]"
+    output: "2"
+    explanation: "The leaf 9 is two nodes from the root."
+  - input: "tree = [2, null, 3, null, null, null, 4]"
+    output: "3"
+    explanation: "The only leaf is 4, three nodes down."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

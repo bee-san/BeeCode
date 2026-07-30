@@ -1,0 +1,68 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-by-three
+    arguments: [[[1, 3, 1], [1, 5, 1], [4, 2, 1]]]
+    expected: 7
+    comparator: exact
+
+  - name: example-two-by-two
+    # Greedily stepping right costs 4.
+    arguments: [[[1, 2], [1, 1]]]
+    expected: 3
+    comparator: exact
+
+  - name: a-single-cell
+    arguments: [[[5]]]
+    expected: 5
+    comparator: exact
+
+  - name: a-single-row
+    # Every cell must be crossed, so the total is fixed.
+    arguments: [[[1, 2, 3]]]
+    expected: 6
+    comparator: exact
+
+  - name: a-single-column
+    arguments: [[[1], [2], [3]]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: all-zeroes
+    arguments: [[[0, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-cheap-corridor-down-the-left
+    arguments: [[[1, 9, 9], [1, 9, 9], [1, 1, 1]]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: a-cheap-corridor-along-the-top
+    arguments: [[[1, 1, 1], [9, 9, 1], [9, 9, 1]]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: a-non-square-grid
+    arguments: [[[1, 2, 5], [3, 2, 1]]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: the-expensive-route-looks-cheaper-first
+    # The best route weaves rather than hugging one edge.
+    arguments: [[[1, 1, 100], [100, 1, 1]]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: a-larger-grid
+    arguments: [[[1, 3, 1, 2], [1, 5, 1, 3], [4, 2, 1, 1], [3, 2, 2, 1]]]
+    expected: 9
+    comparator: exact
+    hidden: true

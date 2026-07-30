@@ -1,0 +1,52 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-values
+    arguments: [[3, 6, 9, 1]]
+    expected: 3
+    comparator: exact
+
+  - name: example-single-element
+    arguments: [[10]]
+    expected: 0
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: all-values-equal
+    # Every gap is 0, and the bucket width would be 0 if it were not guarded.
+    arguments: [[1, 1, 1]]
+    expected: 0
+    comparator: exact
+
+  - name: two-values-far-apart
+    arguments: [[1, 10000000]]
+    expected: 9999999
+    comparator: exact
+
+  - name: already-ascending
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 1
+    comparator: exact
+
+  - name: unsorted-with-one-outlier
+    arguments: [[2, 99, 3, 4, 5, 6, 7]]
+    expected: 92
+    comparator: exact
+    hidden: true
+
+  - name: negative-and-positive
+    arguments: [[-5, 0, 5, 100]]
+    expected: 95
+    comparator: exact
+    hidden: true
+
+  - name: repeats-around-a-gap
+    arguments: [[0, 0, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true

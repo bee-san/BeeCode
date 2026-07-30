@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-classic
+    arguments: [[2, 1, 5, 6, 2, 3]]
+    expected: 10
+    comparator: exact
+
+  - name: example-two-bars
+    arguments: [[2, 4]]
+    expected: 4
+    comparator: exact
+
+  - name: empty-histogram
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: single-bar
+    arguments: [[7]]
+    expected: 7
+    comparator: exact
+
+  - name: increasing-tail-needs-flushing
+    # Best is height 3 across the last three bars. Without a final flush of
+    # the stack these bars are never measured.
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 9
+    comparator: exact
+    hidden: true
+
+  - name: flat-histogram
+    # Equal heights, so the pop condition must not lose width on ties.
+    arguments: [[3, 3, 3, 3]]
+    expected: 12
+    comparator: exact
+    hidden: true
+
+  - name: zero-height-bar-splits-the-histogram
+    # The zero is a wall, so the 4s cannot combine with the 5.
+    arguments: [[4, 4, 0, 5]]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: valley-between-two-towers
+    # Height 4 across the four bars 5, 4, 5 -- 3 wide -- versus 2 across five
+    # bars.
+    arguments: [[6, 2, 5, 4, 5, 1, 6]]
+    expected: 12
+    comparator: exact
+    hidden: true
+
+  - name: all-zeros
+    arguments: [[0, 0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true

@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Count Words with a Prefix
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - trie
+  - string
+  - hash-map
+algorithms:
+  - hashing
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: count_prefixes
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "words = [\"apple\", \"app\", \"apricot\"], queries = [\"ap\", \"app\", \"b\"]"
+    output: "[3, 2, 0]"
+    explanation: "All three start with \"ap\"; \"apple\" and \"app\" start with \"app\"; nothing starts with \"b\"."
+  - input: "words = [\"a\", \"a\"], queries = [\"a\"]"
+    output: "[2]"
+    explanation: "Duplicates count separately."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

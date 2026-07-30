@@ -1,0 +1,68 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-cycle
+    arguments: [[1, 2, 3, 1]]
+    expected: true
+    comparator: exact
+
+  - name: example-no-cycle
+    arguments: [[1, 2, -1]]
+    expected: false
+    comparator: exact
+
+  - name: an-empty-chain
+    arguments: [[]]
+    expected: false
+    comparator: exact
+
+  - name: a-single-node-pointing-at-itself
+    # A cycle of length one.
+    arguments: [[0]]
+    expected: true
+    comparator: exact
+
+  - name: a-single-node-with-no-successor
+    arguments: [[-1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: an-odd-length-chain-that-terminates
+    # Checking the end only once can step off here.
+    arguments: [[1, 2, 3, 4, -1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: an-even-length-chain-that-terminates
+    arguments: [[1, 2, 3, -1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-cycle-covering-the-whole-chain
+    arguments: [[1, 2, 3, 0]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-cycle-of-odd-length
+    # A fast pointer moving three at a time could straddle the slow one here.
+    arguments: [[1, 2, 3, 4, 2]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: two-nodes-pointing-at-each-other
+    arguments: [[1, 0]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-long-tail-into-a-short-cycle
+    arguments: [[1, 2, 3, 4, 5, 6, 7, 8, 7]]
+    expected: true
+    comparator: exact
+    hidden: true

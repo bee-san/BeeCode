@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-words
+    arguments: ["hit", "cog", ["hot", "dot", "dog", "lot", "log", "cog"]]
+    expected: 5
+    comparator: exact
+
+  - name: example-target-absent
+    arguments: ["hit", "cog", ["hot", "dot", "dog", "lot", "log"]]
+    expected: 0
+    comparator: exact
+
+  - name: one-step
+    # Two words: a then c. Single-letter words differ in their only position.
+    arguments: ["a", "c", ["a", "b", "c"]]
+    expected: 2
+    comparator: exact
+
+  - name: start-equals-target
+    # A ladder of one word. Returning 0 or 2 are both common here.
+    arguments: ["dog", "dog", ["dog"]]
+    expected: 1
+    comparator: exact
+
+  - name: start-need-not-be-in-the-list
+    # hot is absent from words, which the statement allows.
+    arguments: ["hot", "dog", ["dot", "dog"]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: no-route-exists
+    # hot and dog differ in two positions and nothing bridges them.
+    arguments: ["hot", "dog", ["hot", "dog"]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: the-shorter-of-two-routes
+    # A direct one-letter change beats the longer detour.
+    arguments: ["aaa", "aac", ["aab", "aac", "abc"]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-chain
+    # Two shortest routes of equal length exist; the count is the same.
+    arguments: ["cat", "dog", ["cot", "cog", "dog", "cag", "dag"]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: the-only-route-is-the-long-way
+    arguments: ["ab", "cd", ["ad", "cd"]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: empty-word-list
+    arguments: ["a", "b", []]
+    expected: 0
+    comparator: exact
+    hidden: true

@@ -33,12 +33,17 @@ The complete local study loop works on both platforms today.
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
 | Credential storage | Android Keystore (hardware-backed on most devices) | OS keyring, or plaintext where none exists |
-| Verified by | 16 Robolectric UI + 26 instrumented tests | 61 JVM tests, 15 of them UI |
+| Verified by | 40 JVM tests, 19 of them Robolectric UI, + 26 instrumented | 70 JVM tests, 18 of them UI |
 
-**440 automated tests**: 414 JVM tests across nine modules and 26 Android
+**580 automated tests**: 554 JVM tests across nine modules and 26 Android
 instrumented tests, including the complete answer → fail → fix → pass → finalize →
 restart journey against real CPython and real SQLite on both platforms. None of the
-414 skip on this host or in CI.
+554 skip on this host or in CI.
+
+Each build also runs every Problem's reference solution against every one of its
+declared tests under real CPython, checks that each starter does *not* already pass,
+and checks that no reference solution is reachable before the learner chooses to
+reveal it. A wrong expected value fails the build rather than a learner.
 
 **Both clients' UI is tested, headlessly, on every push.** The two suites assert
 deliberately overlapping rules — a failed run permits only *Again*, an unaided pass
@@ -52,7 +57,7 @@ emulator that accepts injected touch input, and no emulator available to this pr
 provides one: this dev host has no `/dev/kvm`, so only Google's automated-test-device
 images boot and they render nothing at all, while CI's `-no-window` emulator refuses
 injection. Those tests therefore skipped in both places — written, compiled, and never
-run. Robolectric removes the emulator from the question, so the 9 UI assertions now run
+run. Robolectric removes the emulator from the question, so the 19 UI assertions now run
 on every push and every `./gradlew test`.
 
 Running them found real bugs in the tests themselves: assertions that a node was
@@ -68,10 +73,15 @@ interpreter. One assertion is also weaker under Robolectric than on a device: th
 row is a horizontal scroller nested in a vertical one, whose children compose with a
 real size but are never placed, so it is asserted by existence rather than by display.
 
-The Problem pack holds **16 Problems** — 10 easy, 5 medium, 1 hard — with 126 tests, 30
-of them hidden. That meets the year-one target of 12–20, and it covers all four
-comparators; `any_of` and `approximate_numeric` had been implemented but unused by any
-Problem, so those code paths shipped untested.
+The Problem pack holds **200 Problems** — 46 easy, 128 medium, 26 hard — with 1850
+tests, 977 of them hidden. That is well past the year-one target of 12–20, and it
+covers all four comparators; `any_of` and `approximate_numeric` had been implemented
+but unused by any Problem, so those code paths shipped untested.
+
+Every Problem is classified on two axes — the structures it is made of and the
+techniques it trains — against a closed vocabulary in `taxonomy.yaml`, so a typo fails
+the build instead of quietly creating a topic with one Problem in it. No slug in that
+vocabulary is unused.
 
 **Cross-device sync works, over a file you own.** It follows the chimahon model in
 [ADR 0002](docs/adr/0002-personal-sync-direction.md): pull, merge, apply locally, then
@@ -211,7 +221,7 @@ content-tools/   Problem loading, validation, and pack compilation
 shared/          Study loop, statistics, achievements, export/restore, sync merge
 androidApp/      Android client and the Chaquopy runner
 desktopApp/      Desktop client and the process runner
-content/packs/   The Problem pack: 16 Problems, 126 tests
+content/packs/   The Problem pack: 200 Problems, 1850 tests
 ```
 
 The domain does not import Compose, Android, SQL, HTTP, or any Python-provider

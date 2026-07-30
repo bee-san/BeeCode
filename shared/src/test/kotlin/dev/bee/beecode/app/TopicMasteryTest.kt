@@ -195,13 +195,16 @@ class TopicMasteryTest {
 
     @Test
     fun aTopicTaggedTwiceOnOneProblemCountsOnce() {
-        // Content is unvalidated by choice (ADR 0005), so a duplicated tag is possible.
-        // It must not double a topic's evidence off a single review.
-        val duplicated = problem("two-sum", "arrays", "arrays")
+        // The pack loader rejects a repeated tag and `.distinct()`s the union, so this
+        // shape cannot come out of `content/`. Asserted anyway because the fan-out is what
+        // makes double-counting possible at all: `Problem` itself permits a repeated topic,
+        // and one review inflating a topic's evidence would corrupt the recall rate rather
+        // than fail loudly.
+        val duplicated = problem("two-sum", "array", "array")
         val projection = compute(listOf(duplicated), listOf(review("s1", "two-sum")))
 
-        assertEquals(1, projection.ability("arrays").reviews)
-        assertEquals(1, projection.ability("arrays").memberProblems)
+        assertEquals(1, projection.ability("array").reviews)
+        assertEquals(1, projection.ability("array").memberProblems)
     }
 
     @Test
@@ -343,10 +346,10 @@ class TopicMasteryTest {
     fun displayNamesAreHumanisedFromTheSlugInSentenceCase() {
         assertEquals("Dynamic programming", TopicMastery.displayName("dynamic-programming"))
         assertEquals("Hash map", TopicMastery.displayName("hash_map"))
-        assertEquals("Arrays", TopicMastery.displayName("arrays"))
+        assertEquals("Array", TopicMastery.displayName("array"))
         assertEquals("Sliding window", TopicMastery.displayName("sliding-window"))
-        // Slugs are unvalidated by choice, so the humaniser must not be a place a
-        // strange one can crash. It degrades to the slug rather than throwing.
+        // Total by construction: this must name a card the pack no longer explains, so
+        // a degenerate slug degrades to itself rather than throwing.
         assertEquals("-", TopicMastery.displayName("-"))
         assertEquals("", TopicMastery.displayName(""))
     }

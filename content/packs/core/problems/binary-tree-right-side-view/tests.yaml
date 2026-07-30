@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-rightmost-is-a-left-child
+    arguments: [[1, 2, 3, null, 5, null, 4]]
+    expected: [1, 3, 4]
+    comparator: exact
+
+  - name: example-right-chain
+    arguments: [[1, null, 3]]
+    expected: [1, 3]
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: left-child-only
+    # The second level has one node, and it is on the left.
+    arguments: [[1, 2]]
+    expected: [1, 2]
+    comparator: exact
+
+  - name: single-node
+    arguments: [[1]]
+    expected: [1]
+    comparator: exact
+    hidden: true
+
+  - name: perfect-tree
+    arguments: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: [1, 3, 7]
+    comparator: exact
+    hidden: true
+
+  - name: left-leaning-chain
+    # Every level's rightmost node is a left child.
+    arguments: [[1, 2, null, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+    hidden: true
+
+  - name: deep-levels-are-all-left-descendants
+    # Following right children from the root stops at level 2 and misses 4 and
+    # 8.
+    arguments: [[1, 2, 3, 4, null, null, null, 8]]
+    expected: [1, 3, 4, 8]
+    comparator: exact
+    hidden: true
+
+  - name: rightmost-changes-side-per-level
+    arguments: [[1, 2, 3, null, 4]]
+    expected: [1, 3, 4]
+    comparator: exact
+    hidden: true

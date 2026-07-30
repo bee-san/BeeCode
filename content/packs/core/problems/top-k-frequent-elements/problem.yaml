@@ -1,0 +1,43 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Top K Frequent Elements
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - counter
+  - hash-map
+  - heap
+algorithms:
+  - counting
+  - sorting
+  - hashing
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: top_k_frequent
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "nums = [1, 1, 1, 2, 2, 3], k = 2"
+    output: "[1, 2]"
+    explanation: "1 appears three times and 2 twice, so those are the two most frequent."
+  - input: "nums = [1], k = 1"
+    output: "[1]"
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

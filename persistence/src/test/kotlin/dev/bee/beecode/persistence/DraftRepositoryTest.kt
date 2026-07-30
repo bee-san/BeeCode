@@ -239,6 +239,37 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun progressVisibilityDefaultsToEnabledAndRoundTrips() {
+        assertTrue(settings.showProgress())
+
+        settings.setShowProgress(false, T0)
+        assertFalse(settings.showProgress())
+
+        settings.setShowProgress(true, T0.plusDays(1))
+        assertTrue(settings.showProgress())
+    }
+
+    @Test
+    fun motivationVisibilityDefaultsToEnabledAndRoundTrips() {
+        assertTrue(settings.showStreaksAndAchievements())
+
+        settings.setShowStreaksAndAchievements(false, T0)
+        assertFalse(settings.showStreaksAndAchievements())
+
+        settings.setShowStreaksAndAchievements(true, T0.plusDays(1))
+        assertTrue(settings.showStreaksAndAchievements())
+    }
+
+    @Test
+    fun malformedVisibilitySettingsFailOpen() {
+        settings.put(SettingsRepository.KEY_SHOW_PROGRESS, "sometimes", T0)
+        settings.put(SettingsRepository.KEY_SHOW_STREAKS_AND_ACHIEVEMENTS, "0", T0)
+
+        assertTrue(settings.showProgress())
+        assertTrue(settings.showStreaksAndAchievements())
+    }
+
+    @Test
     fun thePythonExecutablePathRoundTripsAndClears() {
         assertNull(settings.pythonExecutable())
         settings.setPythonExecutable("/usr/local/bin/python3.12", T0)

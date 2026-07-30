@@ -1,0 +1,83 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-johns-merge
+    arguments:
+      - - ["John", "johnsmith@mail.com", "john_newyork@mail.com"]
+        - ["John", "johnsmith@mail.com", "john00@mail.com"]
+        - ["Mary", "mary@mail.com"]
+        - ["John", "johnnybravo@mail.com"]
+    expected:
+      - ["John", "john00@mail.com", "john_newyork@mail.com", "johnsmith@mail.com"]
+      - ["John", "johnnybravo@mail.com"]
+      - ["Mary", "mary@mail.com"]
+    comparator: exact
+
+  - name: example-no-shared-email
+    arguments:
+      - - ["A", "a@x.com"]
+        - ["B", "b@x.com"]
+    expected:
+      - ["A", "a@x.com"]
+      - ["B", "b@x.com"]
+    comparator: exact
+
+  - name: no-accounts
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: a-single-account
+    arguments: [[["Alex", "alex@a.com"]]]
+    expected: [["Alex", "alex@a.com"]]
+    comparator: exact
+
+  - name: different-names-share-an-email
+    # The rule is the shared email, not the name.
+    arguments:
+      - - ["A", "a@x.com", "shared@x.com"]
+        - ["B", "shared@x.com", "b@x.com"]
+    expected:
+      - ["A", "a@x.com", "b@x.com", "shared@x.com"]
+    comparator: exact
+
+  - name: merging-is-transitive
+    # A shares with B, B with C, C with D; no direct link from A to D.
+    arguments:
+      - - ["A", "p@x.com", "q@x.com"]
+        - ["A", "q@x.com", "r@x.com"]
+        - ["A", "r@x.com", "s@x.com"]
+    expected:
+      - ["A", "p@x.com", "q@x.com", "r@x.com", "s@x.com"]
+    comparator: exact
+    hidden: true
+
+  - name: the-linking-account-comes-last
+    # The first and second accounts only become one person because of the third,
+    # which is not seen until both have been processed.
+    arguments:
+      - - ["Z", "one@x.com"]
+        - ["Z", "two@x.com"]
+        - ["Z", "one@x.com", "two@x.com"]
+    expected:
+      - ["Z", "one@x.com", "two@x.com"]
+    comparator: exact
+    hidden: true
+
+  - name: emails-are-sorted-not-in-input-order
+    arguments:
+      - - ["Q", "zeta@x.com", "alpha@x.com", "mu@x.com"]
+    expected:
+      - ["Q", "alpha@x.com", "mu@x.com", "zeta@x.com"]
+    comparator: exact
+    hidden: true
+
+  - name: a-duplicated-account
+    arguments:
+      - - ["D", "d@x.com"]
+        - ["D", "d@x.com"]
+    expected:
+      - ["D", "d@x.com"]
+    comparator: exact
+    hidden: true

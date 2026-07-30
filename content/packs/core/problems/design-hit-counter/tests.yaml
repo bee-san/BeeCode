@@ -1,0 +1,69 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-hits-inside-the-window
+    # By second 301 the hit at second 1 has left the window.
+    arguments: [[["hit", 1], ["hit", 2], ["hit", 300], ["count", 300], ["count", 301]]]
+    expected: [3, 2]
+    comparator: exact
+
+  - name: example-the-hit-has-expired
+    arguments: [[["hit", 1], ["count", 302]]]
+    expected: [0]
+    comparator: exact
+
+  - name: the-boundary-second-is-included
+    # A span of 300 seconds inclusive, so the hit still counts.
+    arguments: [[["hit", 1], ["count", 300]]]
+    expected: [1]
+    comparator: exact
+
+  - name: one-second-later-it-is-not
+    # Using a strict comparison for the boundary answers 1 here.
+    arguments: [[["hit", 1], ["count", 301]]]
+    expected: [0]
+    comparator: exact
+
+  - name: counting-with-no-hits
+    arguments: [[["count", 1]]]
+    expected: [0]
+    comparator: exact
+    hidden: true
+
+  - name: several-hits-in-one-second
+    # Duplicated timestamps are separate hits.
+    arguments: [[["hit", 5], ["hit", 5], ["hit", 5], ["count", 5]]]
+    expected: [3]
+    comparator: exact
+    hidden: true
+
+  - name: counting-twice-gives-the-same-answer
+    arguments: [[["hit", 10], ["count", 10], ["count", 10]]]
+    expected: [1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: hits-expiring-one-at-a-time
+    arguments: [[["hit", 1], ["hit", 2], ["hit", 3], ["count", 301], ["count", 302], ["count", 303]]]
+    expected: [2, 1, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-hit-after-a-long-gap
+    arguments: [[["hit", 1], ["hit", 1000], ["count", 1000]]]
+    expected: [1]
+    comparator: exact
+    hidden: true
+
+  - name: interleaved-hits-and-counts
+    arguments: [[["hit", 1], ["count", 1], ["hit", 2], ["count", 2], ["hit", 3], ["count", 3]]]
+    expected: [1, 2, 3]
+    comparator: exact
+    hidden: true
+
+  - name: large-timestamps
+    arguments: [[["hit", 1000000000], ["count", 1000000000]]]
+    expected: [1]
+    comparator: exact
+    hidden: true

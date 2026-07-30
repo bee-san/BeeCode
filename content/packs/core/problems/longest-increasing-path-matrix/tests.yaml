@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-two-six-nine
+    arguments: [[[9, 9, 4], [6, 6, 8], [2, 1, 1]]]
+    expected: 4
+    comparator: exact
+
+  - name: example-a-single-cell
+    # Cells, not steps.
+    arguments: [[[1]]]
+    expected: 1
+    comparator: exact
+
+  - name: every-cell-is-equal
+    # Equal is not strictly greater, so no step is legal.
+    arguments: [[[7, 7], [7, 7]]]
+    expected: 1
+    comparator: exact
+
+  - name: a-single-increasing-row
+    arguments: [[[1, 2, 3, 4]]]
+    expected: 4
+    comparator: exact
+
+  - name: a-single-decreasing-row
+    # The path may start at the right-hand end.
+    arguments: [[[4, 3, 2, 1]]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: a-single-column
+    arguments: [[[3], [4], [5]]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: a-diagonal-step-is-not-allowed
+    # 1 to 2 is diagonal and illegal; the longest legal path is 1 to 9, of
+    # length 2.
+    arguments: [[[1, 9], [9, 2]]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-path-that-turns-corners
+    # 1, 2, 4, 5, 6, 7 — up, up, right, down, down.
+    arguments: [[[3, 4, 5], [3, 2, 6], [2, 1, 7]]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: the-longest-path-starts-in-the-middle
+    # 1, 2, 3, 9 begins at the centre cell, so scanning only from a corner or
+    # an edge misses it.
+    arguments: [[[7, 8, 9], [9, 1, 2], [9, 9, 3]]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: a-staircase
+    arguments: [[[1, 2], [4, 3]]]
+    expected: 4
+    comparator: exact
+    hidden: true

@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-mixed-tree
+    arguments: [[3, 1, 4, 3, null, 1, 5]]
+    expected: 4
+    comparator: exact
+
+  - name: example-ties-count-as-good
+    arguments: [[3, 3, null, 4, 2]]
+    expected: 3
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: single-node
+    # The root is always good.
+    arguments: [[1]]
+    expected: 1
+    comparator: exact
+
+  - name: all-negative
+    # Seeding the running maximum with 0 rather than the root's value fails
+    # here.
+    arguments: [[-1, -2, -3]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: decreasing-chain
+    arguments: [[5, 4, null, 3]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: increasing-chain
+    arguments: [[1, 2, null, 3]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: all-values-equal
+    # Every node ties, and a tie is good. A strict comparison counts only the
+    # root.
+    arguments: [[2, 2, 2]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: grandparent-blocks-a-node-larger-than-its-parent
+    # 5 beats its parent 1 but not the root 9. A parent-only check counts it.
+    arguments: [[9, 1, null, 5]]
+    expected: 1
+    comparator: exact
+    hidden: true

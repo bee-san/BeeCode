@@ -1,0 +1,71 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-valid-relabelling
+    arguments: ["egg", "add"]
+    expected: true
+    comparator: exact
+
+  - name: example-a-character-needing-two-targets
+    arguments: ["foo", "bar"]
+    expected: false
+    comparator: exact
+
+  - name: two-characters-collapsing-onto-one
+    # A single forward map accepts this.
+    arguments: ["ab", "aa"]
+    expected: false
+    comparator: exact
+
+  - name: identical-strings
+    # Every character maps to itself.
+    arguments: ["abc", "abc"]
+    expected: true
+    comparator: exact
+
+  - name: different-lengths
+    # zip would truncate and report True.
+    arguments: ["ab", "abc"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-single-character-each
+    arguments: ["a", "z"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-relation-is-symmetric
+    # The reverse of the collapse case, and it must agree.
+    arguments: ["aa", "ab"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-swap
+    # Character counts alone would not settle this.
+    arguments: ["ab", "ba"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-same-counts-but-different-patterns
+    # Both have two of one character and one of another.
+    arguments: ["aab", "abb"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: non-letter-characters
+    arguments: ["a#a", "b1b"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-consistent-pair
+    arguments: ["paper", "title"]
+    expected: true
+    comparator: exact
+    hidden: true

@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-wildcards
+    arguments: [[["add", "bad"], ["add", "dad"], ["search", "pad"], ["search", ".ad"], ["search", "b.."]]]
+    expected: [false, true, true]
+    comparator: exact
+
+  - name: example-pattern-longer-than-the-word
+    arguments: [[["add", "a"], ["search", "a."]]]
+    expected: [false]
+    comparator: exact
+
+  - name: pattern-shorter-than-the-word
+    # Reaching the end of the pattern is not enough; the node must be a word.
+    arguments: [[["add", "ab"], ["search", "a"]]]
+    expected: [false]
+    comparator: exact
+
+  - name: all-wildcards
+    # Dots match exactly one character each, so the lengths must agree.
+    arguments: [[["add", "xyz"], ["search", "..."], ["search", ".."]]]
+    expected: [true, false]
+    comparator: exact
+
+  - name: search-before-any-add
+    arguments: [[["search", "a"], ["search", "."]]]
+    expected: [false, false]
+    comparator: exact
+    hidden: true
+
+  - name: wildcard-must-try-every-child
+    # The match is under the second child. Returning the first child's verdict
+    # reports False.
+    arguments: [[["add", "ax"], ["add", "bx"], ["search", ".x"], ["search", ".y"]]]
+    expected: [true, false]
+    comparator: exact
+    hidden: true
+
+  - name: word-that-is-a-prefix-of-another
+    arguments: [[["add", "abc"], ["add", "ab"], ["search", "ab"], ["search", "a."]]]
+    expected: [true, true]
+    comparator: exact
+    hidden: true
+
+  - name: single-dot-against-one-letter-words
+    arguments: [[["add", "a"], ["add", "b"], ["search", "."], ["search", "c"]]]
+    expected: [true, false]
+    comparator: exact
+    hidden: true
+
+  - name: wildcard-in-the-final-position
+    arguments: [[["add", "mad"], ["search", "ma."], ["search", "mb."]]]
+    expected: [true, false]
+    comparator: exact
+    hidden: true

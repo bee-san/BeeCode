@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-possible
+    arguments: [2, [[1, 0]]]
+    expected: true
+    comparator: exact
+
+  - name: example-mutual-deadlock
+    arguments: [2, [[1, 0], [0, 1]]]
+    expected: false
+    comparator: exact
+
+  - name: no-prerequisites-at-all
+    arguments: [3, []]
+    expected: true
+    comparator: exact
+
+  - name: long-chain-is-fine
+    arguments: [4, [[1, 0], [2, 1], [3, 2]]]
+    expected: true
+    comparator: exact
+
+  - name: self-prerequisite-is-impossible
+    # A course requiring itself can never be started.
+    arguments: [1, [[0, 0]]]
+    expected: false
+    comparator: exact
+
+  - name: diamond-is-acyclic
+    # Two paths reach course 3. Acyclic, so possible -- an implementation that
+    # flags any re-visited node wrongly says false.
+    arguments: [4, [[1, 0], [2, 0], [3, 1], [3, 2]]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: cycle-hidden-behind-a-valid-prefix
+    # Courses 1, 2, 3 form a cycle even though 0 is takeable.
+    arguments: [5, [[1, 0], [2, 1], [3, 2], [1, 3]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: three-cycle
+    arguments: [3, [[1, 0], [2, 1], [0, 2]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-pairs
+    # A repeated prerequisite raises the in-degree twice and must still be
+    # decremented to zero.
+    arguments: [2, [[1, 0], [1, 0]]]
+    expected: true
+    comparator: exact
+    hidden: true

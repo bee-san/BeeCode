@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-get-refreshes-recency
+    arguments: [2, [["put", 1, 1], ["put", 2, 2], ["get", 1], ["put", 3, 3], ["get", 2]]]
+    expected: [1, -1]
+    comparator: exact
+
+  - name: example-capacity-one
+    arguments: [1, [["put", 1, 1], ["put", 2, 2], ["get", 1]]]
+    expected: [-1]
+    comparator: exact
+
+  - name: get-a-key-never-inserted
+    arguments: [2, [["get", 9]]]
+    expected: [-1]
+    comparator: exact
+
+  - name: put-overwrites-and-counts-as-a-use
+    # Overwriting key 1 refreshes it, so key 2 is the victim. A put that
+    # updates the value without touching the order evicts key 1 instead.
+    arguments: [2, [["put", 1, 1], ["put", 2, 2], ["put", 1, 10], ["put", 3, 3], ["get", 2], ["get", 1], ["get", 3]]]
+    expected: [-1, 10, 3]
+    comparator: exact
+
+  - name: full-eviction-sequence
+    arguments: [2, [["put", 1, 1], ["put", 2, 2], ["get", 1], ["put", 3, 3], ["get", 2], ["put", 4, 4], ["get", 1], ["get", 3], ["get", 4]]]
+    expected: [1, -1, -1, 3, 4]
+    comparator: exact
+    hidden: true
+
+  - name: a-failed-get-changes-nothing
+    # The miss must not count as a use of anything, so key 1 is still the
+    # victim.
+    arguments: [2, [["put", 1, 1], ["put", 2, 2], ["get", 5], ["put", 3, 3], ["get", 1]]]
+    expected: [-1, -1]
+    comparator: exact
+    hidden: true
+
+  - name: value-zero-is-a-real-value
+    # Zero is falsy. A truthiness test for presence reports -1 here.
+    arguments: [2, [["put", 1, 0], ["get", 1]]]
+    expected: [0]
+    comparator: exact
+    hidden: true
+
+  - name: capacity-never-exceeded-under-churn
+    # Ten inserts into a cache of three, so only the last three survive.
+    arguments: [3, [["put", 1, 10], ["put", 2, 20], ["put", 3, 30], ["put", 4, 40], ["put", 5, 50], ["put", 6, 60], ["put", 7, 70], ["put", 8, 80], ["put", 9, 90], ["put", 10, 100], ["get", 7], ["get", 8], ["get", 9], ["get", 10]]]
+    expected: [-1, 80, 90, 100]
+    comparator: exact
+    hidden: true

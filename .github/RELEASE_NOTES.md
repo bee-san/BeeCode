@@ -29,7 +29,10 @@ or with `brew install python@3.12`, and if it still cannot find it you can set t
 exact path in Settings.
 
 The DMG is built on an Apple Silicon runner. **Intel Macs are not covered by this
-release.**
+release**, and will not be in future ones: GitHub retired its free Intel macOS
+runners, and the replacements are billed per-minute with no free allowance. On an
+Intel Mac you can still build your own with `./gradlew :desktopApp:packageDmg`,
+which is the same command that produces the DMG above.
 
 ### Linux
 
@@ -41,7 +44,9 @@ Download the `.tar.gz`, extract it, and run `BeeCode/bin/BeeCode`. Needs `python
   the review.
 - FSRS scheduling: better ratings mean longer intervals, and a lapse brings a Problem
   back sooner.
-- 16 Problems with 126 tests, 30 of them hidden.
+- 200 Problems with 1850 tests, 977 of them hidden, classified on two axes — what
+  each one is made of and what it trains — so you can study by structure or by
+  technique.
 - Local statistics, a solve streak, and four achievements including the 5am Club.
 - Export your whole profile to a file and restore it — merging rather than
   overwriting, so importing twice is safe.
@@ -90,9 +95,14 @@ sync, and a wider Problem curriculum. See the
 
 ## Verification
 
-440 automated tests: 414 JVM tests across nine modules and 26 Android instrumented
+580 automated tests: 554 JVM tests across nine modules and 26 Android instrumented
 tests, including the full answer → fail → fix → pass → finalize → restart journey
-against real CPython and real SQLite on both platforms. None of the 414 skip.
+against real CPython and real SQLite on both platforms. None of the 554 skip.
+
+Every Problem's reference solution is executed against every one of its declared
+tests by real CPython on each build, so a wrong expected value fails the build
+instead of failing a learner. The same gate proves each starter does *not* already
+pass, and that no reference solution is readable before you choose to reveal it.
 
 Both clients' UI is tested headlessly on every push. The Android UI is covered by
 Robolectric on the JVM rather than by instrumented Compose tests: those need an emulator

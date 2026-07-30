@@ -11,8 +11,21 @@ androidMinSdk = "26"
 androidTargetSdk = "36"
 
 # App version (single source of truth)
-appVersionName = "0.1.0"
-appVersionCode = "1"
+#
+# Bump BOTH of these in the commit that precedes a release tag, and make the tag
+# match appVersionName exactly. `ReleaseVersionTest` fails the build if the tag and
+# this file disagree, because they silently did once: v0.1.0 and v0.2.0 both shipped
+# an APK reporting versionName 0.1.0 and versionCode 1. The release workflow names
+# its assets from the git tag while the manifest reads this file, so the filename
+# said 0.2.0 and `aapt dump badging` on the published artifact said 0.1.0.
+#
+# versionCode is the part that actually breaks an install. Android upgrades only on a
+# strictly greater versionCode, so two releases sharing code 1 are the same build as
+# far as the platform is concerned: sideloading v0.2.0 over v0.1.0 was not an
+# upgrade, it was a reinstall of something Android believed it already had. It is a
+# monotonic counter, unrelated to the semantic version — never reuse or decrease it.
+appVersionName = "0.2.0"
+appVersionCode = "2"
 
 # Libraries
 coroutines = "1.10.2"

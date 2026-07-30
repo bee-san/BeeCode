@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-add-then-multiply
+    arguments: [["2", "1", "+", "3", "*"]]
+    expected: 9
+    comparator: exact
+
+  - name: example-with-division
+    arguments: [["4", "13", "5", "/", "+"]]
+    expected: 6
+    comparator: exact
+
+  - name: single-number
+    # No operators at all; the answer is the lone value.
+    arguments: [["42"]]
+    expected: 42
+    comparator: exact
+
+  - name: subtraction-order
+    # 3 - 4. Popping the operands in the wrong order gives 1.
+    arguments: [["3", "4", "-"]]
+    expected: -1
+    comparator: exact
+
+  - name: negative-division-truncates-towards-zero
+    # Python's // floors and gives -4. This is the defining test of the
+    # Problem.
+    arguments: [["-7", "2", "/"]]
+    expected: -3
+    comparator: exact
+    hidden: true
+
+  - name: negative-literal-is-not-an-operator
+    # Catches operator detection by isdigit(), which reads -3 as a minus sign.
+    arguments: [["-3", "-4", "*"]]
+    expected: 12
+    comparator: exact
+    hidden: true
+
+  - name: deeply-nested
+    # 6 * (9 + 3) * -11 is -792; 10 / -792 truncates to 0; 0 * ... + 17 + 5.
+    arguments: [["10", "6", "9", "3", "+", "-11", "*", "/", "*", "17", "+", "5", "+"]]
+    expected: 22
+    comparator: exact
+    hidden: true
+
+  - name: division-of-a-positive-by-a-negative
+    arguments: [["7", "-2", "/"]]
+    expected: -3
+    comparator: exact
+    hidden: true

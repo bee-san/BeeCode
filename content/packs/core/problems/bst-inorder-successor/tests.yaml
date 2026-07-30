@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-successor-is-the-parent
+    arguments: [[2, 1, 3], 1]
+    expected: 2
+    comparator: exact
+
+  - name: example-largest-has-no-successor
+    arguments: [[5, 3, 6, 2, 4, null, null, 1], 6]
+    expected: null
+    comparator: exact
+
+  - name: successor-is-in-the-right-subtree
+    arguments: [[5, 3, 6, 2, 4, null, null, 1], 3]
+    expected: 4
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[], 5]
+    expected: null
+    comparator: exact
+
+  - name: only-node-is-the-target
+    # Strictly greater, so a node equal to the target is not its own successor.
+    arguments: [[1], 1]
+    expected: null
+    comparator: exact
+
+  - name: target-below-everything
+    arguments: [[1], 0]
+    expected: 1
+    comparator: exact
+
+  - name: successor-is-an-ancestor-two-levels-up
+    # 30 has no right child, so the answer is above it rather than below.
+    arguments: [[40, 20, 60, 10, 30, 50, 70], 30]
+    expected: 40
+    comparator: exact
+    hidden: true
+
+  - name: target-is-absent-from-the-tree
+    arguments: [[40, 20, 60, 10, 30, 50, 70], 45]
+    expected: 50
+    comparator: exact
+    hidden: true
+
+  - name: target-is-the-maximum
+    arguments: [[40, 20, 60, 10, 30, 50, 70], 70]
+    expected: null
+    comparator: exact
+    hidden: true

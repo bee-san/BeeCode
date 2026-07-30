@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-both-reduce-to-the-same
+    arguments: ["ab#c", "ad#c"]
+    expected: true
+    comparator: exact
+
+  - name: example-different-results
+    arguments: ["a#c", "b"]
+    expected: false
+    comparator: exact
+
+  - name: a-backspace-with-nothing-to-delete
+    # An unguarded pop raises here.
+    arguments: ["#a", "a"]
+    expected: true
+    comparator: exact
+
+  - name: both-reduce-to-empty
+    arguments: ["ab##", "c#d#"]
+    expected: true
+    comparator: exact
+
+  - name: very-different-lengths-agreeing
+    # Comparing lengths first would reject this.
+    arguments: ["a", "aaa##"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-reduces-to-empty-and-one-does-not
+    arguments: ["a#", "a"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: two-empty-strings
+    arguments: ["", ""]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: only-backspaces
+    arguments: ["###", ""]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-run-of-backspaces-deleting-several
+    arguments: ["abcd###", "a"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: no-backspaces-at-all
+    arguments: ["abc", "abc"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-difference-is-at-the-very-end
+    arguments: ["abc#d", "abc#e"]
+    expected: false
+    comparator: exact
+    hidden: true

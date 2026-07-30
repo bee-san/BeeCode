@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-symmetric
+    arguments: [[1, 2, 2, 3, 4, 4, 3]]
+    expected: true
+    comparator: exact
+
+  - name: example-same-side-children
+    arguments: [[1, 2, 2, null, 3, null, 3]]
+    expected: false
+    comparator: exact
+
+  - name: empty-tree-is-symmetric
+    arguments: [[]]
+    expected: true
+    comparator: exact
+
+  - name: root-only-is-symmetric
+    arguments: [[1]]
+    expected: true
+    comparator: exact
+
+  - name: crossed-children-do-mirror
+    # A right child on the left and a left child on the right DO mirror. An
+    # implementation that compares left.left with right.left wrongly rejects
+    # this.
+    arguments: [[1, 2, 2, null, 3, 3]]
+    expected: true
+    comparator: exact
+
+  - name: shape-mirrors-but-values-do-not
+    arguments: [[1, 2, 3]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: one-missing-child
+    # Exactly one side absent is a mismatch, not a match.
+    arguments: [[1, 2, 2, 3]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: zero-values-mirror
+    arguments: [[0, 0, 0]]
+    expected: true
+    comparator: exact
+    hidden: true

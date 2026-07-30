@@ -186,6 +186,69 @@ fun formatIntervalDays(intervalDays: Double): String {
     return pluralize(Math.round(intervalDays / DAYS_PER_YEAR), "year")
 }
 
+/**
+ * How urgent a due time is, so a client can colour it without re-deriving the rule.
+ *
+ * Three states rather than a boolean because "due" and "badly overdue" want to look
+ * different. A learner with one Problem an hour past due and one three weeks past due
+ * is in two different situations, and flattening both to "due" hides the backlog that
+ * spaced repetition is most easily wrecked by.
+ */
+enum class DueUrgency {
+    /** More than [OVERDUE_AFTER_DAYS] past due. Retention has measurably decayed. */
+    OVERDUE,
+
+    /** Due, but recently. The ordinary state of a Problem in today's queue. */
+    DUE,
+
+    /** Not yet due. */
+    UPCOMING,
+}
+
+/** A due time described for a learner, with the urgency behind the wording. */
+data class DueDescription(val label: String, val urgency: DueUrgency)
+
+/**
+ * Describe [dueAt] relative to [now].
+ *
+ * Exists so FSRS's decisions are *visible*. Every scheduling number the engine
+ * produces was already stored and already correct, and none of it appeared anywhere
+ * in either client — a spaced-repetition app that never says when something is next
+ * due is indistinguishable, from the outside, from one that has no scheduler at all.
+ *
+ * Shares [formatIntervalDays]'s unit selection, so "in 2 hours" here and "2 hours"
+ * on the finalize card cannot round differently for the same span.
+ */
+fun describeDue(dueAt: Instant, now: Instant): DueDescription {
+    val remainingDays = (dueAt.epochSeconds - now.epochSeconds) / SECONDS_PER_DAY
+
+    if (remainingDays > 0.0) {
+        // Sub-minute spans have no legible unit, and "Due in less than a minute" is a
+        // worse thing to say than the plain truth that it is due.
+        val label = formatIntervalDays(remainingDays)
+        return if (label == LESS_THAN_A_MINUTE) {
+            DueDescription("Due now", DueUrgency.DUE)
+        } else {
+            DueDescription("Due in $label", DueUrgency.UPCOMING)
+        }
+    }
+
+    val elapsedDays = -remainingDays
+    if (elapsedDays <= OVERDUE_AFTER_DAYS) return DueDescription("Due now", DueUrgency.DUE)
+    return DueDescription("Overdue by ${formatIntervalDays(elapsedDays)}", DueUrgency.OVERDUE)
+}
+
+/**
+ * How far past due a Problem must be before it reads as overdue rather than due.
+ *
+ * One day. Anything inside a day is what a learner who studies daily sees every
+ * session, so calling it overdue would mark the normal case as a problem and make the
+ * signal worthless.
+ */
+const val OVERDUE_AFTER_DAYS: Double = 1.0
+
+private const val LESS_THAN_A_MINUTE = "less than a minute"
+private const val SECONDS_PER_DAY = 86_400.0
 private const val MINUTES_PER_DAY = 1_440.0
 private const val MINUTES_PER_HOUR = 60L
 private const val HOURS_PER_DAY = 24L

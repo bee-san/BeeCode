@@ -18,6 +18,9 @@ import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.app.TopicMasteryProjection
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.setThemeChoice
+import dev.bee.beecode.design.themeChoice
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ProblemDefinition
 import dev.bee.beecode.domain.ProblemId
@@ -62,6 +65,14 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     private val _runnerStatus = MutableStateFlow<RunnerStatus?>(null)
     val runnerStatus: StateFlow<RunnerStatus?> = _runnerStatus.asStateFlow()
 
+    private val _showProgress = MutableStateFlow(profile.settings.showProgress())
+    val showProgress: StateFlow<Boolean> = _showProgress.asStateFlow()
+
+    private val _showStreaksAndAchievements =
+        MutableStateFlow(profile.settings.showStreaksAndAchievements())
+    val showStreaksAndAchievements: StateFlow<Boolean> =
+        _showStreaksAndAchievements.asStateFlow()
+
     private var runJob: Job? = null
 
     init {
@@ -74,6 +85,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _statistics.value = profile.statistics()
         _achievements.value = profile.achievements()
         _topicMastery.value = profile.topicMastery()
+        refreshVisibility()
     }
 
     fun showQueue() {
@@ -82,6 +94,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun showStatistics() {
+        if (!_showProgress.value) return
         refresh()
         _screen.value = Screen.Statistics
     }
@@ -232,6 +245,51 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun dailyLimit(): Int? = profile.settings.dailyReviewLimit()
+
+    /**
+     * The learner's theme preference, as state so the whole tree recomposes on a change.
+     *
+     * A `StateFlow` rather than a getter because the theme control lives *inside* the tree
+     * the theme wraps — a plain read would store the choice and go on rendering the old
+     * palette until the next launch, which is a setting that looks broken while working.
+     */
+    private val _themeChoice = MutableStateFlow(profile.settings.themeChoice())
+    val themeChoice: StateFlow<ThemeChoice> = _themeChoice.asStateFlow()
+
+    fun setThemeChoice(choice: ThemeChoice) {
+        profile.settings.setThemeChoice(choice, kotlinx.datetime.Clock.System.now())
+        _themeChoice.value = choice
+    }
+
+    fun setShowProgress(show: Boolean) {
+        profile.settings.setShowProgress(show, kotlinx.datetime.Clock.System.now())
+        _showProgress.value = show
+        if (!show && _screen.value is Screen.Statistics) {
+            _screen.value = Screen.Queue
+        }
+    }
+
+    fun setShowStreaksAndAchievements(show: Boolean) {
+        profile.settings.setShowStreaksAndAchievements(show, kotlinx.datetime.Clock.System.now())
+        _showStreaksAndAchievements.value = show
+    }
+
+    private fun refreshVisibility() {
+        val progress = profile.settings.showProgress()
+        _showProgress.value = progress
+        _showStreaksAndAchievements.value = profile.settings.showStreaksAndAchievements()
+        if (!progress && _screen.value is Screen.Statistics) {
+            _screen.value = Screen.Queue
+        }
+    }
+
+    /**
+     * A Problem's title, for the few places statistics carry ids rather than Problems.
+     *
+     * Narrower than exposing the catalogue: the schedule card names its leeches, and a
+     * leech the learner cannot identify is a number they can do nothing about.
+     */
+    fun problemTitle(problemId: ProblemId): String? = profile.catalogue.problem(problemId)?.title
 
     /**
      * Serialize the whole profile for the learner to save.

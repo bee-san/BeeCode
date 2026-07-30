@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-versions
+    arguments: [[["set", "a", "one", 1], ["get", "a", 1], ["get", "a", 3], ["set", "a", "two", 4], ["get", "a", 4], ["get", "a", 5]]]
+    expected: ["one", "one", "two", "two"]
+    comparator: exact
+
+  - name: example-before-the-first-write
+    arguments: [[["set", "a", "one", 5], ["get", "a", 1]]]
+    expected: [""]
+    comparator: exact
+
+  - name: unknown-key
+    # A key never written is a separate path from a key written too late.
+    arguments: [[["set", "a", "one", 1], ["get", "b", 1]]]
+    expected: [""]
+    comparator: exact
+
+  - name: keys-are-independent
+    # One timeline per key. A shared timeline would answer bvalue and avalue.
+    arguments: [[["set", "a", "avalue", 1], ["set", "b", "bvalue", 2], ["get", "a", 2], ["get", "b", 1]]]
+    expected: ["avalue", ""]
+    comparator: exact
+
+  - name: exact-timestamp-hit
+    # The bound is inclusive, so an exact match returns that version, not the
+    # earlier one.
+    arguments: [[["set", "k", "first", 10], ["set", "k", "second", 20], ["get", "k", 20]]]
+    expected: ["second"]
+    comparator: exact
+    hidden: true
+
+  - name: get-between-two-writes
+    arguments: [[["set", "k", "first", 10], ["set", "k", "second", 30], ["get", "k", 29]]]
+    expected: ["first"]
+    comparator: exact
+    hidden: true
+
+  - name: many-versions
+    # Fifty versions at even timestamps. Time 71 falls between v35 at 70 and
+    # v36 at 72.
+    arguments: [[["set", "k", "v1", 2], ["set", "k", "v2", 4], ["set", "k", "v3", 6], ["set", "k", "v4", 8], ["set", "k", "v5", 10], ["set", "k", "v6", 12], ["set", "k", "v7", 14], ["set", "k", "v8", 16], ["set", "k", "v9", 18], ["set", "k", "v10", 20], ["set", "k", "v11", 22], ["set", "k", "v12", 24], ["set", "k", "v13", 26], ["set", "k", "v14", 28], ["set", "k", "v15", 30], ["set", "k", "v16", 32], ["set", "k", "v17", 34], ["set", "k", "v18", 36], ["set", "k", "v19", 38], ["set", "k", "v20", 40], ["set", "k", "v21", 42], ["set", "k", "v22", 44], ["set", "k", "v23", 46], ["set", "k", "v24", 48], ["set", "k", "v25", 50], ["set", "k", "v26", 52], ["set", "k", "v27", 54], ["set", "k", "v28", 56], ["set", "k", "v29", 58], ["set", "k", "v30", 60], ["set", "k", "v31", 62], ["set", "k", "v32", 64], ["set", "k", "v33", 66], ["set", "k", "v34", 68], ["set", "k", "v35", 70], ["set", "k", "v36", 72], ["set", "k", "v37", 74], ["set", "k", "v38", 76], ["set", "k", "v39", 78], ["set", "k", "v40", 80], ["set", "k", "v41", 82], ["set", "k", "v42", 84], ["set", "k", "v43", 86], ["set", "k", "v44", 88], ["set", "k", "v45", 90], ["set", "k", "v46", 92], ["set", "k", "v47", 94], ["set", "k", "v48", 96], ["set", "k", "v49", 98], ["set", "k", "v50", 100], ["get", "k", 71], ["get", "k", 100], ["get", "k", 1]]]
+    expected: ["v35", "v50", ""]
+    comparator: exact
+    hidden: true
+
+  - name: get-far-past-the-last-write
+    arguments: [[["set", "k", "only", 1], ["get", "k", 10000000]]]
+    expected: ["only"]
+    comparator: exact
+    hidden: true

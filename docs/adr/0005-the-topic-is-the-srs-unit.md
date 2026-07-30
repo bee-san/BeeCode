@@ -13,8 +13,9 @@ primary key and the queue answered "which Problem is due". That is the wrong uni
 learner does not forget *two-sum*; they forget *dynamic programming*. The Problem is an
 exercise that rehearses a technique, and the technique is the thing being remembered.
 
-Problems already carried `topics: List<String>`, so the information was present and unused
-by the scheduler.
+Problems already carried `topics: List<String>` — the union of their declared
+`dataStructures` and `algorithms` — so the information was present and unused by the
+scheduler.
 
 ## Decision
 
@@ -24,10 +25,10 @@ and due date, stored in `topic_schedule` keyed by the topic slug. The queue list
 *which* member Problem to show.
 
 One review advances **every** topic its Problem is tagged with. `median-two-sorted`
-advances `arrays`, `binary-search`, and `two-pointers`, each with its own
+advances `array`, `binary-search`, and `divide-and-conquer`, each with its own
 `lastReviewedAt`, so their intervals stay independent. Bursts are self-limiting rather
 than inflationary: FSRS-7's recall-stability gain is `exp((1 - R) · w) - 1` and R ≈ 1.0 at
-elapsed ≈ 0, so five `arrays` Problems in one sitting buy almost no stability after the
+elapsed ≈ 0, so five `array` Problems in one sitting buy almost no stability after the
 first.
 
 Member-Problem selection is `lastReviewedAt` ascending, then `lapseCount` descending, then
@@ -86,12 +87,22 @@ deliberate, and a second invented prior to hide it would make the number less ho
 evidence base is recall of previously-solved Problems, not fresh problem-solving, and the
 label is the one place that could turn a true number into a lie.
 
-**Slugs are unvalidated by choice.** No canonical vocabulary and no allow-list; display
-names are humanised from the slug. The accepted risk is that a content typo mints a phantom
-topic card. It is contained rather than ignored: a topic with no attempted member Problems
-never enters the queue, so the worst case is a stray row and a stray line in Progress, not
-a learner stuck on an unpractisable card. `StudyJourneyTest` covers exactly that path with
-a deliberately misspelt `dynmaic-programming`.
+**The card key is whatever the pack's taxonomy says, and this layer does not police it.**
+The vocabulary is closed one level up: `content/packs/core/taxonomy.yaml` lists every legal
+`dataStructures` and `algorithms` slug, `Taxonomy.Vocabulary.Closed` rejects anything else,
+and a Problem declaring an unlisted slug fails the pack load. A `topics` entry is the union
+of the two, so by the time a slug reaches the scheduler it has already been validated. This
+was not true when the topic-as-card work began — slugs were free-form, and the accepted risk
+recorded here was that a typo would mint a phantom topic; the closed taxonomy retired that
+risk before this ADR landed. Display names are still humanised from the slug rather than
+read from `taxonomy.yaml`, because `TopicMastery` is in `:shared` and the descriptions are
+content the loader owns.
+
+**A topic card with nothing to rehearse it is still skipped.** Validation removes the typo
+route into that state but not the state itself: retagging the last Problem out of a topic
+leaves a real card, with real folded history, and no member Problem. The queue omits it,
+because the alternative is an entry the learner can never clear. `StudyJourneyTest` covers
+that path by rebuilding against a tag no Problem carries.
 
 ## Alternatives considered
 
@@ -101,9 +112,10 @@ a deliberately misspelt `dynmaic-programming`.
 - **Advance only the Problem's primary topic.** Rejected: it needs a notion of primary
   that the content does not have, and it discards real evidence about the other techniques
   a Problem rehearses.
-- **Validate slugs against a canonical topic list.** Rejected by the maintainer for v1:
-  free-form tagging keeps content authoring cheap, and the phantom-topic failure mode is
-  visible and harmless.
+- **Validate slugs in the scheduler.** Rejected as the wrong layer: `taxonomy.yaml` already
+  closes the vocabulary at pack load, so a second check here would either duplicate that
+  list in Kotlin — which PROB-004 forbids — or reject cards that were legal when they were
+  written. A projection over the log should fold what the log says.
 - **Carry topic schedules in the sync payload.** Rejected: it would make derived state
   something two devices could disagree over, which ADR 0002 exists to prevent.
 
@@ -115,5 +127,5 @@ a deliberately misspelt `dynmaic-programming`.
   named constants with tests asserting their behaviour, so they can move without a
   redesign; what would need a new ADR is reporting a single blended score.
 - Topics growing structure — hierarchy, prerequisites, or difficulty bands — at which point
-  the card key stops being a bare slug and the projection needs a real vocabulary, which is
-  the point at which slug validation stops being optional.
+  the card key stops being a bare slug and the projection needs to read the taxonomy rather
+  than merely inherit its guarantees.

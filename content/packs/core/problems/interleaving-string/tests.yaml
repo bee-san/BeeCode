@@ -1,0 +1,76 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-alternating
+    arguments: ["abc", "def", "adbecf"]
+    expected: true
+    comparator: exact
+
+  - name: example-a-shared-character
+    # Greedily taking the first a from the wrong string dead-ends.
+    arguments: ["aa", "ab", "aaba"]
+    expected: true
+    comparator: exact
+
+  - name: the-same-characters-in-a-bad-order
+    # The multiset matches, so a counting approach accepts this. But the b
+    # cannot come first: the second string's a precedes it.
+    arguments: ["aa", "ab", "baaa"]
+    expected: false
+    comparator: exact
+
+  - name: the-lengths-do-not-add-up
+    # Six characters cannot come from five.
+    arguments: ["abc", "de", "abcdef"]
+    expected: false
+    comparator: exact
+
+  - name: both-sources-empty
+    arguments: ["", "", ""]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-source-empty
+    arguments: ["", "abc", "abc"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-source-empty-and-a-mismatch
+    arguments: ["", "abc", "acb"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: the-whole-is-one-source-followed-by-the-other
+    # Consuming the first string entirely relies on the column-zero update.
+    arguments: ["abc", "xyz", "abcxyz"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-character-appears-in-neither
+    arguments: ["ab", "cd", "abcz"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: all-the-same-character
+    arguments: ["aaa", "aa", "aaaaa"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-interleaving
+    arguments: ["aabcc", "dbbca", "aadbbcbcac"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-non-interleaving
+    arguments: ["aabcc", "dbbca", "aadbbbaccc"]
+    expected: false
+    comparator: exact
+    hidden: true

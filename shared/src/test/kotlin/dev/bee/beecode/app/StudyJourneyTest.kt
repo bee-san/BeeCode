@@ -316,15 +316,21 @@ class StudyJourneyTest {
      *
      * "Show me a DP problem I have done before, but not specifically one problem" is
      * the request this change exists to satisfy, and this is where it gets evidence
-     * rather than an argument: two `arrays` Problems are solved, the clock is moved
-     * past the technique's interval, and the second review must land on the *other*
-     * member. Rotation is not a rule anywhere in the code — it falls out of ordering
-     * candidates by `lastReviewedAt`, so it is only observable end to end.
+     * rather than an argument: two Problems sharing a technique are solved, the clock is
+     * moved past that technique's interval, and the second review must land on the
+     * *other* member. Rotation is not a rule anywhere in the code — it falls out of
+     * ordering candidates by `lastReviewedAt`, so it is only observable end to end.
+     *
+     * The shared technique is read out of the pack rather than named, because the pack's
+     * `taxonomy.yaml` owns the vocabulary and has already renamed slugs once. A literal
+     * here would make a reviewed content change look like a scheduling regression.
      */
     @Test
     fun aDueTechniqueRotatesAcrossTheProblemsThatRehearseIt() = runBlocking {
         val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
         openProfile(clock).use { profile ->
+            val shared = profile.sharedTopicOf(ProblemId("two-sum"), ProblemId("contains-duplicate"))
+
             profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION)
             clock.current += 1.hours
             profile.solve(ProblemId("contains-duplicate"), CONTAINS_DUPLICATE_SOLUTION)
@@ -333,29 +339,32 @@ class StudyJourneyTest {
             // just rehearsed is not forgotten yet.
             assertTrue(profile.study.queue().dueTopics.isEmpty())
 
-            val arrays = assertNotNull(profile.reviews.topicSchedule("arrays"))
-            clock.current = arrays.dueAt + 1.hours
+            val schedule = assertNotNull(profile.reviews.topicSchedule(shared))
+            clock.current = schedule.dueAt + 1.hours
 
             val first = assertNotNull(
-                profile.study.queue().dueTopics.firstOrNull { it.topic == "arrays" },
-                "arrays must be due once its interval has passed",
+                profile.study.queue().dueTopics.firstOrNull { it.topic == shared },
+                "$shared must be due once its interval has passed",
             )
             // Least recently practised first, so it is two-sum rather than the one
             // solved an hour later.
             assertEquals(ProblemId("two-sum"), first.problem.id)
-            assertEquals("Arrays", first.displayName)
+            assertEquals(TopicMastery.displayName(shared), first.displayName)
             assertTrue(
                 first.attemptedMemberProblems >= 2 &&
                     first.memberProblems > first.attemptedMemberProblems,
-                "arrays has more members than the two practised: ${first.attemptedMemberProblems} " +
-                    "of ${first.memberProblems}",
+                "$shared has more members than the two practised: " +
+                    "${first.attemptedMemberProblems} of ${first.memberProblems}",
             )
 
             profile.solve(first.problem.id, TWO_SUM_SOLUTION)
 
             // Rehearsing the technique moved its due date on.
-            val advanced = assertNotNull(profile.reviews.topicSchedule("arrays"))
-            assertTrue(advanced.dueAt > arrays.dueAt, "rehearsing arrays must push its due date out")
+            val advanced = assertNotNull(profile.reviews.topicSchedule(shared))
+            assertTrue(
+                advanced.dueAt > schedule.dueAt,
+                "rehearsing $shared must push its due date out",
+            )
             // Three rehearsals of one technique from three reviews of two Problems —
             // which is the fan-out working: the technique accumulates across whichever
             // of its Problems the learner happened to do.
@@ -364,7 +373,7 @@ class StudyJourneyTest {
             // And the next time it comes round, a different Problem rehearses it.
             clock.current = advanced.dueAt + 1.hours
             val second = assertNotNull(
-                profile.study.queue().dueTopics.firstOrNull { it.topic == "arrays" },
+                profile.study.queue().dueTopics.firstOrNull { it.topic == shared },
             )
             assertEquals(
                 ProblemId("contains-duplicate"),
@@ -382,13 +391,15 @@ class StudyJourneyTest {
     fun aForgottenTechniqueComesBackSoonerThanARememberedOne() = runBlocking {
         val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
         openProfile(clock).use { profile ->
+            val shared = profile.sharedTopicOf(ProblemId("two-sum"), ProblemId("contains-duplicate"))
+
             profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION, ReviewRating.EASY)
-            val remembered = assertNotNull(profile.reviews.topicSchedule("arrays"))
+            val remembered = assertNotNull(profile.reviews.topicSchedule(shared))
 
             // A lapse on the same technique, one day later.
             clock.current += 24.hours
             profile.solve(ProblemId("contains-duplicate"), CONTAINS_DUPLICATE_SOLUTION, ReviewRating.AGAIN)
-            val forgotten = assertNotNull(profile.reviews.topicSchedule("arrays"))
+            val forgotten = assertNotNull(profile.reviews.topicSchedule(shared))
 
             assertTrue(
                 forgotten.intervalDays < remembered.intervalDays,
@@ -399,7 +410,7 @@ class StudyJourneyTest {
 
             // The topic mastery view reports the lapse without inventing a rate from it.
             val ability = assertNotNull(
-                profile.topicMastery().topics.firstOrNull { it.topic == "arrays" },
+                profile.topicMastery().topics.firstOrNull { it.topic == shared },
             )
             assertEquals(2, ability.reviews)
             assertEquals(1, ability.lapses)
@@ -411,12 +422,16 @@ class StudyJourneyTest {
     }
 
     /**
-     * The accepted cost of leaving topic slugs unvalidated (ADR 0005).
+     * A topic card can outlive the Problems that rehearse it (ADR 0005).
      *
-     * A mistyped tag mints a topic card with a real due date and no Problem in the pack
-     * to rehearse it. The queue has to skip it, because the alternative is a permanent
-     * entry the learner can never clear — and skipping is what makes "no allow-list" a
-     * tolerable choice rather than a bug waiting for its first typo.
+     * The pack's `taxonomy.yaml` closes the vocabulary, so a *typo* can no longer mint a
+     * topic — but retagging can still empty one. Move the last Problem out of a topic and
+     * its card remains, with real folded history, a real due date, and nothing to practise
+     * against. The queue has to skip it, because the alternative is a permanent entry the
+     * learner can never clear.
+     *
+     * Driven here by rebuilding against a tag no Problem carries, which is the same state
+     * from the scheduler's side and needs no content change to reach.
      */
     @Test
     fun aTechniqueWithNoProblemToRehearseItIsSkippedRatherThanStuckInTheQueue() = runBlocking {
@@ -424,16 +439,20 @@ class StudyJourneyTest {
         openProfile(clock).use { profile ->
             profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION)
 
-            // Stand in for a content typo: a card for a topic no Problem carries.
+            // Fold the log against a tag the pack no longer carries — the state left behind
+            // when the last Problem for a technique is retagged away. Every slug in
+            // `taxonomy.yaml` currently has at least one member, so an emptied topic cannot
+            // be spelled with a live one.
+            val emptied = "square-root-decomposition"
             profile.reviews.replaceTopicSchedules(
-                profile.reviews.rebuildTopicSchedulesFromHistory { listOf("dynmaic-programming") },
+                profile.reviews.rebuildTopicSchedulesFromHistory { listOf(emptied) },
             )
-            val phantom = assertNotNull(profile.reviews.topicSchedule("dynmaic-programming"))
-            clock.current = phantom.dueAt + 1.hours
+            val orphan = assertNotNull(profile.reviews.topicSchedule(emptied))
+            clock.current = orphan.dueAt + 1.hours
 
             // Due at the storage layer, absent from the queue.
             assertEquals(
-                listOf("dynmaic-programming"),
+                listOf(emptied),
                 profile.reviews.dueTopicSchedules(clock.now(), limit = 50).map { it.topic },
             )
             assertTrue(
@@ -441,13 +460,13 @@ class StudyJourneyTest {
                 "a technique with nothing to rehearse it must not be offered",
             )
 
-            // It still reads as a topic the learner has practised, rather than as an
-            // error — which is the honest rendering of an unvalidated slug.
+            // It still reads as a topic the learner has practised, rather than as an error.
+            // The history is real; only the Problems that produced it have moved.
             val ability = assertNotNull(
-                profile.topicMastery().topics.firstOrNull { it.topic == "dynmaic-programming" },
+                profile.topicMastery().topics.firstOrNull { it.topic == emptied },
             )
             assertEquals(0, ability.memberProblems)
-            assertEquals("Dynmaic programming", ability.displayName)
+            assertEquals("Square root decomposition", ability.displayName)
         }
     }
 
@@ -520,6 +539,26 @@ class StudyJourneyTest {
         val attempt = assertIs<RunOutcome.Completed>(study.run(problemId, source))
         assertEquals(ExecutionOutcome.PASSED, attempt.run.outcome, attempt.run.output)
         assertIs<FinalizeResult.Finalized>(study.finalize(problemId, attempt.run.id, rating))
+    }
+
+    /**
+     * The technique both Problems rehearse, read out of the pack rather than named.
+     *
+     * The rotation tests need two Problems that share a topic, and the pack's
+     * `taxonomy.yaml` owns the slug — it has already renamed one (`arrays` became
+     * `array`), which turned a reviewed content change into a scheduling-test failure.
+     * Deriving it means these tests fail only when *fan-out* is broken. Asserts rather
+     * than returning null, because a pack where these two share nothing invalidates the
+     * premise instead of the code under test.
+     */
+    private fun BeeCodeProfile.sharedTopicOf(first: ProblemId, second: ProblemId): String {
+        val firstTopics = assertNotNull(catalogue.problem(first)).topics
+        val secondTopics = assertNotNull(catalogue.problem(second)).topics.toSet()
+        return assertNotNull(
+            firstTopics.firstOrNull { it in secondTopics },
+            "$first and $second must share a technique for this test to mean anything: " +
+                "$firstTopics vs $secondTopics",
+        )
     }
 
     /**

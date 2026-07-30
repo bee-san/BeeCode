@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-horse-to-ros
+    arguments: ["horse", "ros"]
+    expected: 3
+    comparator: exact
+
+  - name: example-identical
+    arguments: ["abc", "abc"]
+    expected: 0
+    comparator: exact
+
+  - name: a-single-replacement
+    # Treating replace as a delete plus an insert would answer 2, which is the
+    # symptom of a missing diagonal predecessor.
+    arguments: ["a", "b"]
+    expected: 1
+    comparator: exact
+
+  - name: both-strings-empty
+    arguments: ["", ""]
+    expected: 0
+    comparator: exact
+
+  - name: an-empty-source
+    # Three insertions, which is what the base row must say.
+    arguments: ["", "abc"]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: an-empty-target
+    arguments: ["abc", ""]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: a-prefix-of-the-target
+    arguments: ["ab", "abcd"]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: the-distance-is-symmetric
+    # Insert and delete are each other's inverse, so direction cannot matter.
+    arguments: ["ros", "horse"]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: an-inserted-character-in-the-middle
+    arguments: ["ace", "abcde"]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-pair
+    arguments: ["intention", "execution"]
+    expected: 5
+    comparator: exact
+    hidden: true

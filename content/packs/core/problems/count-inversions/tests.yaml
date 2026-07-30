@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-inversions
+    arguments: [[2, 4, 1, 3, 5]]
+    expected: 3
+    comparator: exact
+
+  - name: example-fully-reversed
+    arguments: [[5, 4, 3, 2, 1]]
+    expected: 10
+    comparator: exact
+
+  - name: already-sorted
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 0
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: single-element
+    arguments: [[1]]
+    expected: 0
+    comparator: exact
+
+  - name: equal-values-are-not-inversions
+    # The comparison is strict, so a run of equal values contributes nothing.
+    arguments: [[1, 1, 1]]
+    expected: 0
+    comparator: exact
+
+  - name: repeats-mixed-with-inversions
+    arguments: [[2, 1, 2, 1]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: negative-values-and-a-repeat
+    arguments: [[-3, 0, -1, 5, -1]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: eight-elements
+    arguments: [[4, 3, 2, 10, 1, 8, 9, 0]]
+    expected: 16
+    comparator: exact
+    hidden: true
+
+  - name: all-equal-longer-run
+    arguments: [[7, 7, 7, 7, 7, 7]]
+    expected: 0
+    comparator: exact
+    hidden: true

@@ -119,6 +119,31 @@ class ProfileTransferTest {
     }
 
     @Test
+    fun visibilitySettingsSurviveExportAndRestoreWithoutAFormatChange() {
+        val payload = open(originalFile).use { profile ->
+            profile.settings.setShowProgress(false, exportedAt)
+            profile.settings.setShowStreaksAndAchievements(false, exportedAt)
+            ProfileTransfer.export(profile, exportedAt)
+        }
+
+        assertTrue(payload.contains("\"formatVersion\": ${ProfileTransfer.FORMAT_VERSION}"))
+        assertTrue(payload.contains("progress.show"))
+        assertTrue(payload.contains("motivation.show"))
+
+        open(restoredFile).use { profile ->
+            assertTrue(profile.settings.showProgress())
+            assertTrue(profile.settings.showStreaksAndAchievements())
+
+            assertIs<RestoreResult.Restored>(
+                ProfileTransfer.restore(profile, payload, Clock.System.now()),
+            )
+
+            assertFalse(profile.settings.showProgress())
+            assertFalse(profile.settings.showStreaksAndAchievements())
+        }
+    }
+
+    @Test
     fun aSolvedProfileRestoresIntoACleanInstall() = runBlocking {
         val problemId = ProblemId("two-sum")
         val source = workingTwoSum()

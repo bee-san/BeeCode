@@ -42,6 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -54,6 +60,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bee.beecode.design.BeeCodeAccents
+import dev.bee.beecode.design.EditorEdits
+import dev.bee.beecode.design.Markdown
 import dev.bee.beecode.domain.ExecutionOutcome
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ReviewRating
@@ -173,7 +182,17 @@ private fun ProblemHeader(state: ProblemUiState, onClose: () -> Unit) {
             fontWeight = FontWeight.Bold,
         )
         Text(
-            state.problem.topics.joinToString(" · "),
+            // The memory state FSRS is holding for *this* Problem, alongside the topics. It
+            // was stored on every review and shown nowhere, so the learner had no way to see
+            // that repeated success was lengthening the interval — which is the entire
+            // premise they are being asked to trust.
+            buildString {
+                append(state.problem.topics.joinToString(" · "))
+                state.schedule?.let { schedule ->
+                    append("  ·  reviewed ${schedule.reviewCount}×")
+                    append(", interval ${formatIntervalDays(schedule.intervalDays)}")
+                } ?: append("  ·  first attempt")
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -211,7 +230,7 @@ private fun StatementCard(state: ProblemUiState) {
                             Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surface,
                                     RoundedCornerShape(6.dp),
                                 )
                                 .padding(10.dp),
@@ -233,11 +252,23 @@ private fun StatementCard(state: ProblemUiState) {
 /**
  * The code editor.
  *
- * A `BasicTextField` with monospace text, autocorrect and capitalisation disabled,
- * and a symbol row. Those three settings matter more than they look: an IME that
- * capitalises `Def` or autocorrects `nums` produces syntax errors the learner did
- * not write, and a phone keyboard with no colon or bracket makes Python
- * unwritable.
+ * A `BasicTextField` with monospace text, autocorrect and capitalisation disabled, and a
+ * symbol row. Those three settings matter more than they look: an IME that capitalises
+ * `Def` or autocorrects `nums` produces syntax errors the learner did not write, and a
+ * phone keyboard with no colon or bracket makes Python unwritable.
+ *
+ * ## Indentation
+ *
+ * Enter carries the current line's indentation and adds a level after a `:`, and
+ * Backspace inside leading whitespace removes a whole level. Both come from
+ * [EditorEdits], which the desktop editor also uses — this client had neither, so the
+ * harder of the two keyboards to type Python on had the less help. Re-indenting by hand
+ * after every `if` is tedious on a desktop and genuinely discouraging on a phone.
+ *
+ * Enter is detected in `onValueChange` rather than as a key event, because a soft
+ * keyboard's Enter arrives as an already-committed text change and never reaches
+ * `onPreviewKeyEvent`. Tab and Shift+Tab are the reverse — no soft keyboard sends them,
+ * so they are handled only on the key path, for a hardware keyboard.
  */
 @Composable
 private fun CodeEditor(
@@ -277,6 +308,33 @@ private fun CodeEditor(
         update(TextFieldValue(updated, TextRange(start + text.length)))
     }
 
+    /**
+     * Auto-indent a newline the soft keyboard just inserted.
+     *
+     * Detected from the resulting text rather than from a key event, and that is not a
+     * shortcut: a soft keyboard's Enter arrives through `onValueChange` as an already-
+     * committed edit, and `onPreviewKeyEvent` — which is how the desktop editor does
+     * this — never fires for it. Writing this the desktop way would have produced code
+     * that looked right, compiled, and did nothing on a phone.
+     *
+     * Recognised as *exactly one* "\n" inserted at the caret. A paste containing
+     * newlines already carries its own indentation and must not be re-indented, and a
+     * newline typed into the middle of a line is still an Enter, so the test is on the
+     * shape of the edit and not on the caret's position in the line.
+     */
+    fun indentedNewlineOrNull(next: TextFieldValue): TextFieldValue? {
+        val before = value.text
+        val caretBefore = value.selection.min
+        if (!value.selection.collapsed) return null
+        if (next.text.length != before.length + 1) return null
+        if (next.selection.min != caretBefore + 1) return null
+        if (next.text.getOrNull(caretBefore) != '\n') return null
+        if (next.text.removeRange(caretBefore, caretBefore + 1) != before) return null
+
+        val edit = EditorEdits.newlineWithIndent(before, caretBefore)
+        return TextFieldValue(edit.text, TextRange(edit.caret))
+    }
+
     Card {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -294,17 +352,74 @@ private fun CodeEditor(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 200.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp)),
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp)),
             ) {
                 BasicTextField(
                     value = value,
-                    onValueChange = ::update,
+                    onValueChange = { next -> update(indentedNewlineOrNull(next) ?: next) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(10.dp)
                         // Horizontal scroll so a long line is reachable rather than
                         // wrapped into misleading indentation.
                         .horizontalScroll(rememberScrollState())
+                        // Tab and Backspace from a *hardware* keyboard, which a phone in a
+                        // dock or a tablet with a case has. The soft keyboard has no Tab at
+                        // all — the symbol row's first key is what serves that purpose there
+                        // — so this path is additive rather than the main one, and Enter is
+                        // deliberately absent from it: a soft Enter never reaches here, so
+                        // handling it in both places would double-indent on hardware.
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.Tab -> {
+                                    val start = value.selection.min
+                                    val end = value.selection.max
+                                    val spansLines = !value.selection.collapsed &&
+                                        value.text.substring(start, end).contains('\n')
+                                    when {
+                                        event.isShiftPressed -> EditorEdits
+                                            .dedentBlock(value.text, start, end)
+                                            .let {
+                                                update(
+                                                    TextFieldValue(
+                                                        it.text,
+                                                        TextRange(it.selectionStart, it.selectionEnd),
+                                                    ),
+                                                )
+                                            }
+                                        spansLines -> EditorEdits
+                                            .indentBlock(value.text, start, end)
+                                            .let {
+                                                update(
+                                                    TextFieldValue(
+                                                        it.text,
+                                                        TextRange(it.selectionStart, it.selectionEnd),
+                                                    ),
+                                                )
+                                            }
+                                        else -> insert(EditorEdits.INDENT)
+                                    }
+                                    true
+                                }
+                                // Only when it would remove a whole indent level; otherwise
+                                // fall through so ordinary character deletion still works.
+                                Key.Backspace -> {
+                                    val edit = if (value.selection.collapsed) {
+                                        EditorEdits.dedent(value.text, value.selection.min)
+                                    } else {
+                                        null
+                                    }
+                                    if (edit == null) {
+                                        false
+                                    } else {
+                                        update(TextFieldValue(edit.text, TextRange(edit.caret)))
+                                        true
+                                    }
+                                }
+                                else -> false
+                            }
+                        }
                         .semantics { contentDescription = "Python solution editor" },
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Monospace,
@@ -414,14 +529,14 @@ private fun RunningIndicator(onCancel: () -> Unit) {
 @Composable
 private fun ResultCard(run: ExecutionRun) {
     val (headline, tint) = when (run.outcome) {
-        ExecutionOutcome.PASSED -> "All tests passed" to Color(0xFF6BBF59)
+        ExecutionOutcome.PASSED -> "All tests passed" to Color(BeeCodeAccents.Success)
         ExecutionOutcome.FAILED ->
-            "${run.passedTestCount} of ${run.totalTestCount} tests passed" to Color(0xFFE0A030)
-        ExecutionOutcome.SYNTAX_ERROR -> "Your code has a syntax error" to Color(0xFFE05A4F)
-        ExecutionOutcome.RUNTIME_ERROR -> "Your code raised an error" to Color(0xFFE05A4F)
-        ExecutionOutcome.TIMEOUT -> "Your code ran out of time" to Color(0xFFE0A030)
-        ExecutionOutcome.CANCELLED -> "Run stopped" to Color(0xFF98917F)
-        ExecutionOutcome.WORKER_FAILURE -> "BeeCode could not run your code" to Color(0xFFE05A4F)
+            "${run.passedTestCount} of ${run.totalTestCount} tests passed" to Color(BeeCodeAccents.Caution)
+        ExecutionOutcome.SYNTAX_ERROR -> "Your code has a syntax error" to Color(BeeCodeAccents.Danger)
+        ExecutionOutcome.RUNTIME_ERROR -> "Your code raised an error" to Color(BeeCodeAccents.Danger)
+        ExecutionOutcome.TIMEOUT -> "Your code ran out of time" to Color(BeeCodeAccents.Caution)
+        ExecutionOutcome.CANCELLED -> "Run stopped" to Color(BeeCodeAccents.Muted)
+        ExecutionOutcome.WORKER_FAILURE -> "BeeCode could not run your code" to Color(BeeCodeAccents.Danger)
     }
 
     Card {
@@ -465,7 +580,7 @@ private fun ResultCard(run: ExecutionRun) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(8.dp),
@@ -483,7 +598,7 @@ private fun TestResultRow(result: TestCaseResult) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (result.passed) "✓" else "✗",
-                color = if (result.passed) Color(0xFF6BBF59) else Color(0xFFE05A4F),
+                color = if (result.passed) Color(BeeCodeAccents.Success) else Color(BeeCodeAccents.Danger),
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.width(8.dp))
@@ -502,7 +617,7 @@ private fun TestResultRow(result: TestCaseResult) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(4.dp),
                         )
                         .padding(6.dp),
@@ -607,9 +722,21 @@ private fun FinalizedCard(finalized: FinalizedUiState, onClose: () -> Unit) {
                     "Next review in ${formatIntervalDays(schedule.intervalDays)}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                // The memory-strength change behind that interval. "Next review in 6 days"
+                // alone does not say whether the review *helped*; stability moving from 4
+                // days to 9 does, and it is the number FSRS actually optimises. Read from
+                // the recorded transition rather than recomputed, so what is shown is what
+                // was stored.
+                val transition = finalized.review.transition
                 Text(
-                    "Due ${schedule.dueAt}",
-                    style = MaterialTheme.typography.bodySmall,
+                    buildString {
+                        append("Memory strength ")
+                        transition.previousStability?.let {
+                            append("${formatIntervalDays(it)} → ")
+                        }
+                        append(formatIntervalDays(transition.nextStability))
+                    },
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -688,88 +815,74 @@ private fun HistoryCard(state: ProblemUiState) {
 }
 
 /**
- * Renders the small Markdown subset the Problem statements use.
+ * Renders the Markdown subset the Problem statements use.
  *
- * Headings, fenced code, inline code, and bullets. A full Markdown dependency
- * would be poor value for content BeeCode itself authors and validates.
+ * The parsing lives in [Markdown] so this and desktop's renderer cannot disagree about
+ * what a statement means — they had each grown their own copy, with the same two bugs.
+ * What remains here is only the styling, which is the part that should differ per client:
+ * this uses `bodySmall` for a phone where desktop uses `bodyMedium`.
+ *
+ * Paragraphs are separated by spacing rather than by one `Text` per source line. That is
+ * the fix for the wrapping: the content is hard-wrapped in its source file, and honouring
+ * those newlines made every wrapped sentence break mid-clause on a narrow screen.
  */
 @Composable
 private fun MarkdownText(markdown: String) {
     Column {
-        var inCodeBlock = false
-        val codeLines = mutableListOf<String>()
-
-        @Composable
-        fun flushCode() {
-            if (codeLines.isNotEmpty()) {
-                Box(
+        Markdown.blocks(markdown).forEachIndexed { index, block ->
+            // Between blocks, not after each: a trailing gap inside a card reads as a
+            // layout mistake, and the card already has its own padding.
+            if (index > 0) Spacer(Modifier.height(if (block is Markdown.Block.Heading) 10.dp else 6.dp))
+            when (block) {
+                is Markdown.Block.Heading -> Text(
+                    block.text,
+                    style = if (block.level == 1) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.titleSmall
+                    },
+                    fontWeight = if (block.level == 1) FontWeight.Bold else FontWeight.SemiBold,
+                )
+                is Markdown.Block.Paragraph -> Text(
+                    block.text,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                is Markdown.Block.Bullet -> MarkdownListItem("•", block.text)
+                is Markdown.Block.Numbered -> MarkdownListItem(block.marker, block.text)
+                is Markdown.Block.Code -> Box(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(6.dp),
                         )
                         .padding(10.dp),
                 ) {
-                    MonoText(codeLines.joinToString("\n"))
+                    MonoText(block.lines.joinToString("\n"))
                 }
-                codeLines.clear()
             }
         }
-
-        markdown.lines().forEach { raw ->
-            if (raw.trimStart().startsWith("```")) {
-                if (inCodeBlock) flushCode()
-                inCodeBlock = !inCodeBlock
-                return@forEach
-            }
-            if (inCodeBlock) {
-                codeLines += raw
-                return@forEach
-            }
-
-            val line = raw.trim()
-            when {
-                line.isEmpty() -> Spacer(Modifier.height(6.dp))
-                line.startsWith("## ") -> Text(
-                    line.removePrefix("## "),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                line.startsWith("# ") -> Text(
-                    line.removePrefix("# "),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                line.startsWith("- ") -> Row {
-                    Text("•  ", style = MaterialTheme.typography.bodySmall)
-                    Text(
-                        stripInlineMarkup(line.removePrefix("- ")),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                else -> Text(
-                    stripInlineMarkup(line),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-        flushCode()
     }
 }
 
 /**
- * Remove inline emphasis and code markers.
+ * A list item whose wrapped lines line up under its text rather than under its marker.
  *
- * The backticks and asterisks would otherwise be shown literally, which reads
- * worse than plain text. Styling each span individually is not worth the
- * complexity for this content.
+ * The marker sits in its own column: with the marker inline, a bullet long enough to wrap
+ * — and on a phone most of them are — put its second line hard against the margin, which
+ * is what stops a list looking like a list.
  */
-private fun stripInlineMarkup(text: String): String =
-    text.replace("`", "").replace("**", "").replace("_", "")
+@Composable
+private fun MarkdownListItem(marker: String, text: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(
+            marker,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.width(22.dp),
+        )
+        Text(text, style = MaterialTheme.typography.bodySmall)
+    }
+}
 
 @Composable
 private fun MonoText(text: String) {

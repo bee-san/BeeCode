@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-of-three
+    arguments: [[3, 2, 3]]
+    expected: 3
+    comparator: exact
+
+  - name: example-scattered-copies
+    # The tally reaches zero partway, so the candidate is re-adopted.
+    arguments: [[2, 2, 1, 1, 1, 2, 2]]
+    expected: 2
+    comparator: exact
+
+  - name: a-single-element
+    arguments: [[7]]
+    expected: 7
+    comparator: exact
+
+  - name: every-element-the-same
+    arguments: [[4, 4, 4, 4]]
+    expected: 4
+    comparator: exact
+
+  - name: the-tally-reaches-zero-more-than-once
+    # 1 holds the candidacy first and is cancelled out, so only the final
+    # survivor is the answer.
+    arguments: [[1, 2, 5, 9, 5, 9, 5, 5, 5]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: exactly-one-more-than-half
+    # Three out of five, the tightest a strict majority gets.
+    arguments: [[1, 1, 2, 2, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: negative-values
+    arguments: [[-1, -1, -1, 5, 3]]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: the-tally-returns-to-zero-repeatedly
+    # The majority is re-adopted as candidate three times and never actually
+    # displaced.
+    arguments: [[8, 1, 8, 2, 8, 3, 8, 8]]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: two-elements
+    arguments: [[6, 6]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-list
+    # Thirteen nines out of twenty-three, counting the one inside the run of
+    # distinct values, so the majority is strict by a single copy.
+    arguments: [[9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+    expected: 9
+    comparator: exact
+    hidden: true

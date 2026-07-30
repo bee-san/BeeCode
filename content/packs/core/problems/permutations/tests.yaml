@@ -1,0 +1,44 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-elements
+    arguments: [[1, 2, 3]]
+    expected: [[1, 2, 3], [1, 3, 2], [2, 1, 3], [2, 3, 1], [3, 1, 2], [3, 2, 1]]
+    comparator: unordered_list
+
+  - name: empty-list-has-one-permutation
+    arguments: [[]]
+    expected: [[]]
+    comparator: unordered_list
+
+  - name: single-element
+    arguments: [[9]]
+    expected: [[9]]
+    comparator: unordered_list
+
+  - name: two-elements
+    arguments: [[1, 2]]
+    expected: [[1, 2], [2, 1]]
+    comparator: unordered_list
+
+  - name: order-within-a-permutation-matters
+    # Both orderings are required; a set-like answer gives one.
+    arguments: [[5, 1]]
+    expected: [[5, 1], [1, 5]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: four-elements-gives-twentyfour
+    # Exactly 24 distinct orderings: catches a missing undo, which yields
+    # duplicates or too few.
+    arguments: [[1, 2, 3, 4]]
+    expected: [[1, 2, 3, 4], [1, 2, 4, 3], [1, 3, 2, 4], [1, 3, 4, 2], [1, 4, 2, 3], [1, 4, 3, 2], [2, 1, 3, 4], [2, 1, 4, 3], [2, 3, 1, 4], [2, 3, 4, 1], [2, 4, 1, 3], [2, 4, 3, 1], [3, 1, 2, 4], [3, 1, 4, 2], [3, 2, 1, 4], [3, 2, 4, 1], [3, 4, 1, 2], [3, 4, 2, 1], [4, 1, 2, 3], [4, 1, 3, 2], [4, 2, 1, 3], [4, 2, 3, 1], [4, 3, 1, 2], [4, 3, 2, 1]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: negatives-and-zero
+    arguments: [[0, -1]]
+    expected: [[0, -1], [-1, 0]]
+    comparator: unordered_list
+    hidden: true

@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Does the Chain Loop Back
+difficulty: easy
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - linked-list
+algorithms:
+  - fast-and-slow-pointers
+  - cycle-detection
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: has_cycle
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "successors = [1, 2, 3, 1]"
+    output: "True"
+    explanation: "Node 3 points back to node 1."
+  - input: "successors = [1, 2, -1]"
+    output: "False"
+    explanation: "The chain ends at node 2."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

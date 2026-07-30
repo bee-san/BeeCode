@@ -1,0 +1,69 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-enclosed-cell
+    arguments: [[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]
+    expected: 1
+    comparator: exact
+
+  - name: example-water-on-the-border
+    arguments: [[[0, 1], [1, 1]]]
+    expected: 0
+    comparator: exact
+
+  - name: no-water-at-all
+    arguments: [[[1, 1], [1, 1]]]
+    expected: 0
+    comparator: exact
+
+  - name: all-water
+    # Every cell touches the border.
+    arguments: [[[0, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+
+  - name: two-separate-enclosed-regions
+    arguments: [[[1, 1, 1, 1, 1], [1, 0, 1, 0, 1], [1, 1, 1, 1, 1]]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: one-region-of-several-cells
+    # Not flooding in the second phase counts this four times.
+    arguments: [[[1, 1, 1, 1], [1, 0, 0, 1], [1, 0, 0, 1], [1, 1, 1, 1]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: an-enclosed-region-beside-a-border-one
+    arguments: [[[0, 1, 1, 1], [1, 1, 0, 1], [1, 1, 1, 1]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-single-cell-grid-of-water
+    arguments: [[[0]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-single-cell-grid-of-land
+    arguments: [[[1]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: water-leaking-out-through-one-gap
+    # The interior water reaches the top border, so nothing is enclosed.
+    arguments: [[[1, 1, 0, 1], [1, 0, 0, 1], [1, 1, 1, 1]]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: diagonally-touching-cells-are-separate-regions
+    # Counting diagonal adjacency would merge these into one.
+    arguments: [[[1, 1, 1, 1], [1, 0, 1, 1], [1, 1, 0, 1], [1, 1, 1, 1]]]
+    expected: 2
+    comparator: exact
+    hidden: true

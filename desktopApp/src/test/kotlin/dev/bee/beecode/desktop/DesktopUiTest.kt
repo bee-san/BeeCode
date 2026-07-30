@@ -1,5 +1,7 @@
 package dev.bee.beecode.desktop
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -10,16 +12,22 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.bee.beecode.app.BeeCodeProfile
 import kotlinx.coroutines.runBlocking
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.ProblemCatalogue
+import dev.bee.beecode.app.StatisticsPeriod
+import dev.bee.beecode.app.TopicMastery
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -87,10 +95,30 @@ class DesktopUiTest {
         }
     }
 
+    private fun withCompactUi(body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit) {
+        val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
+        val profile = BeeCodeProfile.inMemory(
+            catalogue = catalogue,
+            runner = ScriptedPythonRunner(),
+        )
+        try {
+            runComposeUiTest {
+                setContent {
+                    Box(Modifier.size(640.dp, 720.dp)) {
+                        DesktopApp(profile)
+                    }
+                }
+                body(this, profile)
+            }
+        } finally {
+            profile.close()
+        }
+    }
+
     @Test
     fun theQueueListsTheBundledProblems() = withUi { ui, _ ->
         ui.onNodeWithText("New Problems").assertIsDisplayed()
-        ui.onAllNodesWithText("Two Sum").onFirst().assertIsDisplayed()
+        ui.scrollQueueTo(TWO_SUM_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -106,8 +134,63 @@ class DesktopUiTest {
     }
 
     @Test
+    fun progressTabsRangesAndCoverageWorkInACompactWindow() = withCompactUi { ui, _ ->
+        ui.onNodeWithText("Progress").performClick()
+
+        ui.onNodeWithText("Overview").assertIsDisplayed()
+        ui.onNodeWithText("Coverage").assertIsDisplayed()
+        ui.onNodeWithText("Achievements").assertIsDisplayed()
+        ui.onNodeWithText("No review activity yet. Catalogue and schedule totals are still available.")
+            .assertIsDisplayed()
+
+        listOf("Reviews", "Successful reviews", "Success rate", "Active days").forEach { label ->
+            ui.onNodeWithText(label).performScrollTo().assertIsDisplayed()
+        }
+
+        ui.onNodeWithText("90 days").performScrollTo().performClick()
+        ui.onNodeWithText("Activity - 90 days").performScrollTo().assertIsDisplayed()
+
+        ui.onNodeWithText("Coverage").performScrollTo().performClick()
+        ui.onNodeWithText("Difficulty progress").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Techniques").performScrollTo().performClick()
+        ui.onAllNodesWithText("Techniques").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun activityBarsExposeExactDatesAndCounts() = withUi { ui, profile ->
+        ui.onNodeWithText("Progress").performClick()
+        val bucket = profile.statistics().activity(StatisticsPeriod.THIRTY_DAYS).last()
+
+        ui.onNodeWithContentDescription(
+            "${bucket.startDate}: 0 reviews, 0 successful reviews",
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun visibilitySettingsApplyImmediatelyAndPersist() = withUi { ui, profile ->
+        ui.onNodeWithText("Settings").performClick()
+
+        ui.onNodeWithContentDescription("Show streaks and achievements")
+            .performScrollTo()
+            .performClick()
+        assertTrue(!profile.settings.showStreaksAndAchievements())
+
+        ui.onNodeWithText("Progress").performClick()
+        assertTrue(ui.onAllNodesWithText("Achievements").fetchSemanticsNodes().isEmpty())
+
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithContentDescription("Show Progress").performScrollTo().performClick()
+        assertTrue(!profile.settings.showProgress())
+        assertTrue(ui.onAllNodesWithText("Progress").fetchSemanticsNodes().isEmpty())
+
+        ui.onNodeWithContentDescription("Show Progress").performClick()
+        assertTrue(profile.settings.showProgress())
+        ui.onNodeWithText("Progress").assertIsDisplayed()
+    }
+
+    @Test
     fun openingAProblemShowsItsStatementAndEditor() = withUi { ui, _ ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithText("Your solution").assertIsDisplayed()
         ui.onNodeWithText("Run tests").assertIsDisplayed()
         // Named for a screen reader, and the same identifier the Android editor uses.
@@ -116,7 +199,7 @@ class DesktopUiTest {
 
     @Test
     fun aFailingRunOffersOnlyAgain() = withUi { ui, _ ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithContentDescription("Python solution editor")
             .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
         ui.onNodeWithText("Run tests").performClick()
@@ -139,7 +222,7 @@ class DesktopUiTest {
 
     @Test
     fun theFullAnswerRunFinalizeJourneyWorksThroughTheUi() = withUi { ui, profile ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithContentDescription("Python solution editor").performTextReplacement(
             """
             ${ScriptedPythonRunner.PASS_MARKER}
@@ -174,33 +257,38 @@ class DesktopUiTest {
     @Test
     fun theQueueHeadlinesTheTechniqueAndNamesTheProblemThatRehearsesIt() =
         withUi { ui, profile, clock ->
-            // Mirrors the Android assertion. What fell due is *arrays*; Two Sum is the
-            // exercise offered to rehearse it. A queue that still headlined the Problem
-            // would pass every layer below this one on both clients.
+            // Mirrors the Android assertion. What fell due is a *technique*; Two Sum is
+            // the exercise offered to rehearse it. A queue that still headlined the
+            // Problem would pass every layer below this one on both clients.
+            //
+            // The technique is read out of the pack rather than named. `taxonomy.yaml`
+            // owns the vocabulary and has already renamed a slug, and a literal here
+            // would make a reviewed content change look like a UI regression.
             solveTwoSum(profile)
             profile.study.abandon(TWO_SUM)
-            val arrays = requireNotNull(profile.reviews.topicSchedule("arrays")) {
+            val topic = requireNotNull(profile.catalogue.problem(TWO_SUM)).topics.first()
+            val schedule = requireNotNull(profile.reviews.topicSchedule(topic)) {
                 "the review did not fan out to its topics"
             }
-            clock.current = arrays.dueAt + 1.minutes
+            clock.current = schedule.dueAt + 1.minutes
             // The pane caches its queue against the refresh token, so nudge it.
             ui.onNodeWithText("Study").performClick()
 
             ui.onNodeWithText("Techniques to review").performScrollTo().assertIsDisplayed()
 
-            // Asserted as one card rather than three loose text nodes. Two Sum tags both
-            // arrays and hash-map, so a review fans out to two cards and every line below
-            // appears twice — matching them separately would pass even if the interval and
-            // the Problem belonged to different techniques.
+            // Asserted as one card rather than three loose text nodes. Two Sum carries
+            // several tags, so a review fans out to several cards and every line below
+            // appears more than once — matching them separately would pass even if the
+            // interval and the Problem belonged to different techniques.
             //
             // The subtitle expectation spans the two literals the UI concatenates, so a
             // future split into two Text nodes fails here instead of quietly passing. The
             // member count comes from the catalogue: a literal "1 of 10" would turn
-            // authoring another arrays Problem into a UI-test failure.
-            val members = profile.catalogue.allProblems().count { "arrays" in it.topics }
+            // authoring another Problem in this technique into a UI-test failure.
+            val members = profile.catalogue.allProblems().count { topic in it.topics }
             ui.onNode(
                 hasClickAction() and
-                    hasText("Arrays") and
+                    hasText(TopicMastery.displayName(topic)) and
                     hasText("Memory lasts about", substring = true) and
                     hasText("Two Sum · 1 of $members practised", substring = true),
             ).performScrollTo().assertIsDisplayed()
@@ -216,7 +304,12 @@ class DesktopUiTest {
         solveTwoSum(profile)
 
         ui.onNodeWithText("Progress").performClick()
-        ui.onNodeWithText("Techniques").performScrollTo().assertIsDisplayed()
+        // Under Coverage, not Overview: Overview answers "what did I do lately" while
+        // recall and interval are standing facts, and coverage has to be read beside
+        // recall. Matched on the full heading because the coverage axis selector has a
+        // button labelled just "Techniques", so the bare word is ambiguous here.
+        ui.onNodeWithText("Coverage").performClick()
+        ui.onNodeWithText("Techniques you have practised").performScrollTo().assertIsDisplayed()
         // The evidence base, stated before the numbers: recall of what has been solved,
         // not raw ability. Asserted across the soft wrap.
         ui.onNode(hasText("recall Problems you have already solved", substring = true))
@@ -242,11 +335,18 @@ class DesktopUiTest {
 
         // And the counts beside it are real, spanning the boundary between the coverage
         // clause and the review clause so the two cannot silently become separate lines.
-        // Unique to arrays: hash-map has a different member count.
-        val members = profile.catalogue.allProblems().count { "arrays" in it.topics }
-        ui.onNode(hasText("1 of $members solved · 1 review", substring = true))
-            .performScrollTo()
-            .assertIsDisplayed()
+        // Read off the projection rather than counted here, so this asserts the UI renders
+        // what the shared fold computed rather than re-deriving it and agreeing with
+        // itself.
+        practised.forEach { ability ->
+            ui.onAllNodes(
+                hasText(
+                    "${ability.solvedMemberProblems} of ${ability.memberProblems} solved · " +
+                        "${ability.reviews} review",
+                    substring = true,
+                ),
+            ).onFirst().performScrollTo().assertIsDisplayed()
+        }
     }
 
     @Test
@@ -263,11 +363,17 @@ class DesktopUiTest {
         // the default must be off and the UI must say off rather than showing a dead
         // button with no explanation.
         ui.onNodeWithText("Settings").performClick()
-        ui.onNodeWithText("Sync between devices").assertIsDisplayed()
-        ui.onNodeWithText("Not set — sync is off").assertIsDisplayed()
+        // Scrolled to, like every other assertion further down this pane. Settings is
+        // a scrolling Column and the sync card is not the first thing in it, so
+        // asserting it visible without scrolling was really asserting that the cards
+        // above it stayed short enough — which broke the moment one was added.
+        ui.onNodeWithText("Sync between devices").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Not set — sync is off").performScrollTo().assertIsDisplayed()
         // And the privacy consequence is stated before a learner picks a folder, not
         // after — the file carries their solutions.
-        ui.onNode(hasText("contains your solutions", substring = true)).assertIsDisplayed()
+        ui.onNode(hasText("contains your solutions", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
         assertEquals(null, profile.settings.syncFilePath())
     }
 
@@ -459,5 +565,27 @@ class DesktopUiTest {
 
         fun ComposeUiTest.ratingButtons(label: String) =
             onAllNodes(isRatingButton(label)).fetchSemanticsNodes()
+
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
+
+        /**
+         * Scroll the queue until [title] is composed, and return it.
+         *
+         * The catalogue grows, so a Problem that was once the first row ends up below
+         * the fold — and a lazy list does not compose what is off screen, so a node
+         * that is merely present in the data has no semantics to assert against. This
+         * is the difference between a test that breaks whenever content is added and
+         * one that does not: the queue is scrolled to the Problem rather than the
+         * Problem being assumed visible.
+         */
+        fun ComposeUiTest.scrollQueueTo(title: String) = run {
+            onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
+            onAllNodesWithText(title).onFirst()
+        }
+
+        fun ComposeUiTest.openTwoSum() {
+            scrollQueueTo(TWO_SUM_TITLE).performClick()
+        }
     }
 }

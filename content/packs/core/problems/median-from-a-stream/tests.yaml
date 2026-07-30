@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-even-then-odd
+    # 1.5 is where integer division shows immediately.
+    arguments: [[["add", 1], ["add", 2], ["median", null], ["add", 3], ["median", null]]]
+    expected: [1.5, 2]
+    comparator: approximate_numeric
+
+  - name: example-single-value
+    arguments: [[["add", 5], ["median", null]]]
+    expected: [5]
+    comparator: approximate_numeric
+
+  - name: descending-input
+    # Each new value belongs in the lower half, exercising the rebalance every
+    # time.
+    arguments: [[["add", 5], ["add", 4], ["median", null], ["add", 3], ["median", null], ["add", 2], ["median", null]]]
+    expected: [4.5, 4, 3.5]
+    comparator: approximate_numeric
+
+  - name: negative-values
+    arguments: [[["add", -1], ["add", -3], ["median", null]]]
+    expected: [-2]
+    comparator: approximate_numeric
+
+  - name: duplicates
+    arguments: [[["add", 2], ["add", 2], ["add", 2], ["median", null]]]
+    expected: [2]
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: ascending-input
+    arguments: [[["add", 1], ["add", 2], ["add", 3], ["add", 4], ["median", null]]]
+    expected: [2.5]
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: median-queried-repeatedly-without-adds
+    # A query must not consume anything from the heaps.
+    arguments: [[["add", 1], ["median", null], ["median", null]]]
+    expected: [1, 1]
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: values-arriving-from-both-ends
+    arguments: [[["add", 0], ["add", 100], ["add", 50], ["median", null], ["add", -100], ["median", null]]]
+    expected: [50, 25]
+    comparator: approximate_numeric
+    hidden: true
+
+  - name: long-ascending-stream
+    # A hundred values, so re-sorting per query is visible in the timing.
+    arguments: [[["add", 1], ["add", 2], ["add", 3], ["add", 4], ["add", 5], ["add", 6], ["add", 7], ["add", 8], ["add", 9], ["add", 10], ["add", 11], ["add", 12], ["add", 13], ["add", 14], ["add", 15], ["add", 16], ["add", 17], ["add", 18], ["add", 19], ["add", 20], ["add", 21], ["add", 22], ["add", 23], ["add", 24], ["add", 25], ["add", 26], ["add", 27], ["add", 28], ["add", 29], ["add", 30], ["add", 31], ["add", 32], ["add", 33], ["add", 34], ["add", 35], ["add", 36], ["add", 37], ["add", 38], ["add", 39], ["add", 40], ["add", 41], ["add", 42], ["add", 43], ["add", 44], ["add", 45], ["add", 46], ["add", 47], ["add", 48], ["add", 49], ["add", 50], ["add", 51], ["add", 52], ["add", 53], ["add", 54], ["add", 55], ["add", 56], ["add", 57], ["add", 58], ["add", 59], ["add", 60], ["add", 61], ["add", 62], ["add", 63], ["add", 64], ["add", 65], ["add", 66], ["add", 67], ["add", 68], ["add", 69], ["add", 70], ["add", 71], ["add", 72], ["add", 73], ["add", 74], ["add", 75], ["add", 76], ["add", 77], ["add", 78], ["add", 79], ["add", 80], ["add", 81], ["add", 82], ["add", 83], ["add", 84], ["add", 85], ["add", 86], ["add", 87], ["add", 88], ["add", 89], ["add", 90], ["add", 91], ["add", 92], ["add", 93], ["add", 94], ["add", 95], ["add", 96], ["add", 97], ["add", 98], ["add", 99], ["add", 100], ["median", null]]]
+    expected: [50.5]
+    comparator: approximate_numeric
+    hidden: true

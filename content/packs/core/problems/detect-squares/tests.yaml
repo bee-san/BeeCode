@@ -1,0 +1,72 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-square
+    arguments: [[["add", [3, 10]], ["add", [11, 2]], ["add", [3, 2]], ["count", [11, 10]]]]
+    expected: [1]
+    comparator: exact
+
+  - name: example-no-square
+    arguments: [[["add", [1, 1]], ["count", [2, 2]]]]
+    expected: [0]
+    comparator: exact
+
+  - name: an-empty-collection
+    arguments: [[["count", [1, 1]]]]
+    expected: [0]
+    comparator: exact
+
+  - name: duplicates-multiply
+    # Two copies of one corner give two squares; a set would answer 1.
+    arguments: [[["add", [0, 0]], ["add", [0, 2]], ["add", [0, 2]], ["add", [2, 0]], ["count", [2, 2]]]]
+    expected: [2]
+    comparator: exact
+
+  - name: a-zero-area-square-does-not-count
+    # The query point coincides with the stored ones, so there is no area.
+    arguments: [[["add", [1, 1]], ["add", [1, 1]], ["add", [1, 1]], ["count", [1, 1]]]]
+    expected: [0]
+    comparator: exact
+    hidden: true
+
+  - name: the-diagonal-must-be-at-forty-five-degrees
+    # A 2 by 3 rectangle is not a square.
+    arguments: [[["add", [0, 0]], ["add", [0, 3]], ["add", [2, 0]], ["count", [2, 3]]]]
+    expected: [0]
+    comparator: exact
+    hidden: true
+
+  - name: two-squares-on-opposite-sides
+    # One square below and one above, both counted once.
+    arguments: [[["add", [0, 0]], ["add", [2, 0]], ["add", [0, 2]], ["add", [2, 4]], ["add", [0, 4]], ["count", [2, 2]]]]
+    expected: [2]
+    comparator: exact
+    hidden: true
+
+  - name: counting-twice-gives-the-same-answer
+    # count must not consume anything.
+    arguments: [[["add", [0, 0]], ["add", [0, 2]], ["add", [2, 0]], ["count", [2, 2]], ["count", [2, 2]]]]
+    expected: [1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: adds-after-a-count
+    arguments: [[["count", [2, 2]], ["add", [0, 0]], ["add", [0, 2]], ["add", [2, 0]], ["count", [2, 2]]]]
+    expected: [0, 1]
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-direction-diagonal
+    # The opposite corner is up and to the right, which a signed difference
+    # check would miss.
+    arguments: [[["add", [5, 5]], ["add", [5, 3]], ["add", [3, 5]], ["count", [3, 3]]]]
+    expected: [1]
+    comparator: exact
+    hidden: true
+
+  - name: a-larger-collection
+    arguments: [[["add", [0, 0]], ["add", [1, 0]], ["add", [0, 1]], ["add", [1, 1]], ["count", [1, 1]], ["count", [0, 0]]]]
+    expected: [1, 1]
+    comparator: exact
+    hidden: true

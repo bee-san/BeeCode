@@ -155,10 +155,11 @@ object TopicMastery {
     /**
      * A learner-facing name for a topic slug.
      *
-     * Derived rather than looked up, because topic slugs are deliberately free-form:
-     * there is no canonical vocabulary to validate against, so there is no table of
-     * display names either (see ADR 0005). The accepted consequence is that a typo
-     * mints a phantom topic, which will read as a phantom topic rather than crash.
+     * Derived rather than looked up. The pack's `taxonomy.yaml` does hold a prose
+     * description per slug, but it is content the loader owns and this module is in
+     * `:shared` with no access to it — and a topic card can outlive the tag that
+     * produced it, so the name must be derivable from the slug alone (see ADR 0005).
+     * Total by construction: any slug yields a name rather than a missing entry.
      *
      * Sentence case, not title case: "Dynamic programming" is how a person writes it,
      * whereas "Dynamic Programming" is how a style guide does.

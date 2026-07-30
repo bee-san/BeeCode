@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-flips
+    arguments: [[1, 1, 0, 0, 1, 1, 1, 0, 1], 2]
+    expected: 7
+    comparator: exact
+
+  - name: example-no-budget-and-no-ones
+    arguments: [[0, 0, 0], 0]
+    expected: 0
+    comparator: exact
+
+  - name: no-budget-with-an-existing-run
+    # The answer is the longest run already present.
+    arguments: [[1, 1, 0, 1], 0]
+    expected: 2
+    comparator: exact
+
+  - name: budget-enough-to-flip-everything
+    arguments: [[0, 0, 0], 3]
+    expected: 3
+    comparator: exact
+
+  - name: already-all-ones
+    # The budget goes unused; the window never becomes illegal.
+    arguments: [[1, 1, 1], 1]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: a-single-zero
+    arguments: [[0], 1]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: the-window-holds-exactly-the-budget
+    # Shrinking at `zeroes >= budget` answers 2 here.
+    arguments: [[1, 0, 1], 1]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: the-best-window-is-at-the-end
+    arguments: [[1, 0, 0, 1, 1, 0, 1, 1], 1]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: alternating-bits
+    arguments: [[1, 0, 1, 0, 1, 0], 2]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: budget-larger-than-the-zero-count
+    arguments: [[1, 0, 1], 5]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: one-long-block-of-zeroes
+    # The budget covers only two of the four zeroes, so the block cannot be
+    # crossed.
+    arguments: [[1, 1, 0, 0, 0, 0, 1, 1], 2]
+    expected: 4
+    comparator: exact
+    hidden: true

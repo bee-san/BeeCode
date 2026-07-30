@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-splittings
+    arguments: ["aab"]
+    expected: [["a", "a", "b"], ["aa", "b"]]
+    comparator: unordered_list
+
+  - name: example-single-character
+    arguments: ["a"]
+    expected: [["a"]]
+    comparator: unordered_list
+
+  - name: no-multi-character-palindrome
+    # Only the all-singletons splitting works.
+    arguments: ["abc"]
+    expected: [["a", "b", "c"]]
+    comparator: unordered_list
+
+  - name: the-whole-string-is-a-palindrome
+    # Both the full string and its characters are valid splittings.
+    arguments: ["aba"]
+    expected: [["a", "b", "a"], ["aba"]]
+    comparator: unordered_list
+
+  - name: all-identical-characters
+    # Eight splittings, the 2^(n-1) worst case.
+    arguments: ["aaaa"]
+    expected: [["a", "a", "a", "a"], ["a", "a", "aa"], ["a", "aa", "a"], ["aa", "a", "a"], ["aa", "aa"], ["a", "aaa"], ["aaa", "a"], ["aaaa"]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: two-identical-characters
+    arguments: ["aa"]
+    expected: [["a", "a"], ["aa"]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: even-length-palindrome-inside
+    # An even-length centre, which a centre-expansion check must handle.
+    arguments: ["cbbc"]
+    expected: [["c", "b", "b", "c"], ["c", "bb", "c"], ["cbbc"]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: palindrome-only-at-the-end
+    arguments: ["xaa"]
+    expected: [["x", "a", "a"], ["x", "aa"]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: five-characters
+    # Four splittings out of sixteen candidate cut sets, so pruning matters.
+    # The odd-length bab is easy to miss by eye.
+    arguments: ["abbab"]
+    expected: [["a", "b", "b", "a", "b"], ["a", "b", "bab"], ["a", "bb", "a", "b"], ["abba", "b"]]
+    comparator: unordered_list
+    hidden: true

@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-common
+    arguments: ["abcde", "ace"]
+    expected: 3
+    comparator: exact
+
+  - name: example-nothing-common
+    arguments: ["abc", "def"]
+    expected: 0
+    comparator: exact
+
+  - name: identical-strings
+    arguments: ["abc", "abc"]
+    expected: 3
+    comparator: exact
+
+  - name: a-subsequence-is-not-a-substring
+    # a and d are not adjacent in the first string, which is allowed.
+    arguments: ["abcd", "ad"]
+    expected: 2
+    comparator: exact
+
+  - name: single-characters-that-match
+    arguments: ["a", "a"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: single-characters-that-differ
+    arguments: ["a", "b"]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: one-string-inside-the-other
+    arguments: ["abcdef", "bd"]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: repeated-characters
+    # Bounded by the shorter string.
+    arguments: ["aaa", "aa"]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: the-order-must-be-preserved
+    # Both characters appear in both strings, but not in a common order.
+    arguments: ["ab", "ba"]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-pair
+    # The common subsequence is qr.
+    arguments: ["oxcpqrsvwf", "shmtulqrypy"]
+    expected: 2
+    comparator: exact
+    hidden: true

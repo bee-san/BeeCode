@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-reused-word
+    arguments: ["applepenapple", ["apple", "pen"]]
+    expected: true
+    comparator: exact
+
+  - name: example-no-valid-split
+    arguments: ["catsandog", ["cats", "dog", "sand", "and", "cat"]]
+    expected: false
+    comparator: exact
+
+  - name: the-whole-string-is-a-word
+    arguments: ["apple", ["apple"]]
+    expected: true
+    comparator: exact
+
+  - name: overlapping-words-with-one-valid-split
+    # Only aaa then ab works. Taking aa twice leaves a bare b, which is not a
+    # word.
+    arguments: ["aaaab", ["aaa", "aa", "ab"]]
+    expected: true
+    comparator: exact
+
+  - name: no-word-matches-at-all
+    arguments: ["abc", ["x", "y"]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-single-character-word
+    arguments: ["a", ["a"]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-character-short
+    # The prefix matches but the remainder does not.
+    arguments: ["applepen", ["apple", "pens"]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: many-repeats-of-one-word
+    # Plain recursion explores exponentially many splits here.
+    arguments: ["aaaaaaaa", ["a", "aa"]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-word-longer-than-the-text
+    # The substring test must not run past the end of the text.
+    arguments: ["ab", ["abc"]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: the-second-choice-is-the-right-one
+    # ca then rs. Taking car leaves s, which is not a word.
+    arguments: ["cars", ["car", "ca", "rs"]]
+    expected: true
+    comparator: exact
+    hidden: true

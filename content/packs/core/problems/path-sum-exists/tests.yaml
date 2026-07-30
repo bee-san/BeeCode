@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-path-that-works
+    arguments: [[5, 4, 8, 11, null, 13, 4, 7, 2], 22]
+    expected: true
+    comparator: exact
+
+  - name: example-no-path-reaches-it
+    arguments: [[1, 2, 3], 5]
+    expected: false
+    comparator: exact
+
+  - name: an-empty-tree
+    # There is no root-to-leaf path, so no sum is achievable.
+    arguments: [[], 0]
+    expected: false
+    comparator: exact
+
+  - name: a-single-node-matching
+    arguments: [[7], 7]
+    expected: true
+    comparator: exact
+
+  - name: the-target-is-hit-at-a-non-leaf
+    # Testing the remainder at every node accepts this wrongly.
+    arguments: [[1, 2], 1]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-value-recovers-an-overshoot
+    # 1 + -2 is -1 at a leaf; pruning on the running total misses it.
+    arguments: [[1, -2, 3], -1]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-single-node-not-matching
+    arguments: [[7], 8]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: the-matching-path-is-the-rightmost
+    arguments: [[1, 2, 3], 4]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-right-leaning-chain
+    # One leaf, three nodes down, and every node must be included.
+    arguments: [[1, null, 2, null, null, null, 3], 6]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: all-negative-values
+    arguments: [[-2, -3, -4], -5]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-target-of-zero-that-is-reachable
+    # A single node of value 0 is a leaf, and the path sums to 0.
+    arguments: [[0], 0]
+    expected: true
+    comparator: exact
+    hidden: true

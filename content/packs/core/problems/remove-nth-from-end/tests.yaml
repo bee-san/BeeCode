@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-second-from-end
+    arguments: [[1, 2, 3, 4, 5], 2]
+    expected: [1, 2, 3, 5]
+    comparator: exact
+
+  - name: example-only-element
+    # Removes the head, which is the case a dummy node exists to simplify.
+    arguments: [[1], 1]
+    expected: []
+    comparator: exact
+
+  - name: remove-the-last
+    # n = 1 is the final element. An off-by-one here removes 2 instead.
+    arguments: [[1, 2, 3], 1]
+    expected: [1, 2]
+    comparator: exact
+
+  - name: remove-the-head-of-a-longer-list
+    arguments: [[1, 2, 3], 3]
+    expected: [2, 3]
+    comparator: exact
+
+  - name: two-elements-remove-the-first
+    arguments: [[1, 2], 2]
+    expected: [2]
+    comparator: exact
+    hidden: true
+
+  - name: two-elements-remove-the-second
+    arguments: [[1, 2], 1]
+    expected: [1]
+    comparator: exact
+    hidden: true
+
+  - name: middle-of-a-long-list
+    # Removes the value 5, at index 5, which is 5 from the end of a 10-element
+    # list.
+    arguments: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5]
+    expected: [0, 1, 2, 3, 4, 6, 7, 8, 9]
+    comparator: exact
+    hidden: true
+
+  - name: duplicates-remove-by-position-not-value
+    # All values equal, so only the count can be wrong -- not which 7 was
+    # chosen.
+    arguments: [[7, 7, 7], 2]
+    expected: [7, 7]
+    comparator: exact
+    hidden: true

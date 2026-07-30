@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Rebuild a Tree From Its Traversals
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - binary-tree
+  - hash-map
+algorithms:
+  - divide-and-conquer
+  - recursion
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: build_tree
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "preorder = [3, 9, 20, 15, 7], inorder = [9, 3, 15, 20, 7]"
+    output: "[3, 9, 20, null, null, 15, 7]"
+  - input: "preorder = [1, 2], inorder = [2, 1]"
+    output: "[1, 2]"
+    explanation: "2 comes before 1 in order, so it is the left child."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

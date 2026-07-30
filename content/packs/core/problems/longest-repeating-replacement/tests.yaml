@@ -1,0 +1,51 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-change
+    arguments: ["AABABBA", 1]
+    expected: 4
+    comparator: exact
+
+  - name: example-two-changes
+    arguments: ["ABAB", 2]
+    expected: 4
+    comparator: exact
+
+  - name: no-changes-allowed
+    # With k = 0 this is just the longest existing run.
+    arguments: ["AABBBCC", 0]
+    expected: 3
+    comparator: exact
+
+  - name: single-character-string
+    arguments: ["A", 0]
+    expected: 1
+    comparator: exact
+
+  - name: k-covers-the-whole-string
+    # Enough budget to flatten everything, so the answer is the full length.
+    arguments: ["ABCDE", 5]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: already-uniform
+    # The answer cannot exceed the string length even with budget to spare.
+    arguments: ["AAAA", 2]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: best-window-is-not-at-either-end
+    # BBBCBBB, changing the C. Catches windows anchored at index 0.
+    arguments: ["ABBBCBBBA", 1]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: long-alternating
+    arguments: ["ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB", 1]
+    expected: 3
+    comparator: exact
+    hidden: true

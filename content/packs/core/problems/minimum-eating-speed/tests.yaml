@@ -1,0 +1,61 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-speed-four
+    arguments: [[3, 6, 7, 11], 8]
+    expected: 4
+    comparator: exact
+
+  - name: one-hour-per-pile
+    # The answer is exactly max(piles), so an upper bound set too low is
+    # caught here.
+    arguments: [[30, 11, 23, 4, 20], 5]
+    expected: 30
+    comparator: exact
+
+  - name: generous-hours
+    arguments: [[30, 11, 23, 4, 20], 6]
+    expected: 23
+    comparator: exact
+
+  - name: single-pile
+    # Ten hours for one pile of ten: speed 1 suffices, the lower bound itself.
+    arguments: [[10], 10]
+    expected: 1
+    comparator: exact
+
+  - name: partial-hours-still-cost-a-full-hour
+    # Speed 4 takes ceil(5/4) twice, i.e. 4 hours, not 2.5. Floor division
+    # wrongly accepts 4.
+    arguments: [[5, 5], 3]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: many-small-piles
+    arguments: [[1, 1, 1, 1], 4]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: large-piles
+    # Three hours for two huge piles: one pile must fall in a single hour.
+    # Also checks the search is logarithmic in the pile size, not linear.
+    arguments: [[1000000000, 1000000000], 3]
+    expected: 1000000000
+    comparator: exact
+    hidden: true
+
+  - name: answer-is-not-a-power-of-two
+    arguments: [[7, 7, 7], 4]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: hours-far-exceeds-need
+    # Speed 1 needs 17 hours, well inside 100.
+    arguments: [[13, 4], 100]
+    expected: 1
+    comparator: exact
+    hidden: true

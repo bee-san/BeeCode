@@ -1,5 +1,7 @@
 package dev.bee.beecode.android
 
+// assertDoesNotExist is a member of SemanticsNodeInteraction here rather than a
+// top-level extension, so it needs no import -- unlike assertIsDisplayed.
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -7,6 +9,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -14,10 +18,13 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import android.app.Application
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
 import dev.bee.beecode.app.RunOutcome
+import dev.bee.beecode.app.StatisticsPeriod
+import dev.bee.beecode.app.TopicMastery
 import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ReviewRating
 import kotlinx.coroutines.runBlocking
@@ -126,12 +133,31 @@ class BeeCodeUiRobolectricTest {
         }
     }
 
+    /**
+     * Scroll the queue until [title] is composed, and return it.
+     *
+     * The catalogue grows, so a Problem that was once the first row ends up below the
+     * fold — and a lazy list does not compose what is off screen, so a node that is
+     * merely present in the data has no semantics and no bounds to assert against.
+     * Scrolling to it is what keeps adding a Problem from breaking the UI suite, the
+     * same reason the solved count below is derived from the catalogue rather than
+     * written as a literal. Mirrors `DesktopUiTest`, which shares the tag.
+     */
+    private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
+        compose.onAllNodesWithText(title).onFirst()
+    }
+
+    private fun openTwoSum() {
+        scrollQueueTo(TWO_SUM_TITLE).performClick()
+    }
+
     @Test
     fun theQueueShowsTheBundledProblems() {
         launch()
         compose.onNodeWithText("BeeCode").assertIsDisplayed()
         compose.onNodeWithText("New Problems").assertIsDisplayed()
-        compose.onAllNodesWithText("Two Sum").onFirst().assertIsDisplayed()
+        scrollQueueTo(TWO_SUM_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -151,9 +177,67 @@ class BeeCodeUiRobolectricTest {
     }
 
     @Test
+    fun progressTabsRangesAndEmptyMetricsAreUsableAtPhoneWidth() {
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+
+        compose.onNodeWithText("Overview").assertIsDisplayed()
+        compose.onNodeWithText("Coverage").assertIsDisplayed()
+        compose.onNodeWithText("Achievements").assertIsDisplayed()
+        compose.onNodeWithText("No review activity yet. Catalogue and schedule totals are still available.")
+            .assertIsDisplayed()
+
+        listOf("Reviews", "Successful reviews", "Success rate", "Active days").forEach { label ->
+            compose.onNodeWithText(label).performScrollTo().assertIsDisplayed()
+        }
+
+        compose.onNodeWithText("7 days").performScrollTo().performClick()
+        compose.onNodeWithText("Activity - 7 days").performScrollTo().assertIsDisplayed()
+
+        compose.onNodeWithText("Coverage").performScrollTo().performClick()
+        compose.onNodeWithText("Difficulty progress").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Techniques").performScrollTo().performClick()
+        compose.onAllNodesWithText("Techniques").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun activityBarsExposeTheirExactDateAndCounts() {
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+        val bucket = profile.statistics().activity(StatisticsPeriod.THIRTY_DAYS).last()
+
+        compose.onNodeWithContentDescription(
+            "${bucket.startDate}: 0 reviews, 0 successful reviews",
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun visibilitySettingsApplyImmediatelyAndPersist() {
+        launch()
+        compose.onNodeWithText("Settings").performClick()
+
+        compose.onNodeWithContentDescription("Show streaks and achievements")
+            .performScrollTo()
+            .performClick()
+        assertTrue(!profile.settings.showStreaksAndAchievements())
+
+        compose.onNodeWithText("Progress").performClick()
+        compose.onNodeWithText("Achievements").assertDoesNotExist()
+
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Show Progress").performScrollTo().performClick()
+        assertTrue(!profile.settings.showProgress())
+        compose.onNodeWithText("Progress").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Show Progress").performClick()
+        assertTrue(profile.settings.showProgress())
+        compose.onNodeWithText("Progress").assertIsDisplayed()
+    }
+
+    @Test
     fun openingAProblemShowsItsStatementAndEditor() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         // The Problem view replaces the whole screen, navigation bar included, so a
         // stray tab tap cannot lose an attempt in progress.
@@ -168,7 +252,7 @@ class BeeCodeUiRobolectricTest {
         // A phone keyboard buries or omits the colon and brackets Python needs, and
         // indentation is syntactically significant.
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         // Asserted by existence rather than by display, deliberately.
         //
         // The symbol row is a horizontally scrolling Row nested inside the screen's
@@ -194,7 +278,7 @@ class BeeCodeUiRobolectricTest {
         // Revealing is legitimate when genuinely stuck, but it must be an informed
         // choice: it forfeits the solve and caps the rating at Hard.
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         compose.onNodeWithText("Stuck?").performScrollTo().assertIsDisplayed()
         compose.onNode(hasText("will not count", substring = true))
             .performScrollTo()
@@ -210,7 +294,7 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun runningAWrongSolutionShowsAFailureAndOnlyOffersAgain() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         compose.onNodeWithContentDescription("Python solution editor")
             .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
@@ -234,7 +318,7 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun theFullAnswerRunFinalizeJourneyWorksThroughTheUi() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         compose.onNodeWithContentDescription("Python solution editor").performTextReplacement(
             """
@@ -284,29 +368,38 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun theQueueHeadlinesTheTechniqueAndNamesTheProblemThatRehearsesIt() {
         // The point of topic-level scheduling, asserted where the learner meets it: what
-        // fell due is *arrays*, and Two Sum is the exercise offered to rehearse it. A
+        // fell due is a *technique*, and Two Sum is the exercise offered to rehearse it. A
         // queue that still headlined the Problem would pass every layer below this one.
-        solve(ProblemId("two-sum"))
-        arriveWhenDue("arrays")
+        //
+        // The technique is read out of the pack rather than named, because `taxonomy.yaml`
+        // owns the vocabulary and has already renamed a slug — a literal here would make a
+        // reviewed content change look like a UI regression.
+        val twoSum = ProblemId("two-sum")
+        val topic = checkNotNull(profile.catalogue.problem(twoSum)) { "two-sum left the pack" }
+            .topics
+            .first()
+        solve(twoSum)
+        arriveWhenDue(topic)
         launch()
 
         compose.onNodeWithText("Techniques to review").performScrollTo().assertIsDisplayed()
 
-        // Asserted as one card rather than three loose text nodes. Two Sum tags both
-        // arrays and hash-map, so a review fans out to two cards and every line below
-        // appears twice on screen — matching the lines separately would pass even if the
+        // Asserted as one card rather than three loose text nodes. Two Sum carries several
+        // tags, so a review fans out to several cards and every line below appears more
+        // than once on screen — matching the lines separately would pass even if the
         // interval and the Problem were rendered against different techniques.
         //
         // The subtitle expectation spans the two string literals the UI concatenates, so
         // a future split into two Text nodes fails here instead of quietly passing. The
         // member count comes from the catalogue: a literal "1 of 10" would turn authoring
-        // another arrays Problem into a UI-test failure, which teaches the wrong lesson.
-        val arraysMembers = profile.catalogue.allProblems().count { "arrays" in it.topics }
+        // another Problem in this technique into a UI-test failure, which teaches the
+        // wrong lesson.
+        val members = profile.catalogue.allProblems().count { topic in it.topics }
         compose.onNode(
             hasClickAction() and
-                hasText("Arrays") and
+                hasText(TopicMastery.displayName(topic)) and
                 hasText("Memory lasts about", substring = true) and
-                hasText("Two Sum · 1 of $arraysMembers practised", substring = true),
+                hasText("Two Sum · 1 of $members practised", substring = true),
         ).performScrollTo().assertIsDisplayed()
     }
 
@@ -320,15 +413,22 @@ class BeeCodeUiRobolectricTest {
         launch()
 
         compose.onNodeWithText("Progress").performClick()
-        compose.onNodeWithText("Techniques").performScrollTo().assertIsDisplayed()
+        // Under Coverage, not Overview: Overview answers "what did I do lately" while
+        // recall and interval are standing facts, and coverage has to be read beside
+        // recall. Matched on the full heading because the coverage axis selector has a
+        // button labelled just "Techniques", so the bare word is ambiguous here.
+        compose.onNodeWithText("Coverage").performClick()
+        compose.onNodeWithText("Techniques you have practised")
+            .performScrollTo()
+            .assertIsDisplayed()
         // The evidence base, stated before the numbers: recall of what has been solved,
         // not raw ability. Asserted across the soft wrap.
         compose.onNode(hasText("recall Problems you have already solved", substring = true))
             .performScrollTo()
             .assertIsDisplayed()
         // Every practised technique says it in words. Counted rather than taken as the
-        // first match, because Two Sum tags both arrays and hash-map: asserting one node
-        // would still pass if the other had rendered a fabricated zero.
+        // first match, because Two Sum carries several tags: asserting one node would
+        // still pass if another had rendered a fabricated zero.
         val practised = profile.topicMastery().practised
         assert(practised.isNotEmpty()) { "solving Two Sum must have practised at least one topic" }
         assertEquals(
@@ -345,11 +445,16 @@ class BeeCodeUiRobolectricTest {
 
         // And the counts beside it are real, spanning the boundary between the coverage
         // clause and the review clause so the two cannot silently become separate lines.
-        // Unique to arrays: hash-map has a different member count.
-        val arraysMembers = profile.catalogue.allProblems().count { "arrays" in it.topics }
-        compose.onNode(hasText("1 of $arraysMembers solved · 1 review", substring = true))
-            .performScrollTo()
-            .assertIsDisplayed()
+        // Read off the projection rather than counted here, so this asserts the UI renders
+        // what the shared fold computed rather than re-deriving it and agreeing with
+        // itself.
+        practised.forEach { ability ->
+            compose.onAllNodesWithText(
+                "${ability.solvedMemberProblems} of ${ability.memberProblems} solved · " +
+                    "${ability.reviews} review",
+                substring = true,
+            ).onFirst().performScrollTo().assertIsDisplayed()
+        }
     }
 
     @Test
@@ -545,5 +650,10 @@ class BeeCodeUiRobolectricTest {
     /** A clock the test moves by hand; see [clock]. */
     private class MutableClock(var current: kotlinx.datetime.Instant) : kotlinx.datetime.Clock {
         override fun now(): kotlinx.datetime.Instant = current
+    }
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
     }
 }

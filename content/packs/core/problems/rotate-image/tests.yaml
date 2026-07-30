@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-by-two
+    arguments: [[[1, 2], [3, 4]]]
+    expected: [[3, 1], [4, 2]]
+    comparator: exact
+
+  - name: example-three-by-three
+    arguments: [[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]
+    expected: [[7, 4, 1], [8, 5, 2], [9, 6, 3]]
+    comparator: exact
+
+  - name: a-single-cell
+    arguments: [[[5]]]
+    expected: [[5]]
+    comparator: exact
+
+  - name: the-order-of-the-reflections-matters
+    # Rotating anticlockwise instead would send the 1 to the bottom left, so
+    # this distinguishes the two orders.
+    arguments: [[[1, 0], [0, 0]]]
+    expected: [[0, 1], [0, 0]]
+    comparator: exact
+
+  - name: four-by-four
+    arguments: [[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]]
+    expected: [[13, 9, 5, 1], [14, 10, 6, 2], [15, 11, 7, 3], [16, 12, 8, 4]]
+    comparator: exact
+    hidden: true
+
+  - name: every-cell-identical
+    # A transpose that does nothing passes this, which is why it is not alone.
+    arguments: [[[7, 7], [7, 7]]]
+    expected: [[7, 7], [7, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: negative-values
+    arguments: [[[-1, -2], [-3, -4]]]
+    expected: [[-3, -1], [-4, -2]]
+    comparator: exact
+    hidden: true
+
+  - name: the-diagonal-is-preserved-in-count
+    # The centre stays put; the corners of the diagonal swap.
+    arguments: [[[1, 0, 0], [0, 2, 0], [0, 0, 3]]]
+    expected: [[0, 0, 1], [0, 2, 0], [3, 0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-marked-corner
+    arguments: [[[0, 0, 0], [0, 0, 0], [1, 0, 0]]]
+    expected: [[1, 0, 0], [0, 0, 0], [0, 0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: five-by-five
+    arguments: [[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]]]
+    expected: [[21, 16, 11, 6, 1], [22, 17, 12, 7, 2], [23, 18, 13, 8, 3], [24, 19, 14, 9, 4], [25, 20, 15, 10, 5]]
+    comparator: exact
+    hidden: true

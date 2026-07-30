@@ -1,0 +1,55 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-partial-overlap
+    arguments: [[0, 0, 2, 2], [1, 1, 3, 3]]
+    expected: 1
+    comparator: exact
+
+  - name: example-touching-at-a-corner
+    arguments: [[0, 0, 1, 1], [1, 1, 2, 2]]
+    expected: 0
+    comparator: exact
+
+  - name: one-inside-the-other
+    arguments: [[0, 0, 4, 4], [1, 1, 2, 2]]
+    expected: 1
+    comparator: exact
+
+  - name: identical-rectangles
+    arguments: [[0, 0, 5, 5], [0, 0, 5, 5]]
+    expected: 25
+    comparator: exact
+
+  - name: touching-along-an-edge
+    arguments: [[0, 0, 2, 2], [2, 0, 4, 2]]
+    expected: 0
+    comparator: exact
+
+  - name: far-apart-diagonally
+    # Both width and height are negative here. Multiplying them without a guard
+    # returns a positive area for rectangles that never meet.
+    arguments: [[0, 0, 1, 1], [2, 2, 3, 3]]
+    expected: 0
+    comparator: exact
+
+  - name: negative-coordinates
+    arguments: [[-2, -2, 0, 0], [-1, -1, 1, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: overlap-spans-the-full-height
+    arguments: [[0, 0, 3, 1], [1, 0, 2, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: overlapping-on-one-axis-only
+    # The x ranges overlap and the y ranges do not, so the answer is 0 rather
+    # than the width.
+    arguments: [[0, 0, 4, 1], [1, 5, 3, 9]]
+    expected: 0
+    comparator: exact
+    hidden: true
