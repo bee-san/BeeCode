@@ -533,25 +533,43 @@ private fun ProblemPane(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MarkdownBlock(opened.problem.statementMarkdown)
+                // In a Card, like every sibling in this column — and like the Android
+                // client, which has always wrapped the statement in one.
+                //
+                // Not only for consistency. An inset surface is painted `surface`, the
+                // page's own colour, so it reads as recessed *against a card*. This
+                // column had no fill of its own, and `background` and `surface` are the
+                // same value in both palettes, so the statement's code blocks and the
+                // examples below were painted page-colour-on-page-colour: 1.000:1,
+                // invisible. Android was unaffected because its statement sits in a
+                // Card, which is exactly why reviewing one client is not reviewing both.
+                // Caught by probing `captureToImage` pixels — see
+                // `ProblemPaneContrastTest`.
+                Card {
+                    Column(Modifier.padding(14.dp)) {
+                        MarkdownBlock(opened.problem.statementMarkdown)
 
-                if (opened.problem.examples.isNotEmpty()) {
-                    Text("Examples", style = MaterialTheme.typography.titleSmall)
-                    opened.problem.examples.forEach { example ->
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(6.dp),
-                                )
-                                .padding(10.dp),
-                        ) {
-                            Mono("Input:  ${example.input}")
-                            Mono("Output: ${example.output}")
-                            example.explanation?.let {
-                                Spacer(Modifier.height(4.dp))
-                                Text(it, style = MaterialTheme.typography.bodySmall)
+                        if (opened.problem.examples.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            Text("Examples", style = MaterialTheme.typography.titleSmall)
+                            opened.problem.examples.forEach { example ->
+                                Spacer(Modifier.height(6.dp))
+                                Column(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.surface,
+                                            RoundedCornerShape(6.dp),
+                                        )
+                                        .padding(10.dp),
+                                ) {
+                                    Mono("Input:  ${example.input}")
+                                    Mono("Output: ${example.output}")
+                                    example.explanation?.let {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(it, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
                             }
                         }
                     }
