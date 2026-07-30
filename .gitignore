@@ -3,6 +3,8 @@
 **/build/
 build/
 kotlin-js-store/
+# Kotlin compiler session markers, written during any build.
+.kotlin/
 
 # Android
 local.properties
