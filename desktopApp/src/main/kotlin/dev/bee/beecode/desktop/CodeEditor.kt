@@ -48,10 +48,23 @@ fun CodeEditor(
     onSourceChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Keyed on the incoming source so an external reset (e.g. "Reset to starter")
-    // replaces the buffer, while ordinary typing does not reset the caret.
-    var value by remember(source) {
-        mutableStateOf(TextFieldValue(source, TextRange(source.length)))
+    var value by remember { mutableStateOf(TextFieldValue(source, TextRange(source.length))) }
+
+    // Adopt [source] only when it genuinely disagrees with the buffer — an external
+    // reset such as "Reset to starter", or switching Problem.
+    //
+    // This must NOT be a `remember(source)` key. The caller re-supplies `source` from
+    // this editor's own `onSourceChange`, so keying on it re-ran this initialiser after
+    // every keystroke and rebuilt the selection as `TextRange(source.length)`: the caret
+    // jumped to the end of the document after each edit. Typing `ab`, moving left, then
+    // typing `X`, `Y`, `Z` gave `aXbYZ` — only the first insertion landed where the
+    // learner had put the caret. Tab was the most visible casualty, indenting the end of
+    // the buffer rather than the line being written.
+    //
+    // Comparing text converges in one pass: after an ordinary edit the caller echoes
+    // back exactly what was just emitted, so the branch does not run.
+    if (value.text != source) {
+        value = TextFieldValue(source, TextRange(source.length))
     }
 
     fun apply(next: TextFieldValue) {

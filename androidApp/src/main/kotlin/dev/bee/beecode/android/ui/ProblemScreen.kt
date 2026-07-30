@@ -246,8 +246,17 @@ private fun CodeEditor(
     onResetToStarter: () -> Unit,
 ) {
     // Own the selection locally so inserting a symbol can place the caret after it.
-    var value by remember(source) {
-        mutableStateOf(TextFieldValue(source, TextRange(source.length)))
+    var value by remember { mutableStateOf(TextFieldValue(source, TextRange(source.length))) }
+
+    // Adopt [source] only when it genuinely disagrees with the buffer — a reset to
+    // starter, or a different Problem. Keying `remember` on `source` re-ran the
+    // initialiser after every keystroke, because the caller echoes `source` back from
+    // this editor's own `onSourceChange`, and rebuilding the selection as
+    // `TextRange(source.length)` sent the caret to the end of the buffer after each
+    // edit. Every symbol-row insertion after the first therefore appended instead of
+    // landing at the caret. The desktop editor had the identical defect.
+    if (value.text != source) {
+        value = TextFieldValue(source, TextRange(source.length))
     }
 
     fun update(next: TextFieldValue) {

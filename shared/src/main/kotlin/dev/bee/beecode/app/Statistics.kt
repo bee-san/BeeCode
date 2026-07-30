@@ -72,7 +72,7 @@ object Statistics {
             lapses = lapses,
             dueNow = schedules.values.count { it.isDueAt(now) },
             dueTomorrow = schedules.values.count {
-                it.dueAt > now && it.localDueDate(today) == today.plus(DatePeriod(days = 1))
+                it.dueAt > now && it.localDueDate(today, now) == today.plus(DatePeriod(days = 1))
             },
             notYetAttempted = problems.count { it.id !in schedules.keys },
             byDifficulty = byDifficulty,
@@ -120,14 +120,26 @@ object Statistics {
     const val DEFAULT_HISTORY_DAYS: Int = 30
 
     /**
-     * The local date a schedule falls due.
+     * The local date a schedule falls due, as an offset from [reference] (the
+     * learner's today) measured from [now].
+     *
+     * Measured from *now*, not from `lastReviewedAt`. It used to subtract
+     * `lastReviewedAt` from `dueAt`, which is the length of the whole interval rather
+     * than the time still to run, and then added that to today — so a Problem reviewed
+     * 20 days ago on a 21-day interval and due tomorrow was projected 21 days out and
+     * dropped from `dueTomorrow`, while a Problem on a one-day interval counted as due
+     * tomorrow whenever it had just been reviewed. Both directions were wrong and
+     * neither was visible, because nothing rendered or asserted the number.
      *
      * Approximated against the reference date's own offset. Statistics are a
      * summary, not an audit, so a one-day edge at a DST boundary is acceptable
      * here in a way it explicitly is not for the 5am Club.
      */
-    private fun ProblemSchedule.localDueDate(reference: LocalDate): LocalDate {
-        val daysFromNow = ((dueAt.epochSeconds - lastReviewedAt.epochSeconds) / 86_400L).toInt()
+    private fun ProblemSchedule.localDueDate(reference: LocalDate, now: Instant): LocalDate {
+        // Floor, so any moment later today is "0 days from now" and only a due time
+        // that has genuinely crossed into tomorrow counts as tomorrow.
+        val secondsRemaining = dueAt.epochSeconds - now.epochSeconds
+        val daysFromNow = Math.floorDiv(secondsRemaining, 86_400L).toInt()
         return reference.plus(DatePeriod(days = daysFromNow.coerceAtLeast(0)))
     }
 }

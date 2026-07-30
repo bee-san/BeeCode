@@ -338,7 +338,11 @@ private fun ProblemPane(
     val suggested = latestRun?.let { ReviewRatingPolicy.defaultRating(it, aided) }
 
     fun persist() {
-        profile.drafts.draft(problemId)?.let { profile.study.saveDraft(it.copy(source = source)) }
+        // Via the service, which creates the draft row on demand. Reading
+        // `profile.drafts.draft(problemId)` first and saving only when it was non-null
+        // meant a Problem opened and typed into but never run had no row yet, so this
+        // silently did nothing and the source was lost on Back.
+        profile.study.saveSource(problemId, source)
     }
 
     Column(Modifier.fillMaxSize()) {

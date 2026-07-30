@@ -113,11 +113,16 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _problem.value = _problem.value?.copy(source = source, message = null)
     }
 
-    /** Persist the current draft. Called on pause and on leaving the Problem. */
+    /**
+     * Persist the current draft. Called on leaving the Problem and on ViewModel teardown.
+     *
+     * Through the service, which creates the draft row on demand. Fetching the row first
+     * and returning when it was absent meant a Problem opened and typed into but never
+     * run silently discarded everything the learner had written.
+     */
     fun persistDraft() {
         val state = _problem.value ?: return
-        val draft = profile.drafts.draft(state.problem.id) ?: return
-        profile.study.saveDraft(draft.copy(source = state.source))
+        profile.study.saveSource(state.problem.id, state.source)
     }
 
     fun run() {

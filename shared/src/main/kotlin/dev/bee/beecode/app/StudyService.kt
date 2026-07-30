@@ -109,6 +109,25 @@ class StudyService(
         drafts.save(draft, clock.now()) ?: drafts.draft(draft.problemId) ?: draft
 
     /**
+     * Persist [source] as the learner's draft for [problemId].
+     *
+     * The single call both clients use when leaving a Problem, and the reason it
+     * exists: they each did `drafts.draft(id)?.let { save(it.copy(source)) }`, and
+     * [DraftRepository.draft] returns null until something has been saved. [open]
+     * only ever *constructs* a draft, so on a first visit that `?.let` short-circuited
+     * and every character the learner had typed was discarded on Back — silently, with
+     * no error, for anyone who had not pressed Run first. [DraftRepository]'s own
+     * header calls losing typed source data loss rather than an inconvenience.
+     *
+     * Going through [DraftRepository.loadOrStart] means the baseline is created on
+     * demand, so there is no first-visit special case to remember at a call site.
+     */
+    fun saveSource(problemId: ProblemId, source: String): SolutionDraft? {
+        val problem = catalogue.problem(problemId) ?: return null
+        return saveDraft(drafts.loadOrStart(problem, clock.now()).copy(source = source))
+    }
+
+    /**
      * Run the learner's current source and record the attempt in the session.
      *
      * The source is snapshotted into the request, so the result is bound to
