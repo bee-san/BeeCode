@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Maximum XOR of Two Numbers
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - trie
+  - array
+algorithms:
+  - bit-manipulation
+  - greedy
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: maximum_xor
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "nums = [3, 10, 5, 25, 2, 8]"
+    output: "28"
+    explanation: "5 XOR 25 == 28, which is the largest over all pairs."
+  - input: "nums = [1, 2]"
+    output: "3"
+    explanation: "The only pair. 01 XOR 10 == 11."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-classic
+    arguments: [[3, 10, 5, 25, 2, 8]]
+    expected: 28
+    comparator: exact
+
+  - name: example-single-pair
+    arguments: [[1, 2]]
+    expected: 3
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: one-element-has-no-pair
+    arguments: [[0]]
+    expected: 0
+    comparator: exact
+
+  - name: equal-values-are-still-a-pair
+    # Distinct positions, equal values: the pair exists and its XOR is 0.
+    arguments: [[5, 5, 5]]
+    expected: 0
+    comparator: exact
+
+  - name: two-zeroes
+    arguments: [[0, 0]]
+    expected: 0
+    comparator: exact
+
+  - name: best-pair-is-not-the-two-largest
+    # 8 XOR 2 == 10 beats 10 XOR 8 == 2, so taking the largest two is wrong.
+    arguments: [[8, 10, 2]]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: full-width-values
+    arguments: [[2147483647, 0]]
+    expected: 2147483647
+    comparator: exact
+    hidden: true
+
+  - name: twelve-values
+    arguments: [[14, 70, 53, 83, 49, 91, 36, 80, 92, 51, 66, 70]]
+    expected: 127
+    comparator: exact
+    hidden: true

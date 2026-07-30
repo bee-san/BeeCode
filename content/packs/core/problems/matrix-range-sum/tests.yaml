@@ -1,0 +1,54 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-single-row
+    arguments: [[[1, 2, 3]], [[0, 0, 0, 2], [0, 1, 0, 1]]]
+    expected: [6, 2]
+    comparator: exact
+
+  - name: example-negative-values
+    arguments: [[[-1, -2], [-3, -4]], [[0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 0, 1]]]
+    expected: [-10, -7, -2]
+    comparator: exact
+
+  - name: five-by-five-with-five-queries
+    arguments:
+      - [[3, 0, 1, 4, 2], [5, 6, 3, 2, 1], [1, 2, 0, 1, 5], [4, 1, 0, 1, 7], [1, 0, 3, 0, 5]]
+      - [[2, 1, 4, 3], [1, 1, 2, 2], [1, 2, 2, 4], [0, 0, 4, 4], [0, 0, 0, 0]]
+    expected: [8, 11, 12, 58, 3]
+    comparator: exact
+
+  - name: one-by-one
+    arguments: [[[1]], [[0, 0, 0, 0]]]
+    expected: [1]
+    comparator: exact
+
+  - name: no-queries
+    arguments: [[[1, 2], [3, 4]], []]
+    expected: []
+    comparator: exact
+
+  - name: empty-matrix
+    arguments: [[], [[0, 0, 0, 0]]]
+    expected: [0]
+    comparator: exact
+
+  - name: the-same-query-twice-gives-the-same-answer
+    # Setup must not be consumed or mutated by answering a query.
+    arguments: [[[1, 2], [3, 4]], [[0, 0, 1, 1], [0, 0, 1, 1]]]
+    expected: [10, 10]
+    comparator: exact
+    hidden: true
+
+  - name: single-column-of-a-tall-matrix
+    arguments: [[[1], [2], [3], [4]], [[1, 0, 2, 0], [0, 0, 3, 0]]]
+    expected: [5, 10]
+    comparator: exact
+    hidden: true
+
+  - name: bottom-right-corner-only
+    arguments: [[[1, 2], [3, 4]], [[1, 1, 1, 1]]]
+    expected: [4]
+    comparator: exact
+    hidden: true

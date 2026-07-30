@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-parts
+    arguments: [[7, 2, 5, 10, 8], 2]
+    expected: 18
+    comparator: exact
+
+  - name: example-ascending
+    arguments: [[1, 2, 3, 4, 5], 2]
+    expected: 9
+    comparator: exact
+
+  - name: single-element-single-part
+    arguments: [[1], 1]
+    expected: 1
+    comparator: exact
+
+  - name: one-part-is-the-whole-sum
+    arguments: [[5, 1, 9], 1]
+    expected: 15
+    comparator: exact
+
+  - name: as-many-parts-as-elements
+    # Every element is its own part, so the answer is the largest element.
+    arguments: [[5, 1, 9], 3]
+    expected: 9
+    comparator: exact
+
+  - name: equal-values-split-evenly
+    arguments: [[3, 3, 3, 3], 2]
+    expected: 6
+    comparator: exact
+
+  - name: more-parts-than-needed-for-a-perfect-split
+    # k = 5 but only 6 elements, and the best largest-part is bounded below by
+    # the largest element rather than by the arithmetic mean.
+    arguments: [[2, 3, 1, 2, 4, 3], 5]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: large-equal-values
+    arguments: [[1000000, 1000000], 2]
+    expected: 1000000
+    comparator: exact
+    hidden: true
+
+  - name: fourteen-elements-eight-parts
+    arguments: [[10, 5, 13, 4, 8, 4, 5, 11, 14, 9, 16, 10, 20, 8], 8]
+    expected: 25
+    comparator: exact
+    hidden: true
+
+  - name: nine-elements-three-parts
+    arguments: [[1, 2, 3, 4, 5, 6, 7, 8, 9], 3]
+    expected: 17
+    comparator: exact
+    hidden: true

@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+title: Range Sum of a Binary Search Tree
+difficulty: easy
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - binary-search-tree
+  - binary-tree
+algorithms:
+  - depth-first-search
+  - recursion
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: range_sum
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "tree = [10, 5, 15, 3, 7, null, 18], low = 7, high = 15"
+    output: "32"
+    explanation: "7 + 10 + 15 = 32. Neither 3 nor 18 is in range."
+  - input: "tree = [10, 5, 15, 3, 7, 13, 18, 1, null, 6], low = 6, high = 10"
+    output: "23"
+    explanation: "6 + 7 + 10 = 23."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536
