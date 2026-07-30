@@ -1,7 +1,8 @@
 package dev.bee.beecode.android
 
+// assertDoesNotExist is a member of SemanticsNodeInteraction here rather than a
+// top-level extension, so it needs no import -- unlike assertIsDisplayed.
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText

@@ -155,6 +155,7 @@ fun DesktopApp(
             screen = DesktopScreen.Queue
         }
         refreshToken++
+        Unit
     }
 
     val active = openProblem
@@ -2038,6 +2039,26 @@ private fun SettingsPane(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun VisibilitySettingRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = label },
+        )
     }
 }
 

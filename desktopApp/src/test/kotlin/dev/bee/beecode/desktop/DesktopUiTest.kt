@@ -1,5 +1,7 @@
 package dev.bee.beecode.desktop
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,11 +19,14 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.bee.beecode.app.BeeCodeProfile
 import kotlinx.coroutines.runBlocking
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.LeaderboardService
 import dev.bee.beecode.app.ProblemCatalogue
+import dev.bee.beecode.app.StatisticsPeriod
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -71,6 +76,26 @@ class DesktopUiTest {
         }
     }
 
+    private fun withCompactUi(body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit) {
+        val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
+        val profile = BeeCodeProfile.inMemory(
+            catalogue = catalogue,
+            runner = ScriptedPythonRunner(),
+        )
+        try {
+            runComposeUiTest {
+                setContent {
+                    Box(Modifier.size(640.dp, 720.dp)) {
+                        DesktopApp(profile)
+                    }
+                }
+                body(this, profile)
+            }
+        } finally {
+            profile.close()
+        }
+    }
+
     @Test
     fun theQueueListsTheBundledProblems() = withUi { ui, _ ->
         ui.onNodeWithText("New Problems").assertIsDisplayed()
@@ -87,6 +112,61 @@ class DesktopUiTest {
 
         ui.onNodeWithText("Study").performClick()
         ui.onNodeWithText("New Problems").assertIsDisplayed()
+    }
+
+    @Test
+    fun progressTabsRangesAndCoverageWorkInACompactWindow() = withCompactUi { ui, _ ->
+        ui.onNodeWithText("Progress").performClick()
+
+        ui.onNodeWithText("Overview").assertIsDisplayed()
+        ui.onNodeWithText("Coverage").assertIsDisplayed()
+        ui.onNodeWithText("Achievements").assertIsDisplayed()
+        ui.onNodeWithText("No review activity yet. Catalogue and schedule totals are still available.")
+            .assertIsDisplayed()
+
+        listOf("Reviews", "Successful reviews", "Success rate", "Active days").forEach { label ->
+            ui.onNodeWithText(label).performScrollTo().assertIsDisplayed()
+        }
+
+        ui.onNodeWithText("90 days").performScrollTo().performClick()
+        ui.onNodeWithText("Activity - 90 days").performScrollTo().assertIsDisplayed()
+
+        ui.onNodeWithText("Coverage").performScrollTo().performClick()
+        ui.onNodeWithText("Difficulty progress").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Techniques").performScrollTo().performClick()
+        ui.onAllNodesWithText("Techniques").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun activityBarsExposeExactDatesAndCounts() = withUi { ui, profile ->
+        ui.onNodeWithText("Progress").performClick()
+        val bucket = profile.statistics().activity(StatisticsPeriod.THIRTY_DAYS).last()
+
+        ui.onNodeWithContentDescription(
+            "${bucket.startDate}: 0 reviews, 0 successful reviews",
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun visibilitySettingsApplyImmediatelyAndPersist() = withUi { ui, profile ->
+        ui.onNodeWithText("Settings").performClick()
+
+        ui.onNodeWithContentDescription("Show streaks and achievements")
+            .performScrollTo()
+            .performClick()
+        assertTrue(!profile.settings.showStreaksAndAchievements())
+
+        ui.onNodeWithText("Progress").performClick()
+        assertTrue(ui.onAllNodesWithText("Achievements").fetchSemanticsNodes().isEmpty())
+
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithContentDescription("Show Progress").performScrollTo().performClick()
+        assertTrue(!profile.settings.showProgress())
+        assertTrue(ui.onAllNodesWithText("Progress").fetchSemanticsNodes().isEmpty())
+
+        ui.onNodeWithContentDescription("Show Progress").performClick()
+        assertTrue(profile.settings.showProgress())
+        ui.onNodeWithText("Progress").assertIsDisplayed()
     }
 
     @Test

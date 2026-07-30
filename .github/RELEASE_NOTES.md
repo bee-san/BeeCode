@@ -95,9 +95,9 @@ sync, and a wider Problem curriculum. See the
 
 ## Verification
 
-574 automated tests: 548 JVM tests across nine modules and 26 Android instrumented
+580 automated tests: 554 JVM tests across nine modules and 26 Android instrumented
 tests, including the full answer → fail → fix → pass → finalize → restart journey
-against real CPython and real SQLite on both platforms. None of the 548 skip.
+against real CPython and real SQLite on both platforms. None of the 554 skip.
 
 Every Problem's reference solution is executed against every one of its declared
 tests by real CPython on each build, so a wrong expected value fails the build
