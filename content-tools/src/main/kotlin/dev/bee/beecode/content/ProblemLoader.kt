@@ -51,6 +51,18 @@ class ProblemLoader(private val json: Json = Json) {
             )
         }
 
+        // The classification vocabulary is pack-wide, so it is read once and passed
+        // down. A pack whose taxonomy is missing or malformed fails as a whole
+        // rather than reporting the same error against every Problem in it.
+        val taxonomyFile = File(packDirectory, FILE_TAXONOMY)
+        val taxonomy = when (val outcome = Taxonomy.load(taxonomyFile)) {
+            is Taxonomy.LoadOutcome.Loaded -> outcome.taxonomy
+            is Taxonomy.LoadOutcome.Failed -> return PackLoadResult(
+                problems = emptyList(),
+                failures = listOf(ProblemLoadFailure(null, taxonomyFile.path, outcome.messages)),
+            )
+        }
+
         val directories = problemsDirectory.listFiles()
             ?.filter { it.isDirectory && !it.name.startsWith(".") }
             ?.sortedBy { it.name }
@@ -59,7 +71,7 @@ class ProblemLoader(private val json: Json = Json) {
         val problems = mutableListOf<ProblemDefinition>()
         val failures = mutableListOf<ProblemLoadFailure>()
         for (directory in directories) {
-            when (val result = load(directory)) {
+            when (val result = load(directory, taxonomy)) {
                 is ProblemLoadOutcome.Loaded -> problems += result.problem
                 is ProblemLoadOutcome.Failed -> failures += result.failure
             }
@@ -67,8 +79,14 @@ class ProblemLoader(private val json: Json = Json) {
         return PackLoadResult(problems, failures)
     }
 
-    /** Load and compile a single Problem directory. */
-    fun load(directory: File): ProblemLoadOutcome {
+    /**
+     * Load and compile a single Problem directory.
+     *
+     * @param taxonomy the vocabulary its classification must be drawn from. Defaults
+     *   to the permissive one so a single-Problem load in a test does not need a
+     *   pack around it; a real pack load always passes its own.
+     */
+    fun load(directory: File, taxonomy: Taxonomy = Taxonomy.PERMISSIVE): ProblemLoadOutcome {
         val errors = mutableListOf<String>()
 
         val id = runCatching { ProblemId(directory.name) }.getOrElse {
@@ -135,8 +153,26 @@ class ProblemLoader(private val json: Json = Json) {
         val entryPoint = metadata.string("entryPoint")?.takeIf { it.isNotBlank() }
         if (entryPoint == null) errors += "$FILE_METADATA must declare an entryPoint"
 
-        val topics = metadata.stringList("topics")
-        if (topics.isEmpty()) errors += "$FILE_METADATA must declare at least one topic"
+        // Classification is split into what the Problem is made of and what you do
+        // to it, because those are different questions a learner filters by: "I want
+        // to practise trees" and "I want to practise binary search" are not the same
+        // request, and one flat topic list cannot tell them apart.
+        val dataStructures = parseClassification(
+            field = "dataStructures",
+            declared = metadata.stringList("dataStructures"),
+            vocabulary = taxonomy.dataStructures,
+            errors = errors,
+        )
+        val algorithms = parseClassification(
+            field = "algorithms",
+            declared = metadata.stringList("algorithms"),
+            vocabulary = taxonomy.algorithms,
+            errors = errors,
+        )
+        // `topics` stays as the derived union so filtering and statistics keep
+        // working against one list. It is derived rather than authored: an authored
+        // copy would drift out of agreement with the fields it summarises.
+        val topics = (dataStructures + algorithms).distinct()
 
         // Provenance is mandatory: the plan commits to original or licensed
         // content only, so a Problem that cannot say where it came from is not
@@ -193,6 +229,8 @@ class ProblemLoader(private val json: Json = Json) {
                 title = title,
                 difficulty = difficulty!!,
                 topics = topics,
+                dataStructures = dataStructures,
+                algorithms = algorithms,
                 statementMarkdown = statement,
                 starterSource = starter,
                 entryPoint = entryPoint,
@@ -210,6 +248,35 @@ class ProblemLoader(private val json: Json = Json) {
         }
 
         return ProblemLoadOutcome.Loaded(problem)
+    }
+
+    /**
+     * Validate one classification list against its closed vocabulary.
+     *
+     * Fails closed on an unknown slug and names the alternatives, because the usual
+     * cause is a near-miss spelling and the author needs to see the accepted form.
+     */
+    private fun parseClassification(
+        field: String,
+        declared: List<String>,
+        vocabulary: Taxonomy.Vocabulary,
+        errors: MutableList<String>,
+    ): List<String> {
+        if (declared.isEmpty()) {
+            errors += "$FILE_METADATA must declare at least one '$field'"
+            return emptyList()
+        }
+        val duplicates = declared.groupBy { it }.filterValues { it.size > 1 }.keys
+        if (duplicates.isNotEmpty()) {
+            errors += "$field lists ${duplicates.sorted().joinToString()} more than once"
+        }
+        val unknown = declared.filterNot { vocabulary.contains(it) }
+        if (unknown.isNotEmpty()) {
+            errors += "$field contains ${unknown.joinToString { "'$it'" }}, " +
+                "which $FILE_TAXONOMY does not define. " +
+                "Add it there with a description, or use one of: ${vocabulary.known.sorted().joinToString()}"
+        }
+        return declared.distinct()
     }
 
     private fun parseLimits(node: YamlMap?, errors: MutableList<String>): ExecutionLimits {
@@ -473,6 +540,7 @@ class ProblemLoader(private val json: Json = Json) {
         const val SCHEMA_VERSION: Int = 1
 
         const val FILE_METADATA = "problem.yaml"
+        const val FILE_TAXONOMY = "taxonomy.yaml"
         const val FILE_STATEMENT = "statement.md"
         const val FILE_STARTER = "starter.py"
         const val FILE_TESTS = "tests.yaml"

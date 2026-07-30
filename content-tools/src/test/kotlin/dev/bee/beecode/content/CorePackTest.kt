@@ -47,6 +47,57 @@ class CorePackTest {
     }
 
     @Test
+    fun everyProblemIsClassifiedOnBothAxes() {
+        // A Problem tagged only with its structure does not say what it trains, and a
+        // learner looking for binary-search practice cannot find it. The loader
+        // enforces non-emptiness per Problem; this asserts it across the catalogue, so
+        // the guarantee cannot be lost by a change that makes the fields optional.
+        val problems = ProblemLoader().loadPack(packDirectory).problems
+        for (problem in problems) {
+            assertTrue(
+                problem.dataStructures.isNotEmpty(),
+                "${problem.id}: must declare what it is made of",
+            )
+            assertTrue(
+                problem.algorithms.isNotEmpty(),
+                "${problem.id}: must declare what it trains",
+            )
+            assertEquals(
+                (problem.dataStructures + problem.algorithms).distinct(),
+                problem.topics,
+                "${problem.id}: topics must be the derived union of the two axes",
+            )
+        }
+    }
+
+    @Test
+    fun classificationIsDrawnFromTheShippedVocabulary() {
+        // The pack load already fails on an unknown slug, so this is a second reading
+        // of the same fact from the other direction: whatever the Problems declare is
+        // exactly what the vocabulary defines.
+        val outcome = Taxonomy.load(File(packDirectory, ProblemLoader.FILE_TAXONOMY))
+        val taxonomy = when (outcome) {
+            is Taxonomy.LoadOutcome.Loaded -> outcome.taxonomy
+            is Taxonomy.LoadOutcome.Failed -> error("the shipped taxonomy must load: ${outcome.messages}")
+        }
+        val problems = ProblemLoader().loadPack(packDirectory).problems
+        for (problem in problems) {
+            for (slug in problem.dataStructures) {
+                assertTrue(
+                    taxonomy.dataStructures.contains(slug),
+                    "${problem.id}: '$slug' is not a defined data structure",
+                )
+            }
+            for (slug in problem.algorithms) {
+                assertTrue(
+                    taxonomy.algorithms.contains(slug),
+                    "${problem.id}: '$slug' is not a defined algorithm",
+                )
+            }
+        }
+    }
+
+    @Test
     fun revisionsAreStableAcrossReloads() {
         // The revision is stored with every review, so an unstable hash would
         // detach a learner's history from the content they solved on every launch.

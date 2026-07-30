@@ -1,0 +1,74 @@
+# The closed classification vocabulary for this pack.
+#
+# Every Problem declares the data structures it is really about and the algorithms
+# or techniques it trains, and every declared slug must appear here. The pack fails
+# to load otherwise.
+#
+# Why closed rather than free-form: classification is what the learner filters and
+# reviews by, so "dfs" in one Problem and "depth-first-search" in another silently
+# splits one topic into two and understates coverage. A typo should break the build,
+# not quietly create a topic with one Problem in it.
+#
+# Why it lives in content rather than in Kotlin: adding a Problem must never require
+# editing a Kotlin registry (goal PROB-004), and the same is true of adding the
+# vocabulary a Problem needs. Extending this file is a content change, reviewed like
+# any other content change. It cannot introduce executable logic — it is a list of
+# slugs and their prose descriptions.
+#
+# The split is deliberately "what is it made of" versus "what do you do to it". A
+# Problem is normally about one or two of each. Tagging everything with everything
+# makes the tags useless for choosing what to study.
+
+schemaVersion: 1
+
+# ---- Data structures: what the input is, or what you must build to solve it ----
+dataStructures:
+  array: A contiguous, index-addressable sequence.
+  string: A sequence of characters, with its own alphabet and substring questions.
+  hash-map: A key-to-value dictionary offering expected O(1) lookup.
+  hash-set: Membership testing without an associated value.
+  linked-list: A chain of nodes reachable only by following links from the head.
+  stack: Last-in, first-out access.
+  queue: First-in, first-out access.
+  deque: A double-ended queue, pushed and popped at both ends.
+  heap: A priority queue giving cheap access to the smallest or largest item.
+  binary-tree: A rooted tree in which every node has at most two children.
+  binary-search-tree: A binary tree ordered so an in-order walk is sorted.
+  trie: A prefix tree keyed by the characters of its words.
+  graph: Vertices and edges, directed or undirected, beyond a tree's structure.
+  grid: A 2D lattice treated as an implicit graph of neighbouring cells.
+  matrix: A 2D array whose row and column geometry is the point.
+  union-find: A disjoint-set forest tracking connected components incrementally.
+  interval: A start/end pair, usually compared or merged against other intervals.
+  counter: A frequency table, i.e. a hash map from item to how many times it occurs.
+
+# ---- Algorithms and techniques: what you do ----
+algorithms:
+  two-pointers: Two indices moving through a sequence under an invariant.
+  fast-and-slow-pointers: Two pointers at different speeds, for cycles and midpoints.
+  sliding-window: A contiguous window grown and shrunk to maintain a property.
+  binary-search: Halving a sorted or monotonic search space.
+  binary-search-on-answer: Binary searching the answer itself against a feasibility test.
+  sorting: Ordering the input to expose structure the unsorted form hides.
+  prefix-sum: Precomputed cumulative totals answering range queries in O(1).
+  greedy: Committing to the locally best choice and proving it is globally safe.
+  dynamic-programming: Solving overlapping subproblems once and reusing the results.
+  memoization: Top-down dynamic programming that caches recursive calls.
+  recursion: Solving an instance in terms of smaller instances of itself.
+  divide-and-conquer: Splitting into independent halves and combining the answers.
+  backtracking: Systematic search that undoes a choice and tries the next one.
+  depth-first-search: Exploring as far as possible before retreating.
+  breadth-first-search: Exploring in order of distance, level by level.
+  topological-sort: Ordering a DAG so every edge points forward.
+  shortest-path: Finding a minimum-cost route through a weighted graph.
+  cycle-detection: Deciding whether a structure loops back on itself.
+  monotonic-stack: A stack kept sorted, for next-greater and span questions.
+  monotonic-queue: A deque kept sorted, for sliding-window extremes.
+  bit-manipulation: Treating a number as its bits and using XOR, masks, and shifts.
+  math: A closed-form or number-theoretic argument rather than a search.
+  simulation: Faithfully carrying out the stated process, carefully.
+  counting: Tallying frequencies and reasoning about the tallies.
+  hashing: Trading space for time by remembering what you have seen in a map or set.
+  in-place: Rearranging the input itself under an O(1) extra-space budget.
+  quickselect: Partitioning to find an order statistic without fully sorting.
+  kadane: Running-best scanning for maximum-sum contiguous subarrays.

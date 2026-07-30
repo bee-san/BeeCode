@@ -20,8 +20,27 @@ data class ProblemDefinition(
     val revisionId: ProblemRevisionId,
     val title: String,
     val difficulty: ProblemDifficulty,
-    /** Free-form topic slugs, used for filtering and statistics. */
+    /**
+     * The union of [dataStructures] and [algorithms], for filtering and statistics
+     * that do not care which axis a tag came from.
+     *
+     * Derived by the content pipeline rather than authored, so it cannot disagree
+     * with the two lists it summarises.
+     */
     val topics: List<String>,
+    /**
+     * What the Problem is made of: the structures the input arrives in, or that a
+     * solution has to build. Drawn from the pack's closed taxonomy.
+     */
+    val dataStructures: List<String> = emptyList(),
+    /**
+     * What the Problem trains you to do: the algorithms and techniques a good
+     * solution uses. Drawn from the pack's closed taxonomy.
+     *
+     * Separate from [dataStructures] because "practise trees" and "practise binary
+     * search" are different requests, and one flat list cannot tell them apart.
+     */
+    val algorithms: List<String> = emptyList(),
     /** Markdown statement shown to the learner. Never executed. */
     val statementMarkdown: String,
     /** The source the editor is pre-filled with on a first attempt. */
@@ -52,6 +71,13 @@ data class ProblemDefinition(
             "Problem $id has duplicate test names"
         }
         require(topics.all { it.isNotBlank() }) { "Problem $id has a blank topic" }
+        require(dataStructures.all { it.isNotBlank() }) { "Problem $id has a blank data structure" }
+        require(algorithms.all { it.isNotBlank() }) { "Problem $id has a blank algorithm" }
+        // The invariant that makes `topics` safe to read on its own: anything a
+        // caller filters by on the union must be findable on one of the two axes.
+        require(topics.containsAll(dataStructures) && topics.containsAll(algorithms)) {
+            "Problem $id has topics that do not cover its dataStructures and algorithms"
+        }
     }
 
     /** True when the learner can reveal a packaged explanation for this Problem. */
