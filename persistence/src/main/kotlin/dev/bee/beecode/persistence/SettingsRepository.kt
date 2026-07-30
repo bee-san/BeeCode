@@ -172,6 +172,22 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         }
     }
 
+    /**
+     * The learner's colour-scheme preference, or null to follow the system.
+     *
+     * Stored as an opaque string rather than a typed enum because the enum lives in
+     * `:shared`, which depends on this module and not the other way round. The typed
+     * accessors are extensions there; this is the storage.
+     *
+     * Syncable and exportable on purpose: it is a preference, not a device secret, and
+     * a learner who restores a backup should get their own app back.
+     */
+    fun appTheme(): String? = get(KEY_APP_THEME)?.takeIf { it.isNotBlank() }
+
+    fun setAppTheme(theme: String?, now: Instant) {
+        if (theme.isNullOrBlank()) remove(KEY_APP_THEME) else put(KEY_APP_THEME, theme, now)
+    }
+
     /** Path to a Python interpreter chosen by the learner, if any. */
     fun pythonExecutable(): String? = get(KEY_PYTHON_EXECUTABLE)?.takeIf { it.isNotBlank() }
 
@@ -257,6 +273,7 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_MAX_INTERVAL_DAYS = "fsrs.maximumIntervalDays"
         const val KEY_FSRS_PARAMETERS = "fsrs.parameters"
         const val KEY_DAILY_REVIEW_LIMIT = "review.dailyLimit"
+        const val KEY_APP_THEME = "app.theme"
         const val KEY_PYTHON_EXECUTABLE = "python.executable"
         const val KEY_SYNC_FILE = "sync.file"
         const val KEY_SYNC_WEBDAV_URL = "sync.webdav.url"
