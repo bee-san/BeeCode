@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-shared-prefixes
+    arguments: [["apple", "app", "apricot"], ["ap", "app", "b"]]
+    expected: [3, 2, 0]
+    comparator: exact
+
+  - name: duplicates-count-separately
+    arguments: [["a", "a"], ["a"]]
+    expected: [2]
+    comparator: exact
+
+  - name: no-words
+    arguments: [[], ["a", "b"]]
+    expected: [0, 0]
+    comparator: exact
+
+  - name: no-queries
+    arguments: [["apple"], []]
+    expected: []
+    comparator: exact
+
+  - name: a-word-is-its-own-prefix
+    # The full word must count, not just strict prefixes.
+    arguments: [["apple"], ["apple"]]
+    expected: [1]
+    comparator: exact
+
+  - name: query-longer-than-every-word
+    # The walk runs off the end of the trie and must report 0, not the count
+    # at the last node it reached.
+    arguments: [["app"], ["apple"]]
+    expected: [0]
+    comparator: exact
+    hidden: true
+
+  - name: passing-through-is-not-ending-here
+    # Counting only exact word-ends would answer 1.
+    arguments: [["ab", "abc", "abcd"], ["abc"]]
+    expected: [2]
+    comparator: exact
+    hidden: true
+
+  - name: results-follow-query-order
+    # One entry per query, in order, including a repeat.
+    arguments: [["zebra", "apple"], ["z", "a", "z"]]
+    expected: [1, 1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: many-words-one-shared-prefix
+    # 500 words down one path. A per-query scan of all words is what the trie
+    # is meant to avoid.
+    arguments: [["prefix0", "prefix1", "prefix2", "prefix3", "prefix4", "prefix5", "prefix6", "prefix7", "prefix8", "prefix9", "prefix10", "prefix11", "prefix12", "prefix13", "prefix14", "prefix15", "prefix16", "prefix17", "prefix18", "prefix19", "prefix20", "prefix21", "prefix22", "prefix23", "prefix24", "prefix25", "prefix26", "prefix27", "prefix28", "prefix29", "prefix30", "prefix31", "prefix32", "prefix33", "prefix34", "prefix35", "prefix36", "prefix37", "prefix38", "prefix39", "prefix40", "prefix41", "prefix42", "prefix43", "prefix44", "prefix45", "prefix46", "prefix47", "prefix48", "prefix49", "prefix50", "prefix51", "prefix52", "prefix53", "prefix54", "prefix55", "prefix56", "prefix57", "prefix58", "prefix59", "prefix60", "prefix61", "prefix62", "prefix63", "prefix64", "prefix65", "prefix66", "prefix67", "prefix68", "prefix69", "prefix70", "prefix71", "prefix72", "prefix73", "prefix74", "prefix75", "prefix76", "prefix77", "prefix78", "prefix79", "prefix80", "prefix81", "prefix82", "prefix83", "prefix84", "prefix85", "prefix86", "prefix87", "prefix88", "prefix89", "prefix90", "prefix91", "prefix92", "prefix93", "prefix94", "prefix95", "prefix96", "prefix97", "prefix98", "prefix99", "prefix100", "prefix101", "prefix102", "prefix103", "prefix104", "prefix105", "prefix106", "prefix107", "prefix108", "prefix109", "prefix110", "prefix111", "prefix112", "prefix113", "prefix114", "prefix115", "prefix116", "prefix117", "prefix118", "prefix119", "prefix120", "prefix121", "prefix122", "prefix123", "prefix124", "prefix125", "prefix126", "prefix127", "prefix128", "prefix129", "prefix130", "prefix131", "prefix132", "prefix133", "prefix134", "prefix135", "prefix136", "prefix137", "prefix138", "prefix139", "prefix140", "prefix141", "prefix142", "prefix143", "prefix144", "prefix145", "prefix146", "prefix147", "prefix148", "prefix149", "prefix150", "prefix151", "prefix152", "prefix153", "prefix154", "prefix155", "prefix156", "prefix157", "prefix158", "prefix159", "prefix160", "prefix161", "prefix162", "prefix163", "prefix164", "prefix165", "prefix166", "prefix167", "prefix168", "prefix169", "prefix170", "prefix171", "prefix172", "prefix173", "prefix174", "prefix175", "prefix176", "prefix177", "prefix178", "prefix179", "prefix180", "prefix181", "prefix182", "prefix183", "prefix184", "prefix185", "prefix186", "prefix187", "prefix188", "prefix189", "prefix190", "prefix191", "prefix192", "prefix193", "prefix194", "prefix195", "prefix196", "prefix197", "prefix198", "prefix199", "prefix200", "prefix201", "prefix202", "prefix203", "prefix204", "prefix205", "prefix206", "prefix207", "prefix208", "prefix209", "prefix210", "prefix211", "prefix212", "prefix213", "prefix214", "prefix215", "prefix216", "prefix217", "prefix218", "prefix219", "prefix220", "prefix221", "prefix222", "prefix223", "prefix224", "prefix225", "prefix226", "prefix227", "prefix228", "prefix229", "prefix230", "prefix231", "prefix232", "prefix233", "prefix234", "prefix235", "prefix236", "prefix237", "prefix238", "prefix239", "prefix240", "prefix241", "prefix242", "prefix243", "prefix244", "prefix245", "prefix246", "prefix247", "prefix248", "prefix249", "prefix250", "prefix251", "prefix252", "prefix253", "prefix254", "prefix255", "prefix256", "prefix257", "prefix258", "prefix259", "prefix260", "prefix261", "prefix262", "prefix263", "prefix264", "prefix265", "prefix266", "prefix267", "prefix268", "prefix269", "prefix270", "prefix271", "prefix272", "prefix273", "prefix274", "prefix275", "prefix276", "prefix277", "prefix278", "prefix279", "prefix280", "prefix281", "prefix282", "prefix283", "prefix284", "prefix285", "prefix286", "prefix287", "prefix288", "prefix289", "prefix290", "prefix291", "prefix292", "prefix293", "prefix294", "prefix295", "prefix296", "prefix297", "prefix298", "prefix299", "prefix300", "prefix301", "prefix302", "prefix303", "prefix304", "prefix305", "prefix306", "prefix307", "prefix308", "prefix309", "prefix310", "prefix311", "prefix312", "prefix313", "prefix314", "prefix315", "prefix316", "prefix317", "prefix318", "prefix319", "prefix320", "prefix321", "prefix322", "prefix323", "prefix324", "prefix325", "prefix326", "prefix327", "prefix328", "prefix329", "prefix330", "prefix331", "prefix332", "prefix333", "prefix334", "prefix335", "prefix336", "prefix337", "prefix338", "prefix339", "prefix340", "prefix341", "prefix342", "prefix343", "prefix344", "prefix345", "prefix346", "prefix347", "prefix348", "prefix349", "prefix350", "prefix351", "prefix352", "prefix353", "prefix354", "prefix355", "prefix356", "prefix357", "prefix358", "prefix359", "prefix360", "prefix361", "prefix362", "prefix363", "prefix364", "prefix365", "prefix366", "prefix367", "prefix368", "prefix369", "prefix370", "prefix371", "prefix372", "prefix373", "prefix374", "prefix375", "prefix376", "prefix377", "prefix378", "prefix379", "prefix380", "prefix381", "prefix382", "prefix383", "prefix384", "prefix385", "prefix386", "prefix387", "prefix388", "prefix389", "prefix390", "prefix391", "prefix392", "prefix393", "prefix394", "prefix395", "prefix396", "prefix397", "prefix398", "prefix399", "prefix400", "prefix401", "prefix402", "prefix403", "prefix404", "prefix405", "prefix406", "prefix407", "prefix408", "prefix409", "prefix410", "prefix411", "prefix412", "prefix413", "prefix414", "prefix415", "prefix416", "prefix417", "prefix418", "prefix419", "prefix420", "prefix421", "prefix422", "prefix423", "prefix424", "prefix425", "prefix426", "prefix427", "prefix428", "prefix429", "prefix430", "prefix431", "prefix432", "prefix433", "prefix434", "prefix435", "prefix436", "prefix437", "prefix438", "prefix439", "prefix440", "prefix441", "prefix442", "prefix443", "prefix444", "prefix445", "prefix446", "prefix447", "prefix448", "prefix449", "prefix450", "prefix451", "prefix452", "prefix453", "prefix454", "prefix455", "prefix456", "prefix457", "prefix458", "prefix459", "prefix460", "prefix461", "prefix462", "prefix463", "prefix464", "prefix465", "prefix466", "prefix467", "prefix468", "prefix469", "prefix470", "prefix471", "prefix472", "prefix473", "prefix474", "prefix475", "prefix476", "prefix477", "prefix478", "prefix479", "prefix480", "prefix481", "prefix482", "prefix483", "prefix484", "prefix485", "prefix486", "prefix487", "prefix488", "prefix489", "prefix490", "prefix491", "prefix492", "prefix493", "prefix494", "prefix495", "prefix496", "prefix497", "prefix498", "prefix499"], ["prefix", "prefixz"]]
+    expected: [500, 0]
+    comparator: exact
+    hidden: true

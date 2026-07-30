@@ -1,0 +1,41 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Next Warmer Day
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - array
+  - stack
+algorithms:
+  - monotonic-stack
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: days_until_warmer
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "temperatures = [73, 74, 75, 71, 69, 72, 76, 73]"
+    output: "[1, 1, 4, 2, 1, 1, 0, 0]"
+    explanation: "Day 2 (75) waits until day 6 (76), which is 4 days. Days 6 and 7 never get warmer."
+  - input: "temperatures = [30, 20, 10]"
+    output: "[0, 0, 0]"
+    explanation: "It only ever gets colder."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

@@ -1,0 +1,46 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-depth-three
+    arguments: [[3, 9, 20, null, null, 15, 7]]
+    expected: 3
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: root-only
+    arguments: [[1]]
+    expected: 1
+    comparator: exact
+
+  - name: right-leaning-chain
+    # A chain, not a balanced tree: the answer is the number of nodes, so an
+    # implementation that assumes fullness is wrong.
+    arguments: [[1, null, 2, null, null, null, 3]]
+    expected: 3
+    comparator: exact
+
+  - name: deeper-subtree-on-the-left
+    # max, not min, and not the first branch tried.
+    arguments: [[1, 2, 3, 4, null, null, null, 8]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: negative-values-are-still-nodes
+    # A falsy or negative value must not be mistaken for absent.
+    arguments: [[-1, -2, -3]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: zero-is-a-node-not-a-gap
+    # The classic bug: testing `if not tree[i]` treats 0 as absent.
+    arguments: [[0, 0, null, 0]]
+    expected: 3
+    comparator: exact
+    hidden: true
