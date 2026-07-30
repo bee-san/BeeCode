@@ -60,10 +60,12 @@ import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.SyncReport
 import dev.bee.beecode.app.WebDavSyncStore
-import dev.bee.beecode.app.DueProblem
+import dev.bee.beecode.app.DueTopic
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.app.TopicAbility
 import dev.bee.beecode.domain.ProblemDefinition
 import dev.bee.beecode.domain.ProblemDifficulty
+import dev.bee.beecode.domain.formatIntervalDays
 import dev.bee.beecode.python.RunnerCapability
 import kotlin.math.roundToInt
 
@@ -189,10 +191,12 @@ private fun QueueScreen(viewModel: StudyViewModel) {
         if (current == null) {
             item { LoadingRow() }
         } else {
-            if (current.due.isNotEmpty()) {
-                item { SectionHeader("Due now", current.due.size) }
-                items(current.due, key = { it.problem.id.value }) { due ->
-                    DueProblemCard(due) { viewModel.openProblem(due.problem.id) }
+            if (current.dueTopics.isNotEmpty()) {
+                // "Techniques", not "Problems": what fell due is dynamic programming,
+                // and the Problem underneath is the exercise that rehearses it.
+                item { SectionHeader("Techniques to review", current.dueTopics.size) }
+                items(current.dueTopics, key = { it.topic }) { due ->
+                    DueTopicCard(due) { viewModel.openProblem(due.problem.id) }
                 }
             }
             if (current.new.isNotEmpty()) {
@@ -224,18 +228,53 @@ private fun SectionHeader(title: String, count: Int) {
     }
 }
 
+/**
+ * A technique that has come round, and the Problem chosen to rehearse it.
+ *
+ * The technique is the headline and the Problem is the subtitle, which is the whole
+ * point of the change: the learner is told "practise dynamic programming" and then
+ * given something to practise it with, rather than being handed a Problem and left to
+ * infer why.
+ *
+ * "Memory lasts about N days" is [formatIntervalDays] over the topic's own FSRS
+ * interval — the algorithm's own output rather than a figure invented for the UI.
+ *
+ * The difficulty badge sits on the *Problem's* line rather than beside the technique
+ * name, where it first went. A technique has no difficulty, and a badge next to
+ * "Arrays" reads as though it did.
+ */
 @Composable
-private fun DueProblemCard(due: DueProblem, onClick: () -> Unit) {
-    ProblemCard(
-        problem = due.problem,
-        // "Reviewed 5 times" means something to a learner; a stability number is
-        // FSRS's business rather than theirs.
-        subtitle = buildString {
-            append("Reviewed ${due.schedule.reviewCount}×")
-            if (due.schedule.lapseCount > 0) append(" · ${due.schedule.lapseCount} lapses")
-        },
-        onClick = onClick,
-    )
+private fun DueTopicCard(due: DueTopic, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Text(
+                due.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Memory lasts about ${formatIntervalDays(due.schedule.intervalDays)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    // Naming the Problem matters here: the learner needs to know they are
+                    // revisiting something, and which something.
+                    "Practise with ${due.problem.title} · " +
+                        "${due.attemptedMemberProblems} of ${due.memberProblems} practised",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                DifficultyBadge(due.problem.difficulty)
+            }
+        }
+    }
 }
 
 @Composable
@@ -321,6 +360,7 @@ private fun LoadingRow() {
 private fun StatisticsScreen(viewModel: StudyViewModel) {
     val statistics by viewModel.statistics.collectAsStateWithLifecycle()
     val achievements by viewModel.achievements.collectAsStateWithLifecycle()
+    val topicMastery by viewModel.topicMastery.collectAsStateWithLifecycle()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -347,6 +387,24 @@ private fun StatisticsScreen(viewModel: StudyViewModel) {
             DifficultyBreakdown(stats)
         }
 
+        topicMastery?.practised?.takeIf { it.isNotEmpty() }?.let { practised ->
+            Text(
+                "Techniques",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            // The evidence base, stated once, above the numbers rather than in a
+            // footnote. What is measured is recall of Problems already solved, and a
+            // learner who reads these as raw problem-solving ability will trust them
+            // for a decision they cannot support.
+            Text(
+                "How well you recall Problems you have already solved in each technique.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            practised.forEach { TopicAbilityRow(it) }
+        }
+
         achievements?.let { projection ->
             Text(
                 "Achievements",
@@ -354,6 +412,50 @@ private fun StatisticsScreen(viewModel: StudyViewModel) {
                 fontWeight = FontWeight.SemiBold,
             )
             projection.states.forEach { AchievementRow(it) }
+        }
+    }
+}
+
+/**
+ * One technique's figures.
+ *
+ * Two numbers side by side and never blended: how long the memory lasts, and how much
+ * of the technique has been practised. A null recall rate says "not enough practice
+ * yet" rather than 0%, because the difference between "weak at this" and "has barely
+ * done this" is the one the learner most needs and the one a fake zero destroys.
+ */
+@Composable
+private fun TopicAbilityRow(ability: TopicAbility) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    ability.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    ability.recallRate?.let { "${(it * 100).roundToInt()}% recall" }
+                        ?: "Not enough practice yet",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                buildString {
+                    ability.intervalDays?.let {
+                        append("Memory lasts about ${formatIntervalDays(it)} · ")
+                    }
+                    append("${ability.solvedMemberProblems} of ${ability.memberProblems} solved")
+                    append(" · ${ability.reviews} ${if (ability.reviews == 1) "review" else "reviews"}")
+                    if (ability.lapses > 0) append(", ${ability.lapses} forgotten")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

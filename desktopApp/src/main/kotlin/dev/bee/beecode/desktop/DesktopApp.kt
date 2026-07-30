@@ -56,7 +56,8 @@ import androidx.compose.ui.unit.sp
 import dev.bee.beecode.app.AchievementState
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.LeaderboardService
-import dev.bee.beecode.app.DueProblem
+import dev.bee.beecode.app.DueTopic
+import dev.bee.beecode.app.TopicAbility
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.RunnerStatus
@@ -212,10 +213,12 @@ private fun QueuePane(
             }
         }
 
-        if (queue.due.isNotEmpty()) {
-            item { SectionHeader("Due now", queue.due.size) }
-            items(queue.due, key = { it.problem.id.value }) { due ->
-                DueProblemRow(due) { onOpen(due.problem.id) }
+        if (queue.dueTopics.isNotEmpty()) {
+            // "Techniques", not "Problems": what fell due is dynamic programming, and
+            // the Problem underneath is the exercise that rehearses it.
+            item { SectionHeader("Techniques to review", queue.dueTopics.size) }
+            items(queue.dueTopics, key = { it.topic }) { due ->
+                DueTopicRow(due) { onOpen(due.problem.id) }
             }
         }
         if (queue.new.isNotEmpty()) {
@@ -257,16 +260,43 @@ private fun SectionHeader(title: String, count: Int) {
     }
 }
 
+/**
+ * A technique that has come round, and the Problem chosen to rehearse it.
+ *
+ * The technique is the headline and the Problem the subtitle, which is the point of the
+ * change: the learner is told "practise dynamic programming" and then given something
+ * to practise it with, rather than handed a Problem and left to infer why. Mirrors
+ * Android's `DueTopicCard` — the same words in both clients, because a learner using
+ * both should not have to learn two vocabularies.
+ *
+ * The difficulty badge sits on the *Problem's* line rather than beside the technique
+ * name, where it first went. A technique has no difficulty, and a badge next to
+ * "Arrays" reads as though it did — a screenshot caught that, not a review.
+ */
 @Composable
-private fun DueProblemRow(due: DueProblem, onClick: () -> Unit) {
-    ProblemRow(
-        problem = due.problem,
-        subtitle = buildString {
-            append("Reviewed ${due.schedule.reviewCount}×")
-            if (due.schedule.lapseCount > 0) append(" · ${due.schedule.lapseCount} lapses")
-        },
-        onClick = onClick,
-    )
+private fun DueTopicRow(due: DueTopic, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Text(due.displayName, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Memory lasts about ${formatIntervalDays(due.schedule.intervalDays)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Practise with ${due.problem.title} · " +
+                        "${due.attemptedMemberProblems} of ${due.memberProblems} practised",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                DifficultyBadge(due.problem.difficulty)
+            }
+        }
+    }
 }
 
 @Composable
@@ -734,6 +764,7 @@ private fun TestRow(result: TestCaseResult) {
 private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
     val stats = remember(refreshToken) { profile.statistics() }
     val achievements = remember(refreshToken) { profile.achievements() }
+    val topicMastery = remember(refreshToken) { profile.topicMastery() }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -826,12 +857,72 @@ private fun ProgressPane(profile: BeeCodeProfile, refreshToken: Int) {
             }
         }
 
+        topicMastery.practised.takeIf { it.isNotEmpty() }?.let { practised ->
+            Text(
+                "Techniques",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            // The evidence base, stated above the numbers rather than in a footnote.
+            // What is measured is recall of Problems already solved; a learner who
+            // reads these as raw problem-solving ability will trust them for a
+            // decision they cannot support.
+            Text(
+                "How well you recall Problems you have already solved in each technique.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            practised.forEach { TopicAbilityRow(it) }
+        }
+
         Text(
             "Achievements",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
         achievements.states.forEach { AchievementRow(it) }
+    }
+}
+
+/**
+ * One technique's figures. Mirrors Android's `TopicAbilityRow`.
+ *
+ * Two numbers side by side and never blended: how long the memory lasts, and how much
+ * of the technique has been practised. A null recall rate reads "not enough practice
+ * yet" rather than 0% — the difference between "weak at this" and "has barely done
+ * this" is the one the learner most needs, and a fake zero destroys it.
+ */
+@Composable
+private fun TopicAbilityRow(ability: TopicAbility) {
+    Card {
+        Column(Modifier.padding(14.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    ability.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    ability.recallRate?.let { "${(it * 100).roundToInt()}% recall" }
+                        ?: "Not enough practice yet",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                buildString {
+                    ability.intervalDays?.let {
+                        append("Memory lasts about ${formatIntervalDays(it)} · ")
+                    }
+                    append("${ability.solvedMemberProblems} of ${ability.memberProblems} solved")
+                    append(" · ${ability.reviews} ${if (ability.reviews == 1) "review" else "reviews"}")
+                    if (ability.lapses > 0) append(", ${ability.lapses} forgotten")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

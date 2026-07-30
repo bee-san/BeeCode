@@ -12,6 +12,7 @@ import dev.bee.beecode.domain.ProblemRevisionId
 import dev.bee.beecode.domain.ProblemSchedule
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.ReviewSessionId
+import dev.bee.beecode.domain.TopicSchedule
 import dev.bee.beecode.domain.localDateIn
 import dev.bee.beecode.domain.localHourIn
 import dev.bee.beecode.fsrs.BeeCodeScheduler
@@ -48,6 +49,11 @@ class ReviewRepository(
      *    was based on could change.
      * 4. Append the review row and update the schedule, conditional on the version
      *    still matching.
+     * 5. Advance every topic the Problem is tagged with, each on its own
+     *    compare-and-swap. One review of `median-two-sorted` rehearses `arrays`,
+     *    `binary-search`, and `two-pointers`, so all three move together or none
+     *    does — a review that advanced the Problem but not its topics would leave
+     *    the topic projection permanently short by one.
      *
      * `BEGIN IMMEDIATE` takes the write lock before step 2, so two concurrent
      * finalizations cannot both read version N and both write version N+1.
@@ -56,6 +62,12 @@ class ReviewRepository(
      * commit, in its own idempotent transaction, so a broken reducer cannot roll
      * back a review or block study.
      *
+     * @param topics the Problem's current topic tags, supplied by the caller. Passed
+     *   in rather than looked up because the catalogue lives in `:shared`, and this
+     *   module must not depend on it. Deliberately has no default: an empty list is
+     *   a legitimate answer for an untagged Problem, so a default would make
+     *   "untagged" and "the caller forgot" the same call, and the second would show
+     *   up only as topics that never come due.
      * @param streakZone the profile's timezone, used to derive the local date and
      *   hour once, at write time. Stored rather than recomputed so a later
      *   timezone change cannot silently rewrite history.
@@ -68,6 +80,7 @@ class ReviewRepository(
         deviceId: DeviceId,
         finalizedAtInstant: Instant,
         streakZone: TimeZone,
+        topics: List<String>,
     ): FinalizeOutcome = database.transaction { connection ->
         // Truncated once, up front, so the review, the schedule, and the FSRS audit
         // all agree with what the database will hold. Storing millisecond precision
@@ -125,7 +138,36 @@ class ReviewRepository(
             selectedSource = plan.selectedRun.source,
         )
 
-        FinalizeOutcome.Finalized(review, transition.schedule)
+        // Step 5: the topic cards. Deduplicated because a Problem tagged with the
+        // same topic twice must not advance it twice — the second advance would see
+        // its own write as the previous state and compound off it.
+        val topicSchedules = topics.distinct().map { topic ->
+            val previousTopic = readTopicSchedule(connection, topic)
+            val topicTransition = scheduler.scheduleTopic(
+                topic = topic,
+                previous = previousTopic,
+                rating = plan.rating,
+                reviewedAt = finalizedAt,
+            )
+            val topicUpdated = writeTopicSchedule(
+                connection,
+                topicTransition.schedule,
+                expectedVersion = previousTopic?.version,
+            )
+            if (!topicUpdated) {
+                // Throwing rolls the whole transaction back, review row included.
+                // Deliberate: the alternative is a review that counted for the
+                // Problem but not for the technique, and nothing downstream could
+                // detect the difference afterwards.
+                throw TopicScheduleConflictException(
+                    topic = topic,
+                    expectedVersion = previousTopic?.version,
+                )
+            }
+            topicTransition.schedule
+        }
+
+        FinalizeOutcome.Finalized(review, transition.schedule, topicSchedules)
     }
 
     fun schedule(problemId: ProblemId): ProblemSchedule? =
@@ -186,11 +228,69 @@ class ReviewRepository(
         }
     }
 
+    fun topicSchedule(topic: String): TopicSchedule? =
+        database.read { readTopicSchedule(it, topic) }
+
+    /**
+     * Topics due at or before [now], soonest first.
+     *
+     * The topic queue, and the whole reason the card sits on the technique: due order
+     * *is* the answer to "what should I revise", with no weakness score in front of
+     * it. A topic the learner keeps forgetting has low stability, so FSRS gives it a
+     * short interval and it arrives here more often on its own.
+     */
+    fun dueTopicSchedules(now: Instant, limit: Int): List<TopicSchedule> = database.read { connection ->
+        connection.prepareStatement(
+            "SELECT * FROM topic_schedule WHERE due_at <= ? ORDER BY due_at ASC, topic ASC LIMIT ?",
+        ).use { statement ->
+            statement.setLong(1, now.toEpochMilliseconds())
+            statement.setInt(2, limit)
+            statement.executeQuery().use { rows ->
+                buildList { while (rows.next()) add(rows.toTopicSchedule()) }
+            }
+        }
+    }
+
+    /** Every topic schedule, keyed by slug. */
+    fun topicSchedules(): Map<String, TopicSchedule> = database.read { connection ->
+        connection.createStatement().use { statement ->
+            statement.executeQuery("SELECT * FROM topic_schedule").use { rows ->
+                buildMap {
+                    while (rows.next()) {
+                        val schedule = rows.toTopicSchedule()
+                        put(schedule.topic, schedule)
+                    }
+                }
+            }
+        }
+    }
+
     /** IDs of every Problem that has ever been reviewed. */
     fun scheduledProblemIds(): Set<ProblemId> = database.read { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery("SELECT problem_id FROM problem_schedule").use { rows ->
                 buildSet { while (rows.next()) add(ProblemId(rows.getString("problem_id"))) }
+            }
+        }
+    }
+
+    /**
+     * Every per-Problem schedule, keyed by Problem.
+     *
+     * One read for the whole table, because the topic queue needs each candidate
+     * member's `lastReviewedAt` to rotate between them and asking per member would
+     * make the study path an N+1 over the topic's size. The table has one row per
+     * Problem the learner has ever reviewed, so this is small by construction.
+     */
+    fun schedules(): Map<ProblemId, ProblemSchedule> = database.read { connection ->
+        connection.createStatement().use { statement ->
+            statement.executeQuery("SELECT * FROM problem_schedule").use { rows ->
+                buildMap {
+                    while (rows.next()) {
+                        val schedule = rows.toSchedule()
+                        put(schedule.problemId, schedule)
+                    }
+                }
             }
         }
     }
@@ -223,6 +323,54 @@ class ReviewRepository(
         }
         byProblem.mapNotNull { (id, history) ->
             scheduler.replay(id, history)?.let { id to it }
+        }.toMap()
+    }
+
+    /**
+     * Rebuild every topic schedule by replaying the review log through current tags.
+     *
+     * The reason topic state needs no sync payload of its own: it is a fold over the
+     * append-only log crossed with the pack's tags, so it can always be recomputed
+     * rather than merged (ADR 0002 treats per-Problem schedules the same way).
+     *
+     * Two consequences worth naming. A review whose Problem has left the pack
+     * contributes to nothing, because [topicsFor] returns no tags for it — the review
+     * itself survives, as an append-only log requires, but it can no longer rehearse
+     * a technique nobody can practise. And *retagging rewrites history*: moving
+     * `max-subarray` out of `dynamic-programming` retroactively removes its reviews
+     * from DP's fold, because tags are deliberately excluded from a Problem's revision
+     * hash. That is the honest behaviour of a projection over mutable metadata.
+     *
+     * @param topicsFor the current tags for a Problem. A function rather than a
+     *   catalogue, so this module stays free of `:shared`.
+     */
+    fun rebuildTopicSchedulesFromHistory(
+        topicsFor: (ProblemId) -> List<String>,
+    ): Map<String, TopicSchedule> = database.read { connection ->
+        // Interleaved across Problems on purpose, and therefore ordered by time
+        // rather than grouped by Problem: a topic's memory is of the technique, so
+        // elapsed time between *its* rehearsals is what FSRS must see.
+        val byTopic = mutableMapOf<String, MutableList<ReplayEntry>>()
+        connection.createStatement().use { statement ->
+            statement.executeQuery(
+                """
+                SELECT problem_id, rating, finalized_at FROM problem_review
+                ORDER BY finalized_at ASC, review_session_id ASC
+                """.trimIndent(),
+            ).use { rows ->
+                while (rows.next()) {
+                    val entry = ReplayEntry(
+                        rating = ReviewRating.valueOf(rows.getString("rating")),
+                        reviewedAt = Instant.fromEpochMilliseconds(rows.getLong("finalized_at")),
+                    )
+                    for (topic in topicsFor(ProblemId(rows.getString("problem_id"))).distinct()) {
+                        byTopic.getOrPut(topic) { mutableListOf() } += entry
+                    }
+                }
+            }
+        }
+        byTopic.mapNotNull { (topic, history) ->
+            scheduler.replayTopic(topic, history)?.let { topic to it }
         }.toMap()
     }
 
@@ -278,6 +426,23 @@ class ReviewRepository(
             connection.createStatement().use { it.execute("DELETE FROM problem_schedule") }
             for (schedule in schedules.values) {
                 writeSchedule(connection, schedule, expectedVersion = null)
+            }
+        }
+    }
+
+    /**
+     * Overwrite every topic schedule with a rebuilt set.
+     *
+     * The topic half of restore, in one transaction for the reason
+     * [replaceSchedules] gives. `DELETE` first rather than upsert, so a topic that no
+     * longer appears in any Problem's tags stops being due — an upsert would leave a
+     * retagged-away topic in the queue forever with no Problem to practise it.
+     */
+    fun replaceTopicSchedules(schedules: Map<String, TopicSchedule>) {
+        database.transaction { connection ->
+            connection.createStatement().use { it.execute("DELETE FROM topic_schedule") }
+            for (schedule in schedules.values) {
+                writeTopicSchedule(connection, schedule, expectedVersion = null)
             }
         }
     }
@@ -348,6 +513,73 @@ class ReviewRepository(
             statement.setLong(8, schedule.version)
             statement.setLong(9, schedule.updatedAt.toEpochMilliseconds())
             statement.setString(10, schedule.problemId.value)
+            statement.setLong(11, expectedVersion)
+            statement.executeUpdate() == 1
+        }
+    }
+
+    private fun readTopicSchedule(connection: Connection, topic: String): TopicSchedule? =
+        connection.prepareStatement("SELECT * FROM topic_schedule WHERE topic = ?").use { statement ->
+            statement.setString(1, topic)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.toTopicSchedule() else null }
+        }
+
+    /**
+     * Insert or conditionally update a topic schedule.
+     *
+     * The same compare-and-swap [writeSchedule] performs, and for a sharper reason:
+     * one review advances several topics, so a lost update here would desynchronise a
+     * single topic from the log while its siblings moved on.
+     *
+     * @return true if the row was written.
+     */
+    private fun writeTopicSchedule(
+        connection: Connection,
+        schedule: TopicSchedule,
+        expectedVersion: Long?,
+    ): Boolean {
+        if (expectedVersion == null) {
+            return connection.prepareStatement(
+                """
+                INSERT OR IGNORE INTO topic_schedule (
+                    topic, stability, difficulty, due_at, last_reviewed_at,
+                    interval_days, review_count, lapse_count, version, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setString(1, schedule.topic)
+                statement.setDouble(2, schedule.stability)
+                statement.setDouble(3, schedule.difficulty)
+                statement.setLong(4, schedule.dueAt.toEpochMilliseconds())
+                statement.setLong(5, schedule.lastReviewedAt.toEpochMilliseconds())
+                statement.setDouble(6, schedule.intervalDays)
+                statement.setInt(7, schedule.reviewCount)
+                statement.setInt(8, schedule.lapseCount)
+                statement.setLong(9, schedule.version)
+                statement.setLong(10, schedule.updatedAt.toEpochMilliseconds())
+                statement.executeUpdate() == 1
+            }
+        }
+
+        return connection.prepareStatement(
+            """
+            UPDATE topic_schedule SET
+                stability = ?, difficulty = ?, due_at = ?, last_reviewed_at = ?,
+                interval_days = ?, review_count = ?, lapse_count = ?,
+                version = ?, updated_at = ?
+            WHERE topic = ? AND version = ?
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setDouble(1, schedule.stability)
+            statement.setDouble(2, schedule.difficulty)
+            statement.setLong(3, schedule.dueAt.toEpochMilliseconds())
+            statement.setLong(4, schedule.lastReviewedAt.toEpochMilliseconds())
+            statement.setDouble(5, schedule.intervalDays)
+            statement.setInt(6, schedule.reviewCount)
+            statement.setInt(7, schedule.lapseCount)
+            statement.setLong(8, schedule.version)
+            statement.setLong(9, schedule.updatedAt.toEpochMilliseconds())
+            statement.setString(10, schedule.topic)
             statement.setLong(11, expectedVersion)
             statement.executeUpdate() == 1
         }
@@ -426,6 +658,15 @@ sealed interface FinalizeOutcome {
     data class Finalized(
         override val review: ProblemReviewFinalized,
         val schedule: ProblemSchedule,
+        /**
+         * The topic cards this review advanced, in the order they were given.
+         *
+         * Empty for an untagged Problem. Returned rather than left to a follow-up read
+         * so a caller can show "dynamic programming: next in 9 days" from the same
+         * transaction that produced it, instead of re-reading state a concurrent
+         * review could already have moved.
+         */
+        val topicSchedules: List<TopicSchedule> = emptyList(),
     ) : FinalizeOutcome
 
     /**
@@ -454,10 +695,39 @@ class ScheduleConflictException(
         "(expected version $expectedVersion). Re-read and retry.",
 )
 
+/**
+ * Another review advanced this topic's schedule concurrently.
+ *
+ * A separate type from [ScheduleConflictException] because the remedy differs in
+ * scope: a per-Problem conflict means re-read that Problem, while a topic conflict
+ * means the whole review rolled back, including its review row, and the finalization
+ * must be retried from the start.
+ */
+class TopicScheduleConflictException(
+    val topic: String,
+    val expectedVersion: Long?,
+) : RuntimeException(
+    "The schedule for topic '$topic' changed concurrently " +
+        "(expected version $expectedVersion). The review was rolled back; re-read and retry.",
+)
+
 // ---- Row mapping ------------------------------------------------------
 
 internal fun ResultSet.toSchedule(): ProblemSchedule = ProblemSchedule(
     problemId = ProblemId(getString("problem_id")),
+    stability = getDouble("stability"),
+    difficulty = getDouble("difficulty"),
+    dueAt = Instant.fromEpochMilliseconds(getLong("due_at")),
+    lastReviewedAt = Instant.fromEpochMilliseconds(getLong("last_reviewed_at")),
+    intervalDays = getDouble("interval_days"),
+    reviewCount = getInt("review_count"),
+    lapseCount = getInt("lapse_count"),
+    version = getLong("version"),
+    updatedAt = Instant.fromEpochMilliseconds(getLong("updated_at")),
+)
+
+internal fun ResultSet.toTopicSchedule(): TopicSchedule = TopicSchedule(
+    topic = getString("topic"),
     stability = getDouble("stability"),
     difficulty = getDouble("difficulty"),
     dueAt = Instant.fromEpochMilliseconds(getLong("due_at")),

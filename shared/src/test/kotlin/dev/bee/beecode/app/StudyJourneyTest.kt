@@ -6,8 +6,11 @@ import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.ReviewSessionState
 import dev.bee.beecode.python.jvm.ProcessPythonRunner
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import org.junit.Assume.assumeTrue
 import java.io.File
+import kotlin.time.Duration.Companion.hours
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -60,7 +63,10 @@ class StudyJourneyTest {
         openProfile().use { profile ->
             // The queue offers unattempted Problems.
             val queue = profile.study.queue()
-            assertTrue(queue.due.isEmpty(), "nothing can be due before anything is reviewed")
+            assertTrue(
+                queue.dueTopics.isEmpty(),
+                "no technique can be due before anything is reviewed",
+            )
             assertTrue(queue.new.any { it.id == problemId }, "two-sum must be offered as new")
 
             val opened = assertNotNull(profile.study.open(problemId))
@@ -289,8 +295,159 @@ class StudyJourneyTest {
                 queue.new.any { it.id == problemId },
                 "a reviewed Problem must leave the new queue",
             )
-            // Not due yet either: it was just reviewed.
-            assertFalse(queue.due.any { it.problem.id == problemId })
+            // And none of its techniques are due yet: they were all just rehearsed.
+            assertFalse(
+                queue.dueTopics.any { it.problem.id == problemId },
+                "a just-rehearsed technique must not be due again immediately",
+            )
+            val topics = assertNotNull(profile.catalogue.problem(problemId)).topics
+            assertTrue(topics.isNotEmpty(), "this test needs a tagged Problem to say anything")
+            for (topic in topics) {
+                assertNotNull(
+                    profile.reviews.topicSchedule(topic),
+                    "reviewing $problemId must give $topic a schedule",
+                )
+            }
+        }
+    }
+
+    /**
+     * The whole point of scheduling the technique rather than the Problem.
+     *
+     * "Show me a DP problem I have done before, but not specifically one problem" is
+     * the request this change exists to satisfy, and this is where it gets evidence
+     * rather than an argument: two `arrays` Problems are solved, the clock is moved
+     * past the technique's interval, and the second review must land on the *other*
+     * member. Rotation is not a rule anywhere in the code — it falls out of ordering
+     * candidates by `lastReviewedAt`, so it is only observable end to end.
+     */
+    @Test
+    fun aDueTechniqueRotatesAcrossTheProblemsThatRehearseIt() = runBlocking {
+        val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
+        openProfile(clock).use { profile ->
+            profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION)
+            clock.current += 1.hours
+            profile.solve(ProblemId("contains-duplicate"), CONTAINS_DUPLICATE_SOLUTION)
+
+            // Nothing is due in the same sitting, which is FSRS working: a technique
+            // just rehearsed is not forgotten yet.
+            assertTrue(profile.study.queue().dueTopics.isEmpty())
+
+            val arrays = assertNotNull(profile.reviews.topicSchedule("arrays"))
+            clock.current = arrays.dueAt + 1.hours
+
+            val first = assertNotNull(
+                profile.study.queue().dueTopics.firstOrNull { it.topic == "arrays" },
+                "arrays must be due once its interval has passed",
+            )
+            // Least recently practised first, so it is two-sum rather than the one
+            // solved an hour later.
+            assertEquals(ProblemId("two-sum"), first.problem.id)
+            assertEquals("Arrays", first.displayName)
+            assertTrue(
+                first.attemptedMemberProblems >= 2 &&
+                    first.memberProblems > first.attemptedMemberProblems,
+                "arrays has more members than the two practised: ${first.attemptedMemberProblems} " +
+                    "of ${first.memberProblems}",
+            )
+
+            profile.solve(first.problem.id, TWO_SUM_SOLUTION)
+
+            // Rehearsing the technique moved its due date on.
+            val advanced = assertNotNull(profile.reviews.topicSchedule("arrays"))
+            assertTrue(advanced.dueAt > arrays.dueAt, "rehearsing arrays must push its due date out")
+            // Three rehearsals of one technique from three reviews of two Problems —
+            // which is the fan-out working: the technique accumulates across whichever
+            // of its Problems the learner happened to do.
+            assertEquals(3, advanced.reviewCount)
+
+            // And the next time it comes round, a different Problem rehearses it.
+            clock.current = advanced.dueAt + 1.hours
+            val second = assertNotNull(
+                profile.study.queue().dueTopics.firstOrNull { it.topic == "arrays" },
+            )
+            assertEquals(
+                ProblemId("contains-duplicate"),
+                second.problem.id,
+                "the technique must rotate to another of its Problems, not repeat the last one",
+            )
+        }
+    }
+
+    /**
+     * Forgetting a technique brings it back sooner — the thing "frequently forgets DP"
+     * asks for, with no weakness heuristic anywhere in the path.
+     */
+    @Test
+    fun aForgottenTechniqueComesBackSoonerThanARememberedOne() = runBlocking {
+        val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
+        openProfile(clock).use { profile ->
+            profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION, ReviewRating.EASY)
+            val remembered = assertNotNull(profile.reviews.topicSchedule("arrays"))
+
+            // A lapse on the same technique, one day later.
+            clock.current += 24.hours
+            profile.solve(ProblemId("contains-duplicate"), CONTAINS_DUPLICATE_SOLUTION, ReviewRating.AGAIN)
+            val forgotten = assertNotNull(profile.reviews.topicSchedule("arrays"))
+
+            assertTrue(
+                forgotten.intervalDays < remembered.intervalDays,
+                "a lapse must shorten the technique's interval: " +
+                    "${forgotten.intervalDays} vs ${remembered.intervalDays}",
+            )
+            assertEquals(1, forgotten.lapseCount)
+
+            // The topic mastery view reports the lapse without inventing a rate from it.
+            val ability = assertNotNull(
+                profile.topicMastery().topics.firstOrNull { it.topic == "arrays" },
+            )
+            assertEquals(2, ability.reviews)
+            assertEquals(1, ability.lapses)
+            assertNull(
+                ability.recallRate,
+                "two reviews is not enough evidence to report a recall rate",
+            )
+        }
+    }
+
+    /**
+     * The accepted cost of leaving topic slugs unvalidated (ADR 0005).
+     *
+     * A mistyped tag mints a topic card with a real due date and no Problem in the pack
+     * to rehearse it. The queue has to skip it, because the alternative is a permanent
+     * entry the learner can never clear — and skipping is what makes "no allow-list" a
+     * tolerable choice rather than a bug waiting for its first typo.
+     */
+    @Test
+    fun aTechniqueWithNoProblemToRehearseItIsSkippedRatherThanStuckInTheQueue() = runBlocking {
+        val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
+        openProfile(clock).use { profile ->
+            profile.solve(ProblemId("two-sum"), TWO_SUM_SOLUTION)
+
+            // Stand in for a content typo: a card for a topic no Problem carries.
+            profile.reviews.replaceTopicSchedules(
+                profile.reviews.rebuildTopicSchedulesFromHistory { listOf("dynmaic-programming") },
+            )
+            val phantom = assertNotNull(profile.reviews.topicSchedule("dynmaic-programming"))
+            clock.current = phantom.dueAt + 1.hours
+
+            // Due at the storage layer, absent from the queue.
+            assertEquals(
+                listOf("dynmaic-programming"),
+                profile.reviews.dueTopicSchedules(clock.now(), limit = 50).map { it.topic },
+            )
+            assertTrue(
+                profile.study.queue().dueTopics.isEmpty(),
+                "a technique with nothing to rehearse it must not be offered",
+            )
+
+            // It still reads as a topic the learner has practised, rather than as an
+            // error — which is the honest rendering of an unvalidated slug.
+            val ability = assertNotNull(
+                profile.topicMastery().topics.firstOrNull { it.topic == "dynmaic-programming" },
+            )
+            assertEquals(0, ability.memberProblems)
+            assertEquals("Dynmaic programming", ability.displayName)
         }
     }
 
@@ -338,13 +495,60 @@ class StudyJourneyTest {
         }
     }
 
-    private fun openProfile(): BeeCodeProfile = BeeCodeProfile.open(
+    private fun openProfile(clock: Clock = Clock.System): BeeCodeProfile = BeeCodeProfile.open(
         databasePath = databaseFile.absolutePath,
         catalogue = catalogue,
         runner = runner,
+        clock = clock,
     )
 
+    /**
+     * Solve a Problem for real and finalize it.
+     *
+     * [StudyService.abandon] first because a finalized session stays in the in-memory
+     * map, so a second visit to the same Problem within one profile would otherwise be
+     * refused. A learner reviewing the same Problem twice in a session is exactly what
+     * the rotation test needs to exercise.
+     */
+    private suspend fun BeeCodeProfile.solve(
+        problemId: ProblemId,
+        source: String,
+        rating: ReviewRating = ReviewRating.GOOD,
+    ) {
+        study.abandon(problemId)
+        assertNotNull(study.open(problemId))
+        val attempt = assertIs<RunOutcome.Completed>(study.run(problemId, source))
+        assertEquals(ExecutionOutcome.PASSED, attempt.run.outcome, attempt.run.output)
+        assertIs<FinalizeResult.Finalized>(study.finalize(problemId, attempt.run.id, rating))
+    }
+
+    /**
+     * A clock the test moves by hand.
+     *
+     * Everything else in this file is real; time is the one thing that cannot be,
+     * because the interval FSRS hands back is measured in days and the test has to
+     * arrive on the far side of it.
+     */
+    private class MutableClock(var current: Instant) : Clock {
+        override fun now(): Instant = current
+    }
+
     private companion object {
+        val TWO_SUM_SOLUTION = """
+            def two_sum(nums, target):
+                seen = {}
+                for index, value in enumerate(nums):
+                    if target - value in seen:
+                        return [seen[target - value], index]
+                    seen[value] = index
+                return []
+        """.trimIndent()
+
+        val CONTAINS_DUPLICATE_SOLUTION = """
+            def contains_duplicate(nums):
+                return len(set(nums)) != len(nums)
+        """.trimIndent()
+
         fun repoRoot(): File {
             System.getProperty("beecode.repoRoot")?.let { return File(it) }
             var candidate = File(".").absoluteFile

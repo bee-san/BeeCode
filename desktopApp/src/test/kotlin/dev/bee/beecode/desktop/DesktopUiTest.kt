@@ -24,6 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The desktop UI, asserted headlessly.
@@ -53,16 +54,33 @@ class DesktopUiTest {
      * In-memory so no test leaves a database file behind, and the real packaged resource
      * rather than a fixture so these fail if the pack stops loading.
      */
-    private fun withUi(body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit) {
+    private fun withUi(body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit) =
+        withUi { ui, profile, _ -> body(ui, profile) }
+
+    /**
+     * As [withUi], but also hands [body] the profile's clock so it can move time.
+     *
+     * A separate overload rather than a parameter on every existing test: only the topic
+     * tests need this, because topic scheduling is the one thing here that cannot be
+     * observed without waiting — FSRS hands back an interval in days, so a card reaches
+     * the queue only once the test has arrived on the far side of it.
+     */
+    private fun withUi(
+        body: (ui: ComposeUiTest, profile: BeeCodeProfile, clock: MutableClock) -> Unit,
+    ) {
         val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
+        // Started at the real *now* so every test that does not touch the clock behaves
+        // exactly as it did when the profile used Clock.System.
+        val clock = MutableClock(kotlinx.datetime.Clock.System.now())
         val profile = BeeCodeProfile.inMemory(
             catalogue = catalogue,
             runner = ScriptedPythonRunner(),
+            clock = clock,
         )
         try {
             runComposeUiTest {
                 setContent { DesktopApp(profile) }
-                body(this, profile)
+                body(this, profile, clock)
             }
         } finally {
             profile.close()
@@ -151,6 +169,84 @@ class DesktopUiTest {
         val review = profile.allReviews().single()
         assertTrue(review.countsAsSolved, "an unaided pass must count as solved")
         assertEquals(1, profile.statistics().distinctProblemsSolved)
+    }
+
+    @Test
+    fun theQueueHeadlinesTheTechniqueAndNamesTheProblemThatRehearsesIt() =
+        withUi { ui, profile, clock ->
+            // Mirrors the Android assertion. What fell due is *arrays*; Two Sum is the
+            // exercise offered to rehearse it. A queue that still headlined the Problem
+            // would pass every layer below this one on both clients.
+            solveTwoSum(profile)
+            profile.study.abandon(TWO_SUM)
+            val arrays = requireNotNull(profile.reviews.topicSchedule("arrays")) {
+                "the review did not fan out to its topics"
+            }
+            clock.current = arrays.dueAt + 1.minutes
+            // The pane caches its queue against the refresh token, so nudge it.
+            ui.onNodeWithText("Study").performClick()
+
+            ui.onNodeWithText("Techniques to review").performScrollTo().assertIsDisplayed()
+
+            // Asserted as one card rather than three loose text nodes. Two Sum tags both
+            // arrays and hash-map, so a review fans out to two cards and every line below
+            // appears twice — matching them separately would pass even if the interval and
+            // the Problem belonged to different techniques.
+            //
+            // The subtitle expectation spans the two literals the UI concatenates, so a
+            // future split into two Text nodes fails here instead of quietly passing. The
+            // member count comes from the catalogue: a literal "1 of 10" would turn
+            // authoring another arrays Problem into a UI-test failure.
+            val members = profile.catalogue.allProblems().count { "arrays" in it.topics }
+            ui.onNode(
+                hasClickAction() and
+                    hasText("Arrays") and
+                    hasText("Memory lasts about", substring = true) and
+                    hasText("Two Sum · 1 of $members practised", substring = true),
+            ).performScrollTo().assertIsDisplayed()
+        }
+
+    @Test
+    fun aBarelyPractisedTechniqueSaysSoRatherThanClaimingZeroPercent() = withUi { ui, profile ->
+        // The one number in this feature that could turn into a lie, and the assertion
+        // the Android client makes word for word. One review is not evidence of a recall
+        // rate, so the shared projection returns null and the UI must render that as
+        // words: "0% recall" after a *successful* solve would be false, and it is exactly
+        // the reading a learner would act on.
+        solveTwoSum(profile)
+
+        ui.onNodeWithText("Progress").performClick()
+        ui.onNodeWithText("Techniques").performScrollTo().assertIsDisplayed()
+        // The evidence base, stated before the numbers: recall of what has been solved,
+        // not raw ability. Asserted across the soft wrap.
+        ui.onNode(hasText("recall Problems you have already solved", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        // Every practised technique says it in words. Counted rather than taken as the
+        // first match, because Two Sum tags both arrays and hash-map: asserting one node
+        // would still pass if the other had rendered a fabricated zero.
+        val practised = profile.topicMastery().practised
+        assertTrue(practised.isNotEmpty(), "solving Two Sum must have practised a topic")
+        assertEquals(
+            practised.size,
+            ui.onAllNodesWithText("Not enough practice yet").fetchSemanticsNodes().size,
+            "every under-evidenced technique must say so in words",
+        )
+        // Matched on "% recall" rather than "recall": the explanatory line above the
+        // numbers legitimately contains the word, and matching that would make this
+        // unprovable either way.
+        assertTrue(
+            ui.onAllNodes(hasText("% recall", substring = true)).fetchSemanticsNodes().isEmpty(),
+            "an under-evidenced technique must never be reported as a percentage",
+        )
+
+        // And the counts beside it are real, spanning the boundary between the coverage
+        // clause and the review clause so the two cannot silently become separate lines.
+        // Unique to arrays: hash-map has a different member count.
+        val members = profile.catalogue.allProblems().count { "arrays" in it.topics }
+        ui.onNode(hasText("1 of $members solved · 1 review", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -328,16 +424,27 @@ class DesktopUiTest {
 
     /** Solve two-sum through the real study service, so countsAsSolved is the domain's. */
     private fun solveTwoSum(profile: BeeCodeProfile) = runBlocking {
-        val problemId = dev.bee.beecode.domain.ProblemId("two-sum")
-        profile.study.open(problemId)
+        profile.study.open(TWO_SUM)
         val run = assertIs<RunOutcome.Completed>(
-            profile.study.run(problemId, ScriptedPythonRunner.PASS_MARKER),
+            profile.study.run(TWO_SUM, ScriptedPythonRunner.PASS_MARKER),
         )
-        profile.study.finalize(problemId, run.run.id, dev.bee.beecode.domain.ReviewRating.GOOD)
+        profile.study.finalize(TWO_SUM, run.run.id, dev.bee.beecode.domain.ReviewRating.GOOD)
+    }
+
+    /**
+     * A clock the test moves by hand.
+     *
+     * Everything else here is real; time cannot be, because the interval FSRS returns is
+     * measured in days and a topic test has to arrive on the far side of it.
+     */
+    private class MutableClock(var current: kotlinx.datetime.Instant) : kotlinx.datetime.Clock {
+        override fun now(): kotlinx.datetime.Instant = current
     }
 
     private companion object {
         val NOW: kotlinx.datetime.Instant = kotlinx.datetime.Instant.parse("2026-07-29T12:00:00Z")
+
+        val TWO_SUM = dev.bee.beecode.domain.ProblemId("two-sum")
 
         /**
          * Matches a *rating button* labelled [label], not merely any node with that text.

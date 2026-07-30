@@ -4,6 +4,7 @@ import dev.bee.beecode.domain.FsrsTransitionRecord
 import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ProblemSchedule
 import dev.bee.beecode.domain.ReviewRating
+import dev.bee.beecode.domain.TopicSchedule
 import dev.bee.fsrs.Fsrs7AlgorithmInfo
 import dev.bee.fsrs.Fsrs7Engine
 import dev.bee.fsrs.Fsrs7Parameters
@@ -39,6 +40,9 @@ class BeeCodeScheduler(
     /** Hash of the parameter set in use, recorded on every transition. */
     private val parametersHash: String = hashDoubles(parameters.toArray())
 
+    /** The recall probability this scheduler aims for, at the moment a card falls due. */
+    val desiredRetention: Double get() = policy.desiredRetention
+
     /**
      * Compute the next schedule for a Problem.
      *
@@ -54,6 +58,121 @@ class BeeCodeScheduler(
         rating: ReviewRating,
         reviewedAt: Instant,
     ): ScheduleTransition {
+        val core = advance(previous?.toMemory(), rating, reviewedAt)
+        val schedule = ProblemSchedule(
+            problemId = problemId,
+            stability = core.nextStability,
+            difficulty = core.nextDifficulty,
+            dueAt = core.dueAt,
+            lastReviewedAt = core.reviewedAtMillis,
+            intervalDays = core.intervalDays,
+            reviewCount = (previous?.reviewCount ?: 0) + 1,
+            // A lapse counter that only ever increases is the honest one: it
+            // records how often this Problem has been forgotten, which is what
+            // makes a leech visible. Resetting it on success would erase that.
+            lapseCount = (previous?.lapseCount ?: 0) + core.lapseIncrement,
+            // Optimistic-concurrency counter. The caller commits only if the
+            // stored version still equals previous.version.
+            version = (previous?.version ?: 0) + 1,
+            updatedAt = core.reviewedAtMillis,
+        )
+        return ScheduleTransition(schedule, core.record, previousVersion = previous?.version)
+    }
+
+    /**
+     * Compute the next schedule for a topic — a data structure or algorithm.
+     *
+     * The same mathematics as [schedule], deliberately routed through the same
+     * [advance] so the two can never disagree. What differs is only the key and the
+     * row it lands in: a topic accumulates its own stability from every review of
+     * every Problem tagged with it, which is what makes "how well do I remember
+     * dynamic programming" a question FSRS can answer directly.
+     *
+     * One review advances every topic its Problem is tagged with. A burst — five
+     * `arrays` Problems in one sitting — is self-limiting rather than inflationary:
+     * FSRS-7's stability gain on recall scales with `1 - retrievability`, and
+     * retrievability is ~1.0 at zero elapsed time, so the second through fifth
+     * reviews buy almost nothing. The algorithm already declines to reward cramming,
+     * so no extra rule is needed here.
+     *
+     * @param previous the authoritative current topic schedule, read inside the
+     *   transaction that commits the result, for the reason [schedule] states.
+     */
+    fun scheduleTopic(
+        topic: String,
+        previous: TopicSchedule?,
+        rating: ReviewRating,
+        reviewedAt: Instant,
+    ): TopicScheduleTransition {
+        val core = advance(previous?.toMemory(), rating, reviewedAt)
+        val schedule = TopicSchedule(
+            topic = topic,
+            stability = core.nextStability,
+            difficulty = core.nextDifficulty,
+            dueAt = core.dueAt,
+            lastReviewedAt = core.reviewedAtMillis,
+            intervalDays = core.intervalDays,
+            reviewCount = (previous?.reviewCount ?: 0) + 1,
+            lapseCount = (previous?.lapseCount ?: 0) + core.lapseIncrement,
+            version = (previous?.version ?: 0) + 1,
+            updatedAt = core.reviewedAtMillis,
+        )
+        return TopicScheduleTransition(schedule, core.record, previousVersion = previous?.version)
+    }
+
+    /**
+     * Recompute the schedule by folding a review history from scratch.
+     *
+     * Used to verify that incremental scheduling and a full replay agree, and to
+     * rebuild after a sync merge (ADR 0002): because the review log is
+     * append-only, merging two devices' histories is a set union, and replaying
+     * the union is more obviously correct than picking a winning schedule row by
+     * timestamp.
+     *
+     * @param history reviews for one Problem, oldest first.
+     */
+    fun replay(problemId: ProblemId, history: List<ReplayEntry>): ProblemSchedule? {
+        var schedule: ProblemSchedule? = null
+        for (entry in history.sortedBy { it.reviewedAt }) {
+            schedule = schedule(problemId, schedule, entry.rating, entry.reviewedAt).schedule
+        }
+        return schedule
+    }
+
+    /**
+     * Recompute a topic's schedule by folding its history from scratch.
+     *
+     * The rebuild path for topic cards, and the reason they need no sync format of
+     * their own: a topic's state is a fold over the reviews of its member Problems,
+     * so it can always be recomputed from the log rather than merged.
+     *
+     * @param history every review of every Problem tagged with this topic, oldest
+     *   first. Interleaved across Problems on purpose — the topic's memory is of the
+     *   technique, not of any one exercise.
+     */
+    fun replayTopic(topic: String, history: List<ReplayEntry>): TopicSchedule? {
+        var schedule: TopicSchedule? = null
+        for (entry in history.sortedBy { it.reviewedAt }) {
+            schedule = scheduleTopic(topic, schedule, entry.rating, entry.reviewedAt).schedule
+        }
+        return schedule
+    }
+
+    /**
+     * The whole FSRS transition, for any card, keyed by nothing.
+     *
+     * Extracted so a Problem card and a topic card cannot drift apart. Everything
+     * that is easy to get subtly wrong lives here exactly once: the fractional
+     * elapsed-day conversion, the millisecond truncation, the first-review special
+     * case, and the audit record. A second copy of this for topics would be a second
+     * place for a rounding rule to diverge, and the divergence would show up as a due
+     * date nobody could explain.
+     */
+    private fun advance(
+        previous: FsrsPreviousState?,
+        rating: ReviewRating,
+        reviewedAt: Instant,
+    ): CoreTransition {
         val engineRating = rating.toEngineRating()
 
         // Fractional, not floored. FSRS-6 took whole days, so this used to floor —
@@ -63,16 +182,16 @@ class BeeCodeScheduler(
         // and the sub-day resolution the revision exists for would be discarded at
         // the boundary rather than in the engine.
         val elapsedDays = previous
-            ?.let { elapsedDaysBetween(it.lastReviewedAt, reviewedAt) }
+            ?.let { elapsedDaysBetween(it.reviewedAt, reviewedAt) }
             ?: 0.0
 
-        val previousMemory = previous?.let { FsrsMemoryState(it.stability, it.difficulty) }
+        val previousMemory = previous?.state
 
         val nextMemory: FsrsMemoryState
         val retrievability: Double
         if (previousMemory == null) {
             nextMemory = engine.initialState(engineRating)
-            // A Problem never seen before has no retained memory to retrieve.
+            // A card never seen before has no retained memory to retrieve.
             retrievability = 0.0
         } else {
             retrievability = engine.retrievability(previousMemory, elapsedDays)
@@ -110,45 +229,44 @@ class BeeCodeScheduler(
             dueAt = dueAt,
         )
 
-        val schedule = ProblemSchedule(
-            problemId = problemId,
-            stability = nextMemory.stability,
-            difficulty = nextMemory.difficulty,
-            dueAt = dueAt,
-            lastReviewedAt = reviewedAtMillis,
+        return CoreTransition(
+            record = record,
+            nextStability = nextMemory.stability,
+            nextDifficulty = nextMemory.difficulty,
             intervalDays = intervalDays,
-            reviewCount = (previous?.reviewCount ?: 0) + 1,
-            // A lapse counter that only ever increases is the honest one: it
-            // records how often this Problem has been forgotten, which is what
-            // makes a leech visible. Resetting it on success would erase that.
-            lapseCount = (previous?.lapseCount ?: 0) + if (rating == ReviewRating.AGAIN) 1 else 0,
-            // Optimistic-concurrency counter. The caller commits only if the
-            // stored version still equals previous.version.
-            version = (previous?.version ?: 0) + 1,
-            updatedAt = reviewedAtMillis,
+            dueAt = dueAt,
+            reviewedAtMillis = reviewedAtMillis,
+            lapseIncrement = if (rating == ReviewRating.AGAIN) 1 else 0,
         )
-
-        return ScheduleTransition(schedule, record, previousVersion = previous?.version)
     }
 
     /**
-     * Recompute the schedule by folding a review history from scratch.
+     * A card's prior memory, reduced to what [advance] needs.
      *
-     * Used to verify that incremental scheduling and a full replay agree, and to
-     * rebuild after a sync merge (ADR 0002): because the review log is
-     * append-only, merging two devices' histories is a set union, and replaying
-     * the union is more obviously correct than picking a winning schedule row by
-     * timestamp.
-     *
-     * @param history reviews for one Problem, oldest first.
+     * Exists so [advance] takes no card type at all, and therefore cannot quietly
+     * grow a branch on which kind of card it is scheduling.
      */
-    fun replay(problemId: ProblemId, history: List<ReplayEntry>): ProblemSchedule? {
-        var schedule: ProblemSchedule? = null
-        for (entry in history.sortedBy { it.reviewedAt }) {
-            schedule = schedule(problemId, schedule, entry.rating, entry.reviewedAt).schedule
-        }
-        return schedule
-    }
+    private class FsrsPreviousState(
+        val state: FsrsMemoryState,
+        val reviewedAt: Instant,
+    )
+
+    /** What [advance] produces, before it is placed into a keyed row. */
+    private class CoreTransition(
+        val record: FsrsTransitionRecord,
+        val nextStability: Double,
+        val nextDifficulty: Double,
+        val intervalDays: Double,
+        val dueAt: Instant,
+        val reviewedAtMillis: Instant,
+        val lapseIncrement: Int,
+    )
+
+    private fun ProblemSchedule.toMemory() =
+        FsrsPreviousState(FsrsMemoryState(stability, difficulty), lastReviewedAt)
+
+    private fun TopicSchedule.toMemory() =
+        FsrsPreviousState(FsrsMemoryState(stability, difficulty), lastReviewedAt)
 
     private fun ReviewRating.toEngineRating(): FsrsRating = when (this) {
         ReviewRating.AGAIN -> FsrsRating.AGAIN
@@ -252,6 +370,20 @@ class BeeCodeScheduler(
  */
 data class ScheduleTransition(
     val schedule: ProblemSchedule,
+    val record: FsrsTransitionRecord,
+    val previousVersion: Long?,
+)
+
+/**
+ * The full result of one topic scheduling decision.
+ *
+ * [previousVersion] carries the same compare-and-swap guarantee [ScheduleTransition]
+ * does, and it matters more here: one review advances several topics at once, so a
+ * stale version on any of them must fail the whole review rather than leave the
+ * topic projection half-advanced.
+ */
+data class TopicScheduleTransition(
+    val schedule: TopicSchedule,
     val record: FsrsTransitionRecord,
     val previousVersion: Long?,
 )
