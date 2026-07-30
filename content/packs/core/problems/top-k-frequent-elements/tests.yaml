@@ -1,0 +1,52 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-most-frequent
+    arguments: [[1, 1, 1, 2, 2, 3], 2]
+    expected: [1, 2]
+    comparator: unordered_list
+
+  - name: single-element
+    arguments: [[1], 1]
+    expected: [1]
+    comparator: unordered_list
+
+  - name: all-distinct-k-is-everything
+    arguments: [[4, 5, 6], 3]
+    expected: [4, 5, 6]
+    comparator: unordered_list
+
+  - name: answer-is-not-the-counts
+    # Returning the frequencies [3, 2] instead of the values is the classic
+    # mistake this case is here to catch.
+    arguments: [[7, 7, 7, 8, 8, 9], 2]
+    expected: [7, 8]
+    comparator: unordered_list
+
+  - name: negatives-are-values-too
+    arguments: [[-1, -1, -1, 2, 2, 5], 2]
+    expected: [-1, 2]
+    comparator: unordered_list
+    hidden: true
+
+  - name: zero-is-a-value
+    # A falsiness check on the value drops 0 from the answer.
+    arguments: [[0, 0, 1], 1]
+    expected: [0]
+    comparator: unordered_list
+    hidden: true
+
+  - name: least-frequent-must-be-excluded
+    arguments: [[1, 1, 1, 1, 2, 2, 2, 3, 3, 4], 3]
+    expected: [1, 2, 3]
+    comparator: unordered_list
+    hidden: true
+
+  - name: frequency-order-differs-from-value-order
+    # The most frequent value is the smallest one, so sorting by value rather
+    # than by count gives the wrong answer.
+    arguments: [[9, 9, 9, 1, 1, 1, 1, 5], 1]
+    expected: [1]
+    comparator: unordered_list
+    hidden: true

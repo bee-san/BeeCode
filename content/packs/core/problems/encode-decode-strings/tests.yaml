@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-words
+    arguments: [["hi", "there"]]
+    expected: ["2#hi5#there", ["hi", "there"]]
+    comparator: exact
+
+  - name: empty-list
+    # Nothing to frame, so the encoding is empty and decoding it yields no
+    # words.
+    arguments: [[]]
+    expected: ["", []]
+    comparator: exact
+
+  - name: empty-word
+    # A length of zero is a real length. Solutions that treat an empty payload
+    # as end-of-input lose this word.
+    arguments: [[""]]
+    expected: ["0#", [""]]
+    comparator: exact
+
+  - name: content-contains-a-header
+    # The word itself looks like a length header. Only the cursor position
+    # decides which # is structural.
+    arguments: [["3#a"]]
+    expected: ["3#3#a", ["3#a"]]
+    comparator: exact
+    hidden: true
+
+  - name: multi-digit-length
+    # Catches encoders that write the length as a single character.
+    arguments: [["abcdefghijkl"]]
+    expected: ["12#abcdefghijkl", ["abcdefghijkl"]]
+    comparator: exact
+    hidden: true
+
+  - name: several-empty-words
+    arguments: [["", "", "a"]]
+    expected: ["0#0#1#a", ["", "", "a"]]
+    comparator: exact
+    hidden: true
+
+  - name: words-full-of-separators
+    # Every character a delimiter-based scheme would rely on appears as data.
+    arguments: [[",", "#", ",#,"]]
+    expected: ["1#,1##3#,#,", [",", "#", ",#,"]]
+    comparator: exact
+    hidden: true

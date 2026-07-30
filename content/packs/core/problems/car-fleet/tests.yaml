@@ -1,0 +1,48 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-cars
+    arguments: [12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]]
+    expected: 3
+    comparator: exact
+
+  - name: example-single-car
+    arguments: [10, [3], [3]]
+    expected: 1
+    comparator: exact
+
+  - name: no-cars
+    arguments: [10, [], []]
+    expected: 0
+    comparator: exact
+
+  - name: slow-car-in-front-blocks-everyone
+    # The leader is the slowest, so all three arrive as one fleet.
+    arguments: [10, [0, 1, 2], [3, 3, 1]]
+    expected: 1
+    comparator: exact
+
+  - name: each-car-slower-than-the-one-behind-it
+    # Arrival times 10, 4, 2 walking from the front backwards give strictly
+    # increasing times, so nothing merges.
+    arguments: [10, [0, 2, 4], [1, 2, 3]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: meeting-exactly-at-the-target-merges
+    # Both arrive at time 5, so they meet precisely at the target and count as
+    # one fleet. A >= comparison reports two.
+    arguments: [10, [5, 0], [1, 2]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: truncation-would-merge-two-fleets
+    # The leader arrives at 6/3 = 2.0 and the car behind at 9/4 = 2.25, so it
+    # never catches up. Integer division makes both 2 and merges them.
+    arguments: [10, [1, 4], [4, 3]]
+    expected: 2
+    comparator: exact
+    hidden: true

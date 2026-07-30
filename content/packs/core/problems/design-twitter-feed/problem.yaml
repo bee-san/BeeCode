@@ -1,0 +1,42 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Design a Follower Feed
+difficulty: medium
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - heap
+  - hash-map
+  - array
+algorithms:
+  - design
+  - sorting
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: run_operations
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "[[\"post\", 1, 5], [\"feed\", 1], [\"follow\", 1, 2], [\"post\", 2, 6], [\"feed\", 1], [\"unfollow\", 1, 2], [\"feed\", 1]]"
+    output: "[[5], [6, 5], [5]]"
+  - input: "[[\"feed\", 1], [\"post\", 1, 1], [\"feed\", 1]]"
+    output: "[[], [1]]"
+    explanation: "A user with no posts has an empty feed."
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

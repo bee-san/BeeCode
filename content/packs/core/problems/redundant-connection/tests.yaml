@@ -1,0 +1,56 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-triangle
+    arguments: [[[1, 2], [1, 3], [2, 3]]]
+    expected: [2, 3]
+    comparator: exact
+
+  - name: example-square-with-a-tail
+    # The closing edge is not the last edge in the list.
+    arguments: [[[1, 2], [2, 3], [3, 4], [1, 4], [1, 5]]]
+    expected: [1, 4]
+    comparator: exact
+
+  - name: the-cycle-closes-on-the-final-edge
+    # Returned in the order given, not sorted ascending.
+    arguments: [[[1, 2], [2, 3], [3, 1]]]
+    expected: [3, 1]
+    comparator: exact
+
+  - name: a-long-chain-closed-at-the-end
+    # Path compression matters here: the chain is walked repeatedly.
+    arguments: [[[1, 2], [2, 3], [3, 4], [4, 5], [5, 1]]]
+    expected: [5, 1]
+    comparator: exact
+
+  - name: the-closing-edge-comes-early
+    # Edges [1,2] and [2,3] connect 1 and 3 already, so the third edge closes
+    # the cycle and everything after it is irrelevant.
+    arguments: [[[1, 2], [2, 3], [1, 3], [3, 4], [4, 5]]]
+    expected: [1, 3]
+    comparator: exact
+    hidden: true
+
+  - name: a-star-with-one-extra-edge
+    arguments: [[[1, 2], [1, 3], [1, 4], [2, 4]]]
+    expected: [2, 4]
+    comparator: exact
+    hidden: true
+
+  - name: components-join-before-the-cycle-forms
+    # Two separate components form first and are then bridged, so the
+    # components must be united, not just the vertices.
+    arguments: [[[3, 4], [1, 2], [2, 3], [1, 4]]]
+    expected: [1, 4]
+    comparator: exact
+    hidden: true
+
+  - name: highest-labels-in-the-cycle
+    # The answer is the first edge that closes a cycle, not the largest
+    # labels.
+    arguments: [[[1, 2], [2, 3], [3, 4], [4, 5], [1, 3]]]
+    expected: [1, 3]
+    comparator: exact
+    hidden: true

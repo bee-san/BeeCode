@@ -1,0 +1,74 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-star-as-nothing
+    # Failing to clamp the low bound at zero rejects this.
+    arguments: ["(*)"]
+    expected: true
+    comparator: exact
+
+  - name: example-closed-before-open
+    arguments: [")("]
+    expected: false
+    comparator: exact
+
+  - name: an-empty-string
+    arguments: [""]
+    expected: true
+    comparator: exact
+
+  - name: a-single-star
+    # The star stands for nothing.
+    arguments: ["*"]
+    expected: true
+    comparator: exact
+
+  - name: a-star-as-a-closer
+    arguments: ["(*"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-star-as-an-opener
+    arguments: ["*)"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-unmatched-opener
+    arguments: ["(("]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-star-cannot-fix-two-closers
+    arguments: ["*))"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-closer-arrives-too-early
+    # The high bound survives, but the string still cannot balance.
+    arguments: ["*)("]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: many-stars
+    arguments: ["(***)"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: stars-both-sides
+    arguments: ["**(("]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-mixture
+    arguments: ["(()*()*"]
+    expected: true
+    comparator: exact
+    hidden: true

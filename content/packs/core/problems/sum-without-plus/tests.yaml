@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-positives
+    arguments: [2, 3]
+    expected: 5
+    comparator: exact
+
+  - name: example-cancelling-to-zero
+    # Without the mask this never returns.
+    arguments: [-1, 1]
+    expected: 0
+    comparator: exact
+
+  - name: adding-zero
+    arguments: [0, 0]
+    expected: 0
+    comparator: exact
+
+  - name: zero-and-a-positive
+    # No carries at all; the loop runs once.
+    arguments: [0, 7]
+    expected: 7
+    comparator: exact
+
+  - name: two-negatives
+    arguments: [-3, -4]
+    expected: -7
+    comparator: exact
+    hidden: true
+
+  - name: a-negative-result
+    # The sign conversion at the end is what produces the negative.
+    arguments: [-10, 3]
+    expected: -7
+    comparator: exact
+    hidden: true
+
+  - name: a-positive-result-from-a-negative-operand
+    arguments: [-3, 10]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: two-operands-with-no-overlapping-bits
+    # 1000 is even, so the AND is empty and one round suffices.
+    arguments: [1, 1000]
+    expected: 1001
+    comparator: exact
+    hidden: true
+
+  - name: a-long-carry-chain
+    # Nine rounds of carry propagation.
+    arguments: [511, 1]
+    expected: 512
+    comparator: exact
+    hidden: true
+
+  - name: zero-and-a-negative
+    arguments: [0, -5]
+    expected: -5
+    comparator: exact
+    hidden: true
+
+  - name: the-largest-inputs
+    arguments: [1000, 1000]
+    expected: 2000
+    comparator: exact
+    hidden: true

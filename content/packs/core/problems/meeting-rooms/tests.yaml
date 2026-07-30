@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-overlapping
+    arguments: [[[0, 30], [5, 10], [15, 20]]]
+    expected: false
+    comparator: exact
+
+  - name: example-clear
+    # Unsorted input, so the sort is doing real work.
+    arguments: [[[7, 10], [2, 4]]]
+    expected: true
+    comparator: exact
+
+  - name: no-meetings
+    arguments: [[]]
+    expected: true
+    comparator: exact
+
+  - name: back-to-back-is-allowed
+    # A non-strict comparison rejects this wrongly.
+    arguments: [[[1, 2], [2, 3]]]
+    expected: true
+    comparator: exact
+
+  - name: a-single-meeting
+    arguments: [[[5, 10]]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-meeting-inside-another
+    arguments: [[[1, 10], [2, 3]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: identical-meetings
+    arguments: [[[1, 5], [1, 5]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-one-minute-overlap
+    arguments: [[[1, 3], [2, 4]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-conflict-two-places-ahead
+    # The first pair already clashes, which is the adjacency argument at work.
+    arguments: [[[1, 10], [2, 3], [4, 5]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-long-clear-chain
+    arguments: [[[1, 2], [3, 4], [5, 6], [7, 8]]]
+    expected: true
+    comparator: exact
+    hidden: true

@@ -1,0 +1,52 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-classic-sequence
+    arguments: [[["push", -2], ["push", 0], ["push", -3], ["min", null], ["pop", null], ["top", null], ["min", null]]]
+    expected: [-3, 0, -2]
+    comparator: exact
+
+  - name: example-duplicate-minima
+    # The strictly-smaller optimisation loses the surviving 5 and reports a
+    # stale or missing minimum.
+    arguments: [[["push", 5], ["min", null], ["push", 5], ["pop", null], ["min", null]]]
+    expected: [5, 5]
+    comparator: exact
+
+  - name: single-push-then-query
+    arguments: [[["push", 7], ["top", null], ["min", null]]]
+    expected: [7, 7]
+    comparator: exact
+
+  - name: no-queries-at-all
+    arguments: [[["push", 1], ["pop", null]]]
+    expected: []
+    comparator: exact
+
+  - name: minimum-restored-after-several-pops
+    # Walks the minimum back up through its whole history.
+    arguments: [[["push", 3], ["push", 1], ["push", 2], ["push", 0], ["min", null], ["pop", null], ["min", null], ["pop", null], ["min", null], ["pop", null], ["min", null]]]
+    expected: [0, 1, 1, 3]
+    comparator: exact
+    hidden: true
+
+  - name: descending-pushes
+    arguments: [[["push", 4], ["push", 3], ["push", 2], ["min", null], ["top", null]]]
+    expected: [2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: ascending-pushes-keep-the-first-minimum
+    # The minimum is not the top. Catches implementations that conflate them.
+    arguments: [[["push", 1], ["push", 2], ["push", 3], ["min", null], ["top", null]]]
+    expected: [1, 3]
+    comparator: exact
+    hidden: true
+
+  - name: emptied-then-refilled
+    # A minimum variable never reset would still report 1 here.
+    arguments: [[["push", 1], ["pop", null], ["push", 9], ["min", null]]]
+    expected: [9]
+    comparator: exact
+    hidden: true

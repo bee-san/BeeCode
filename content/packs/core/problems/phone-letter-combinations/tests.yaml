@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-digits
+    arguments: ["23"]
+    expected: ["ad", "ae", "af", "bd", "be", "bf", "cd", "ce", "cf"]
+    comparator: unordered_list
+
+  - name: example-empty-input
+    # An empty list, not a list holding the empty string.
+    arguments: [""]
+    expected: []
+    comparator: unordered_list
+
+  - name: single-digit
+    arguments: ["2"]
+    expected: ["a", "b", "c"]
+    comparator: unordered_list
+
+  - name: four-letter-digit
+    # 7 carries four letters. A uniform three-per-digit mapping is wrong.
+    arguments: ["7"]
+    expected: ["p", "q", "r", "s"]
+    comparator: unordered_list
+
+  - name: the-other-four-letter-digit
+    arguments: ["9"]
+    expected: ["w", "x", "y", "z"]
+    comparator: unordered_list
+    hidden: true
+
+  - name: repeated-digit
+    # The same digit twice, so the same group is chosen from independently.
+    arguments: ["22"]
+    expected: ["aa", "ab", "ac", "ba", "bb", "bc", "ca", "cb", "cc"]
+    comparator: unordered_list
+    hidden: true
+
+  - name: mixed-group-sizes
+    # Sixteen combinations, so both four-letter groups must be right.
+    arguments: ["79"]
+    expected: ["pw", "px", "py", "pz", "qw", "qx", "qy", "qz", "rw", "rx", "ry", "rz", "sw", "sx", "sy", "sz"]
+    comparator: unordered_list
+    hidden: true
+
+  - name: three-digits
+    arguments: ["234"]
+    expected: ["adg", "adh", "adi", "aeg", "aeh", "aei", "afg", "afh", "afi", "bdg", "bdh", "bdi", "beg", "beh", "bei", "bfg", "bfh", "bfi", "cdg", "cdh", "cdi", "ceg", "ceh", "cei", "cfg", "cfh", "cfi"]
+    comparator: unordered_list
+    hidden: true
+
+  - name: letters-stay-in-digit-order
+    # The 3 comes first, so its letters lead. Sorting the digits would not.
+    arguments: ["32"]
+    expected: ["da", "db", "dc", "ea", "eb", "ec", "fa", "fb", "fc"]
+    comparator: unordered_list
+    hidden: true

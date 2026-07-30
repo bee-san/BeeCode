@@ -1,0 +1,39 @@
+# Schema version of this authoring format. Bumped when the loader's expectations
+# change, so an old Problem folder fails loudly rather than being misread.
+schemaVersion: 1
+
+
+title: Median From a Stream
+difficulty: hard
+# What this Problem is made of, and what it trains. Both are validated against
+# the pack's taxonomy.yaml, so a typo fails the build rather than silently
+# creating a topic with one Problem in it.
+dataStructures:
+  - heap
+  - array
+algorithms:
+  - design
+
+# The function BeeCode calls to test the solution. Must match starter.py and
+# reference.py.
+entryPoint: run_operations
+
+# Worked examples shown with the statement. These are illustrative only; judging
+# uses tests.yaml.
+examples:
+  - input: "[[\"add\", 1], [\"add\", 2], [\"median\", null], [\"add\", 3], [\"median\", null]]"
+    output: "[1.5, 2]"
+  - input: "[[\"add\", 5], [\"median\", null]]"
+    output: "[5]"
+
+provenance:
+  origin: original
+  author: bee-san
+  license: CC-BY-4.0
+  notes: >
+    Statement written for BeeCode. The underlying exercise is a classic
+    interview question in the public domain; no third-party text is reproduced.
+
+limits:
+  wallClockMillis: 5000
+  maxOutputBytes: 65536

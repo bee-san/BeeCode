@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-islands
+    arguments: [[[1, 1, 0], [0, 1, 0], [0, 0, 1]]]
+    expected: 3
+    comparator: exact
+
+  - name: example-no-land
+    arguments: [[[0, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+
+  - name: empty-grid
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: all-land
+    # One island filling the grid.
+    arguments: [[[1, 1], [1, 1]]]
+    expected: 4
+    comparator: exact
+
+  - name: corners-do-not-connect
+    # Two islands of one cell each, not one island of two.
+    arguments: [[[1, 0], [0, 1]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: the-largest-is-not-the-first-found
+    # Scanning stops improving only if the running maximum is kept.
+    arguments: [[[1, 0, 0], [0, 1, 1], [0, 1, 1]]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: single-land-cell
+    arguments: [[[1]]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: long-snake
+    # One winding island: four cells along the top, one bridging down the
+    # right edge, four along the third row, one hanging below. A deep
+    # recursion, and the four water cells belong to no island.
+    arguments: [[[1, 1, 1, 1], [0, 0, 0, 1], [1, 1, 1, 1], [1, 0, 0, 0]]]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: islands-separated-by-a-column
+    # Two islands of three. A wrapped column index would report six.
+    arguments: [[[1, 0, 1], [1, 0, 1], [1, 0, 1]]]
+    expected: 3
+    comparator: exact
+    hidden: true

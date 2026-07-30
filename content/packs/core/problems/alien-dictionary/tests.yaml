@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-words
+    # Every pair of letters is forced, so one ordering is consistent.
+    arguments: [["wrt", "wrf", "er", "ett", "rftt"]]
+    expected: "wertf"
+    comparator: exact
+
+  - name: example-contradiction
+    arguments: [["z", "x", "z"]]
+    expected: ""
+    comparator: exact
+
+  - name: a-single-word
+    # No adjacent pair, so nothing is ordered and the ordinary-alphabet tie-
+    # break decides.
+    arguments: [["abc"]]
+    expected: "abc"
+    comparator: exact
+
+  - name: a-prefix-cannot-come-second
+    # No cycle exists here, so the cycle check alone misses it.
+    arguments: [["abc", "ab"]]
+    expected: ""
+    comparator: exact
+
+  - name: a-prefix-first-is-fine
+    # The pair yields no ordering fact at all, and that is consistent.
+    arguments: [["ab", "abc"]]
+    expected: "abc"
+    comparator: exact
+    hidden: true
+
+  - name: only-the-first-difference-counts
+    # The pair says only that t precedes f. Everything else is unordered, so
+    # the tie-break decides -- and the answer is not the input order, which is
+    # what reading past the first difference would produce.
+    arguments: [["wrt", "wrf"]]
+    expected: "rtfw"
+    comparator: exact
+    hidden: true
+
+  - name: two-letters-in-forced-order
+    arguments: [["z", "x"]]
+    expected: "zx"
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-cycle
+    # A three-letter cycle, which the emitted-count check catches.
+    arguments: [["a", "b", "c", "a"]]
+    expected: ""
+    comparator: exact
+    hidden: true
+
+  - name: a-fully-forced-chain
+    # a before c, b before a: one consistent ordering.
+    arguments: [["ba", "bc", "ac", "cab"]]
+    expected: "bac"
+    comparator: exact
+    hidden: true
+
+  - name: repeated-words
+    # Identical adjacent words yield nothing and must not be an error.
+    arguments: [["ab", "ab", "b"]]
+    expected: "ab"
+    comparator: exact
+    hidden: true

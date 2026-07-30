@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-an-even-length-palindrome
+    arguments: [[1, 2, 2, 1]]
+    expected: true
+    comparator: exact
+
+  - name: example-not-a-palindrome
+    arguments: [[1, 2]]
+    expected: false
+    comparator: exact
+
+  - name: an-empty-chain
+    arguments: [[]]
+    expected: true
+    comparator: exact
+
+  - name: a-single-node
+    # The middle is never compared against anything.
+    arguments: [[5]]
+    expected: true
+    comparator: exact
+
+  - name: an-odd-length-palindrome
+    # The 3 belongs to neither half.
+    arguments: [[1, 2, 3, 2, 1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: two-identical-values
+    arguments: [[4, 4]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: the-mismatch-is-in-the-middle
+    arguments: [[1, 2, 3, 4, 1]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: the-mismatch-is-at-the-ends
+    arguments: [[1, 2, 2, 3]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: every-value-the-same
+    arguments: [[7, 7, 7, 7, 7]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-palindrome
+    arguments: [[1, 0, 1, 3, 1, 0, 1]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: almost-a-palindrome
+    arguments: [[1, 0, 1, 3, 1, 0, 2]]
+    expected: false
+    comparator: exact
+    hidden: true

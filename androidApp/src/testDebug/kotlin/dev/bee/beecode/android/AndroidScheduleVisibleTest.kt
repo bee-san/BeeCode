@@ -7,12 +7,15 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
@@ -105,7 +108,7 @@ class AndroidScheduleVisibleTest {
         // information. Without it the header simply lost a line and looked like a rendering
         // bug.
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         compose.onNode(hasText("first attempt", substring = true)).assertIsDisplayed()
     }
 
@@ -129,7 +132,7 @@ class AndroidScheduleVisibleTest {
         // And what is displayed is what was stored, not a recomputation. Read the transition
         // back out of the review and require the rendered text to contain its value, so a
         // card that showed a plausible-but-different number would fail.
-        val twoSum = profile.catalogue.allProblems().first { it.title == "Two Sum" }
+        val twoSum = profile.catalogue.allProblems().first { it.title == TWO_SUM_TITLE }
         val review = profile.history(twoSum.id).last()
         val nextStability = formatIntervalDays(review.transition.nextStability)
         compose.onNode(hasText(nextStability, substring = true))
@@ -232,8 +235,24 @@ class AndroidScheduleVisibleTest {
     }
 
     /** Run a passing solution for Two Sum, leaving the rating buttons on screen. */
+    /**
+     * Scroll the queue until [title] is composed, and return it.
+     *
+     * The catalogue grows, so a Problem that was once the first row ends up below the
+     * fold — and a lazy list does not compose what is off screen, so a node that is
+     * merely present in the data has no semantics to assert against.
+     */
+    private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
+        compose.onAllNodesWithText(title).onFirst()
+    }
+
+    private fun openTwoSum() {
+        scrollQueueTo(TWO_SUM_TITLE).performClick()
+    }
+
     private fun solveTwoSum() {
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         compose.onNodeWithContentDescription("Python solution editor").performTextReplacement(
             """
             ${ScriptedPythonRunner.PASS_MARKER}
@@ -258,5 +277,10 @@ class AndroidScheduleVisibleTest {
                 BeeCodeApp(StudyViewModel(profile))
             }
         }
+    }
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
     }
 }

@@ -1,0 +1,55 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-found
+    arguments: [[4, 5, 6, 7, 0, 1, 2], 0]
+    expected: 4
+    comparator: exact
+
+  - name: example-absent
+    arguments: [[4, 5, 6, 7, 0, 1, 2], 3]
+    expected: -1
+    comparator: exact
+
+  - name: single-element-found
+    arguments: [[1], 1]
+    expected: 0
+    comparator: exact
+
+  - name: single-element-absent
+    arguments: [[1], 0]
+    expected: -1
+    comparator: exact
+
+  - name: not-rotated
+    # The plain sorted case must still work.
+    arguments: [[1, 2, 3, 4, 5], 4]
+    expected: 3
+    comparator: exact
+
+  - name: target-is-the-rotation-point
+    arguments: [[5, 6, 7, 1, 2, 3, 4], 1]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: target-at-the-far-left
+    arguments: [[5, 6, 7, 1, 2, 3, 4], 5]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: target-at-the-far-right
+    arguments: [[5, 6, 7, 1, 2, 3, 4], 4]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: two-elements-rotated
+    # The range narrows to where low equals middle. A strict comparison when
+    # deciding which half is sorted fails on exactly this shape.
+    arguments: [[3, 1], 1]
+    expected: 1
+    comparator: exact
+    hidden: true

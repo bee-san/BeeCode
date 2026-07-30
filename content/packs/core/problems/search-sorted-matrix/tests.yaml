@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-present
+    arguments: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3]
+    expected: true
+    comparator: exact
+
+  - name: example-absent
+    arguments: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13]
+    expected: false
+    comparator: exact
+
+  - name: empty-matrix
+    arguments: [[], 1]
+    expected: false
+    comparator: exact
+
+  - name: matrix-with-an-empty-row
+    # len(grid) is 1 but there are no cells. Catches an unguarded grid[0][0].
+    arguments: [[[]], 1]
+    expected: false
+    comparator: exact
+
+  - name: single-row
+    # Dividing by the number of rows instead of columns breaks here.
+    arguments: [[[1, 2, 3, 4, 5]], 4]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: single-column
+    arguments: [[[1], [3], [5]], 5]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: target-below-everything
+    arguments: [[[10, 20], [30, 40]], 5]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: target-is-the-last-cell
+    # Catches an exclusive upper bound set one place too low.
+    arguments: [[[1, 2], [3, 4]], 4]
+    expected: true
+    comparator: exact
+    hidden: true

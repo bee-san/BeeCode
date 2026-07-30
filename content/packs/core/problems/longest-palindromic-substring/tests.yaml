@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-earliest-of-two-ties
+    # "aba" ties on length, so only a strict comparison returns "bab".
+    arguments: ["babad"]
+    expected: "bab"
+    comparator: exact
+
+  - name: example-even-length-answer
+    # Only an even centre finds this. Odd centres alone return a single
+    # letter.
+    arguments: ["cbbd"]
+    expected: "bb"
+    comparator: exact
+
+  - name: single-character
+    arguments: ["a"]
+    expected: "a"
+    comparator: exact
+
+  - name: no-palindrome-longer-than-one
+    # Every character is a palindrome, and the earliest wins.
+    arguments: ["abc"]
+    expected: "a"
+    comparator: exact
+
+  - name: the-whole-string
+    arguments: ["racecar"]
+    expected: "racecar"
+    comparator: exact
+    hidden: true
+
+  - name: all-identical-characters
+    # Expansion must not stop early on repeated characters.
+    arguments: ["aaaa"]
+    expected: "aaaa"
+    comparator: exact
+    hidden: true
+
+  - name: two-characters-that-match
+    arguments: ["aa"]
+    expected: "aa"
+    comparator: exact
+    hidden: true
+
+  - name: two-characters-that-differ
+    arguments: ["ab"]
+    expected: "a"
+    comparator: exact
+    hidden: true
+
+  - name: the-answer-is-in-the-middle
+    # An even-length palindrome bounded by non-matching characters.
+    arguments: ["xyzzyabc"]
+    expected: "yzzy"
+    comparator: exact
+    hidden: true
+
+  - name: an-odd-palindrome-at-the-end
+    arguments: ["abcdcba"]
+    expected: "abcdcba"
+    comparator: exact
+    hidden: true

@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-stop
+    # The cheapest route overall costs 400 but needs two stops. Relaxing in
+    # place returns 400 here.
+    arguments: [4, [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], 0, 3, 1]
+    expected: 700
+    comparator: exact
+
+  - name: example-no-stops-allowed
+    arguments: [3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 0]
+    expected: 500
+    comparator: exact
+
+  - name: the-same-route-with-a-stop-allowed
+    # One stop admits the two-flight route, which is cheaper.
+    arguments: [3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 1]
+    expected: 200
+    comparator: exact
+
+  - name: start-equals-target
+    # No flights needed.
+    arguments: [2, [[0, 1, 100]], 0, 0, 0]
+    expected: 0
+    comparator: exact
+
+  - name: unreachable-target
+    arguments: [3, [[0, 1, 100]], 0, 2, 2]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: flights-are-directed
+    # The only flight runs the other way.
+    arguments: [2, [[1, 0, 100]], 0, 1, 1]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: a-chain-exactly-within-the-limit
+    # Two stops, three flights. Running only k rounds returns -1.
+    arguments: [4, [[0, 1, 1], [1, 2, 1], [2, 3, 1]], 0, 3, 2]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: one-stop-short
+    # The route exists but needs two stops.
+    arguments: [4, [[0, 1, 1], [1, 2, 1], [2, 3, 1]], 0, 3, 1]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: a-cycle-must-not-help
+    # Going round the cycle only adds flights and price.
+    arguments: [3, [[0, 1, 1], [1, 0, 1], [1, 2, 50]], 0, 2, 5]
+    expected: 51
+    comparator: exact
+    hidden: true
+
+  - name: no-flights-at-all
+    arguments: [2, [], 0, 1, 1]
+    expected: -1
+    comparator: exact
+    hidden: true

@@ -1,0 +1,53 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-found
+    arguments: ["eidbaooo", "ab"]
+    expected: true
+    comparator: exact
+
+  - name: example-not-found
+    arguments: ["eidboaoo", "ab"]
+    expected: false
+    comparator: exact
+
+  - name: needle-longer-than-haystack
+    # Catches solutions that slice the haystack without checking the length.
+    arguments: ["a", "ab"]
+    expected: false
+    comparator: exact
+
+  - name: whole-string-is-the-permutation
+    arguments: ["ba", "ab"]
+    expected: true
+    comparator: exact
+
+  - name: multiplicity-must-match-not-just-membership
+    # Both strings use exactly the letters a and b, so a set-based check says
+    # yes. The counts are a:2 b:1 against a:1 b:2.
+    arguments: ["aab", "abb"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: exhausted-letter-must-not-block-a-match
+    # The window slides off both cs before reaching "ab". A tally that leaves
+    # keys behind at zero never compares equal to the wanted tally.
+    arguments: ["ccab", "ab"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: match-at-the-very-end
+    # Catches loops that stop one window early.
+    arguments: ["xxxxxxba", "ab"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: single-letter-needle
+    arguments: ["zzzz", "y"]
+    expected: false
+    comparator: exact
+    hidden: true

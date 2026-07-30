@@ -10,9 +10,11 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import dev.bee.beecode.app.BeeCodeProfile
@@ -72,7 +74,7 @@ class DesktopUiTest {
     @Test
     fun theQueueListsTheBundledProblems() = withUi { ui, _ ->
         ui.onNodeWithText("New Problems").assertIsDisplayed()
-        ui.onAllNodesWithText("Two Sum").onFirst().assertIsDisplayed()
+        ui.scrollQueueTo(TWO_SUM_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -89,7 +91,7 @@ class DesktopUiTest {
 
     @Test
     fun openingAProblemShowsItsStatementAndEditor() = withUi { ui, _ ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithText("Your solution").assertIsDisplayed()
         ui.onNodeWithText("Run tests").assertIsDisplayed()
         // Named for a screen reader, and the same identifier the Android editor uses.
@@ -98,7 +100,7 @@ class DesktopUiTest {
 
     @Test
     fun aFailingRunOffersOnlyAgain() = withUi { ui, _ ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithContentDescription("Python solution editor")
             .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
         ui.onNodeWithText("Run tests").performClick()
@@ -121,7 +123,7 @@ class DesktopUiTest {
 
     @Test
     fun theFullAnswerRunFinalizeJourneyWorksThroughTheUi() = withUi { ui, profile ->
-        ui.onAllNodesWithText("Two Sum").onFirst().performClick()
+        ui.openTwoSum()
         ui.onNodeWithContentDescription("Python solution editor").performTextReplacement(
             """
             ${ScriptedPythonRunner.PASS_MARKER}
@@ -358,5 +360,27 @@ class DesktopUiTest {
 
         fun ComposeUiTest.ratingButtons(label: String) =
             onAllNodes(isRatingButton(label)).fetchSemanticsNodes()
+
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
+
+        /**
+         * Scroll the queue until [title] is composed, and return it.
+         *
+         * The catalogue grows, so a Problem that was once the first row ends up below
+         * the fold — and a lazy list does not compose what is off screen, so a node
+         * that is merely present in the data has no semantics to assert against. This
+         * is the difference between a test that breaks whenever content is added and
+         * one that does not: the queue is scrolled to the Problem rather than the
+         * Problem being assumed visible.
+         */
+        fun ComposeUiTest.scrollQueueTo(title: String) = run {
+            onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
+            onAllNodesWithText(title).onFirst()
+        }
+
+        fun ComposeUiTest.openTwoSum() {
+            scrollQueueTo(TWO_SUM_TITLE).performClick()
+        }
     }
 }

@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-up-to-two
+    arguments: [2]
+    expected: [0, 1, 1]
+    comparator: exact
+
+  - name: example-up-to-five
+    arguments: [5]
+    expected: [0, 1, 1, 2, 1, 2]
+    comparator: exact
+
+  - name: just-zero
+    # Length one, not zero.
+    arguments: [0]
+    expected: [0]
+    comparator: exact
+
+  - name: up-to-one
+    arguments: [1]
+    expected: [0, 1]
+    comparator: exact
+
+  - name: across-a-power-of-two
+    # The count drops back to 1 at 8, where a new bit opens.
+    arguments: [8]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1]
+    comparator: exact
+    hidden: true
+
+  - name: up-to-fifteen
+    # The first half repeated, each entry plus one.
+    arguments: [15]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4]
+    comparator: exact
+    hidden: true
+
+  - name: one-past-a-power-of-two
+    arguments: [16]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1]
+    comparator: exact
+    hidden: true
+
+  - name: up-to-thirty-one
+    arguments: [31]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5]
+    comparator: exact
+    hidden: true
+
+  - name: a-limit-that-is-not-one-less-than-a-power-of-two
+    # The table stops partway through a block, which off-by-one bounds trip
+    # on.
+    arguments: [20]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2]
+    comparator: exact
+    hidden: true
+
+  - name: an-odd-limit
+    arguments: [7]
+    expected: [0, 1, 1, 2, 1, 2, 2, 3]
+    comparator: exact
+    hidden: true

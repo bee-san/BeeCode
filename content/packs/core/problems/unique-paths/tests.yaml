@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-by-seven
+    arguments: [3, 7]
+    expected: 28
+    comparator: exact
+
+  - name: example-three-by-two
+    arguments: [3, 2]
+    expected: 3
+    comparator: exact
+
+  - name: a-single-cell
+    # Already at the destination, which is one path, not zero.
+    arguments: [1, 1]
+    expected: 1
+    comparator: exact
+
+  - name: a-single-row
+    # Only rightward moves, so exactly one path.
+    arguments: [1, 10]
+    expected: 1
+    comparator: exact
+
+  - name: a-single-column
+    arguments: [10, 1]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: two-by-two
+    arguments: [2, 2]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: the-grid-is-symmetric
+    # Swapping the dimensions cannot change the count.
+    arguments: [7, 3]
+    expected: 28
+    comparator: exact
+    hidden: true
+
+  - name: a-square-grid
+    arguments: [4, 4]
+    expected: 20
+    comparator: exact
+    hidden: true
+
+  - name: a-large-grid
+    # Enumerating the paths one by one is hopeless well before this size.
+    arguments: [10, 10]
+    expected: 48620
+    comparator: exact
+    hidden: true

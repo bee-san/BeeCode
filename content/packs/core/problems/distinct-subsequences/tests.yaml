@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-ways
+    arguments: ["rabbbit", "rabbit"]
+    expected: 3
+    comparator: exact
+
+  - name: example-no-match
+    arguments: ["abc", "d"]
+    expected: 0
+    comparator: exact
+
+  - name: one-character-may-not-serve-twice
+    # An ascending inner loop answers 3 here.
+    arguments: ["aa", "aa"]
+    expected: 1
+    comparator: exact
+
+  - name: identical-strings
+    arguments: ["abc", "abc"]
+    expected: 1
+    comparator: exact
+
+  - name: the-pattern-is-longer
+    arguments: ["ab", "abc"]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: a-single-character-repeated
+    # Three positions, three distinct subsequences.
+    arguments: ["aaa", "a"]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: choose-two-of-four
+    arguments: ["aaaa", "aa"]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: order-must-be-preserved
+    arguments: ["ba", "ab"]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: interleaved-repeats
+    arguments: ["babgbag", "bag"]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: a-pattern-with-a-repeat
+    # Positions (0,1), (0,3) and (2,3).
+    arguments: ["abab", "ab"]
+    expected: 3
+    comparator: exact
+    hidden: true

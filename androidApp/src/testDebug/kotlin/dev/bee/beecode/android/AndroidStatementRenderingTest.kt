@@ -6,10 +6,13 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
@@ -72,7 +75,7 @@ class AndroidStatementRenderingTest {
         // Taken from the pack rather than written out, so it stays true if the content is
         // rewrapped — the point is that a break was crossed, not which words surround it.
         openTwoSum()
-        val problem = profile.catalogue.allProblems().first { it.title == "Two Sum" }
+        val problem = profile.catalogue.allProblems().first { it.title == TWO_SUM_TITLE }
         val lines = problem.statementMarkdown.lines()
         // Each line is stripped of markup *before* being sliced: slicing first could cut a
         // `` ` `` or a `**` in half and leave the expectation asking for a stray marker.
@@ -91,7 +94,7 @@ class AndroidStatementRenderingTest {
         // the content — and found by line content rather than by the number, because which
         // bound this Problem states is not what is being tested.
         openTwoSum()
-        val problem = profile.catalogue.allProblems().first { it.title == "Two Sum" }
+        val problem = profile.catalogue.allProblems().first { it.title == TWO_SUM_TITLE }
         val constraint = problem.statementMarkdown
             .lines()
             .first { it.startsWith("- ") && it.contains('_') }
@@ -104,7 +107,16 @@ class AndroidStatementRenderingTest {
 
     private fun openTwoSum() {
         compose.setContent { BeeCodeTheme { BeeCodeApp(StudyViewModel(profile)) } }
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        // Scrolled to rather than assumed on screen: the queue is a lazy list and Two Sum
+        // sits below the fold in a catalogue this size, so the row has no semantics to
+        // click until it composes.
+        compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
+        compose.onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
         compose.waitForIdle()
+    }
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
     }
 }

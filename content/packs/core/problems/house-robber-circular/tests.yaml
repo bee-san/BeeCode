@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-entries
+    # The ends adjoin, so 2 + 2 is not allowed. The linear answer would be 4.
+    arguments: [[2, 3, 2]]
+    expected: 3
+    comparator: exact
+
+  - name: example-ends-are-not-adjacent
+    arguments: [[1, 2, 3, 1]]
+    expected: 4
+    comparator: exact
+
+  - name: single-entry
+    # Both slices are empty, so this needs its own case.
+    arguments: [[7]]
+    expected: 7
+    comparator: exact
+
+  - name: two-entries
+    # Adjacent both ways around, so only one may be taken.
+    arguments: [[4, 9]]
+    expected: 9
+    comparator: exact
+
+  - name: the-ends-are-the-two-largest
+    # In a line the answer is 200, taking both ends. The circle forbids that,
+    # leaving one 100 plus one of the middle entries.
+    arguments: [[100, 1, 1, 100]]
+    expected: 101
+    comparator: exact
+    hidden: true
+
+  - name: four-equal-entries
+    # Two opposite entries.
+    arguments: [[5, 5, 5, 5]]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: all-zeroes
+    arguments: [[0, 0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: five-entries-where-the-first-must-be-dropped
+    # Entries 1 and 3 give 6; entries 2 and 4 give 8, which needs the first
+    # dropped.
+    arguments: [[1, 2, 3, 4, 5]]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: a-long-alternating-circle
+    # Three non-adjacent sixes fit in a circle of six.
+    arguments: [[6, 1, 6, 1, 6, 1]]
+    expected: 18
+    comparator: exact
+    hidden: true

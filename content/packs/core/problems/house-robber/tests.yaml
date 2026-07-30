@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-entries
+    arguments: [[1, 2, 3, 1]]
+    expected: 4
+    comparator: exact
+
+  - name: example-five-entries
+    arguments: [[2, 7, 9, 3, 1]]
+    expected: 12
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: alternating-is-not-always-best
+    # Both ends, skipping two adjacent middles. Taking every other entry gives
+    # 3.
+    arguments: [[2, 1, 1, 2]]
+    expected: 4
+    comparator: exact
+
+  - name: single-entry
+    arguments: [[5]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: two-entries
+    # They are adjacent, so only the larger may be taken.
+    arguments: [[3, 8]]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: all-zeroes
+    arguments: [[0, 0, 0]]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: one-large-value-blocks-two-good-ones
+    # Taking 100 forbids both 5s beside it, leaving only the last entry, for
+    # 105. Taking all three 5s instead gives 15.
+    arguments: [[5, 100, 5, 1, 5]]
+    expected: 105
+    comparator: exact
+    hidden: true
+
+  - name: a-descending-run
+    # Entries 0, 2 and 4.
+    arguments: [[9, 8, 7, 6, 5]]
+    expected: 21
+    comparator: exact
+    hidden: true

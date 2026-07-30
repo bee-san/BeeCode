@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-region-captured
+    arguments: [[["X", "X", "X", "X"], ["X", "O", "O", "X"], ["X", "X", "O", "X"], ["X", "O", "X", "X"]]]
+    expected: [["X", "X", "X", "X"], ["X", "X", "X", "X"], ["X", "X", "X", "X"], ["X", "O", "X", "X"]]
+    comparator: exact
+
+  - name: example-single-cell
+    arguments: [[["X"]]]
+    expected: [["X"]]
+    comparator: exact
+
+  - name: a-single-o-on-the-border-survives
+    # A one-cell board is entirely border.
+    arguments: [[["O"]]]
+    expected: [["O"]]
+    comparator: exact
+
+  - name: a-region-reaching-the-border-survives-entirely
+    # The lower O is interior but connected to a border O, so it stays.
+    arguments: [[["X", "O", "X"], ["X", "O", "X"], ["X", "X", "X"]]]
+    expected: [["X", "O", "X"], ["X", "O", "X"], ["X", "X", "X"]]
+    comparator: exact
+
+  - name: a-fully-enclosed-single-cell
+    arguments: [[["X", "X", "X"], ["X", "O", "X"], ["X", "X", "X"]]]
+    expected: [["X", "X", "X"], ["X", "X", "X"], ["X", "X", "X"]]
+    comparator: exact
+    hidden: true
+
+  - name: all-o-touching-the-border
+    # Nothing to capture, and no marker may be left behind.
+    arguments: [[["O", "O"], ["O", "O"]]]
+    expected: [["O", "O"], ["O", "O"]]
+    comparator: exact
+    hidden: true
+
+  - name: one-region-captured-one-spared
+    # Two regions with different fates in one board.
+    arguments: [[["X", "X", "X", "X", "X"], ["X", "O", "X", "O", "X"], ["X", "X", "X", "O", "O"], ["X", "X", "X", "X", "X"]]]
+    expected: [["X", "X", "X", "X", "X"], ["X", "X", "X", "O", "X"], ["X", "X", "X", "O", "O"], ["X", "X", "X", "X", "X"]]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-row-is-all-border
+    arguments: [[["O", "X", "O"]]]
+    expected: [["O", "X", "O"]]
+    comparator: exact
+    hidden: true
+
+  - name: diagonal-o-cells-are-separate-regions
+    # Both are surrounded; treating corners as connected changes nothing here.
+    arguments: [[["X", "X", "X", "X"], ["X", "O", "X", "X"], ["X", "X", "O", "X"], ["X", "X", "X", "X"]]]
+    expected: [["X", "X", "X", "X"], ["X", "X", "X", "X"], ["X", "X", "X", "X"], ["X", "X", "X", "X"]]
+    comparator: exact
+    hidden: true

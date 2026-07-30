@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-eight-values
+    arguments: [[10, 9, 2, 5, 3, 7, 101, 18]]
+    expected: 4
+    comparator: exact
+
+  - name: example-all-equal
+    # Strictly increasing, so equal entries do not chain. Non-strict gives 4.
+    arguments: [[7, 7, 7, 7]]
+    expected: 1
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: the-best-does-not-end-last
+    # Returning the value for the final position would give 1.
+    arguments: [[1, 2, 3, 0]]
+    expected: 3
+    comparator: exact
+
+  - name: strictly-decreasing
+    arguments: [[5, 4, 3, 2, 1]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: already-increasing
+    arguments: [[1, 2, 3, 4]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: single-value
+    arguments: [[42]]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: negatives
+    arguments: [[-5, -3, -4, -1]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: a-late-replacement-pays-off
+    # The answer is 3, 4, 5, 6. The 1 and 2 improve the endings for lengths
+    # one and two without shortening anything.
+    arguments: [[3, 4, 5, 1, 2, 6]]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: duplicates-among-increasing-values
+    # One of the two 3s is skipped.
+    arguments: [[1, 3, 3, 5]]
+    expected: 3
+    comparator: exact
+    hidden: true

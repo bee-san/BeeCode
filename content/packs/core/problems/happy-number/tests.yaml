@@ -1,0 +1,71 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-nineteen-is-happy
+    arguments: [19]
+    expected: true
+    comparator: exact
+
+  - name: example-two-is-not
+    # Without cycle detection this never returns.
+    arguments: [2]
+    expected: false
+    comparator: exact
+
+  - name: one-is-already-there
+    # Zero steps needed, and 1 is a fixed point.
+    arguments: [1]
+    expected: true
+    comparator: exact
+
+  - name: seven-is-happy
+    arguments: [7]
+    expected: true
+    comparator: exact
+
+  - name: the-whole-known-cycle-is-unhappy
+    # 4 is on the cycle itself.
+    arguments: [4]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: another-cycle-member
+    arguments: [145]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: ten-is-happy
+    # A zero digit contributes nothing.
+    arguments: [10]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: one-hundred-is-happy
+    arguments: [100]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-larger-happy-number
+    # Seven ones sum to 7, which is happy.
+    arguments: [1111111]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-larger-unhappy-number
+    arguments: [123456789]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-number-near-the-limit
+    # The sequence collapses below 1000 within a couple of steps.
+    arguments: [2147483647]
+    expected: false
+    comparator: exact
+    hidden: true

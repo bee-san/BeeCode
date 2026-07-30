@@ -1,0 +1,49 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-mixed
+    arguments: [[2, 0, 2, 1, 1, 0]]
+    expected: [0, 0, 1, 1, 2, 2]
+    comparator: exact
+
+  - name: example-one-of-each
+    arguments: [[2, 0, 1]]
+    expected: [0, 1, 2]
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: single-element
+    arguments: [[1]]
+    expected: [1]
+    comparator: exact
+
+  - name: all-the-same
+    arguments: [[1, 1, 1]]
+    expected: [1, 1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: no-ones
+    arguments: [[2, 2, 0, 0]]
+    expected: [0, 0, 2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: twos-in-a-row
+    # Consecutive 2s at the front. This is the input that exposes a cursor
+    # advanced after swapping with the high end.
+    arguments: [[2, 2, 2, 0]]
+    expected: [0, 2, 2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: already-sorted
+    arguments: [[0, 0, 1, 1, 2, 2]]
+    expected: [0, 0, 1, 1, 2, 2]
+    comparator: exact
+    hidden: true

@@ -1,0 +1,65 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-of-four
+    arguments: [[["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]], ["oath", "pea", "eat", "rain"]]
+    expected: ["eat", "oath"]
+    comparator: exact
+
+  - name: example-either-direction
+    arguments: [[["a", "b"]], ["ab", "ba", "abc"]]
+    expected: ["ab", "ba"]
+    comparator: exact
+
+  - name: no-word-is-present
+    arguments: [[["a", "b"], ["c", "d"]], ["xyz", "zz"]]
+    expected: []
+    comparator: exact
+
+  - name: a-cell-cannot-be-reused
+    # One cell, so only the single letter is readable.
+    arguments: [[["a"]], ["a", "aa", "aaa"]]
+    expected: ["a"]
+    comparator: exact
+
+  - name: result-is-sorted-not-in-found-order
+    # The grid yields ba first. The output order is alphabetical.
+    arguments: [[["b", "a"]], ["ba", "ab"]]
+    expected: ["ab", "ba"]
+    comparator: exact
+    hidden: true
+
+  - name: shared-prefixes-diverging
+    # Three words sharing aa; only two of them complete in the grid.
+    arguments: [[["a", "a"], ["a", "b"]], ["aaa", "aab", "aac"]]
+    expected: ["aaa", "aab"]
+    comparator: exact
+    hidden: true
+
+  - name: path-turns-a-corner
+    # abcd walks the ring; abdc would need a diagonal step.
+    arguments: [[["a", "b"], ["d", "c"]], ["abcd", "abdc"]]
+    expected: ["abcd"]
+    comparator: exact
+    hidden: true
+
+  - name: one-word-reachable-from-several-cells
+    # Many paths spell it. The result must not repeat the word.
+    arguments: [[["a", "a"], ["a", "a"]], ["aa"]]
+    expected: ["aa"]
+    comparator: exact
+    hidden: true
+
+  - name: word-is-a-prefix-of-a-longer-one
+    # Recording ab must not stop the search from reaching abc.
+    arguments: [[["a", "b", "c"]], ["ab", "abc"]]
+    expected: ["ab", "abc"]
+    comparator: exact
+    hidden: true
+
+  - name: single-column-grid
+    arguments: [[["a"], ["b"], ["c"]], ["abc", "cba", "ac"]]
+    expected: ["abc", "cba"]
+    comparator: exact
+    hidden: true

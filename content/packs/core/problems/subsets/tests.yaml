@@ -1,0 +1,39 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-elements
+    arguments: [[1, 2]]
+    expected: [[], [1], [2], [1, 2]]
+    comparator: unordered_list
+
+  - name: empty-list-has-one-subset
+    # The power set of nothing is a list holding the empty subset, not an
+    # empty list.
+    arguments: [[]]
+    expected: [[]]
+    comparator: unordered_list
+
+  - name: single-element
+    arguments: [[7]]
+    expected: [[], [7]]
+    comparator: unordered_list
+
+  - name: three-elements
+    arguments: [[1, 2, 3]]
+    expected: [[], [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]
+    comparator: unordered_list
+
+  - name: negatives-and-zero
+    # Rules out a falsiness test standing in for membership.
+    arguments: [[0, -1]]
+    expected: [[], [0], [-1], [0, -1]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: four-elements-gives-sixteen
+    # A missing copy-on-append collapses these to identical lists.
+    arguments: [[1, 2, 3, 4]]
+    expected: [[], [1], [2], [3], [4], [1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4], [1, 2, 3], [1, 2, 4], [1, 3, 4], [2, 3, 4], [1, 2, 3, 4]]
+    comparator: unordered_list
+    hidden: true

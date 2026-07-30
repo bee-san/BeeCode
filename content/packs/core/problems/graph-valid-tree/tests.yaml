@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-tree
+    arguments: [5, [[0, 1], [0, 2], [0, 3], [1, 4]]]
+    expected: true
+    comparator: exact
+
+  - name: example-has-a-cycle
+    arguments: [5, [[0, 1], [1, 2], [2, 3], [1, 3], [1, 4]]]
+    expected: false
+    comparator: exact
+
+  - name: single-vertex-no-edges
+    # Connected, acyclic, and 0 == 1 - 1 edges.
+    arguments: [1, []]
+    expected: true
+    comparator: exact
+
+  - name: disconnected-with-too-few-edges
+    # Two components. The edge count is 2, not 3.
+    arguments: [4, [[0, 1], [2, 3]]]
+    expected: false
+    comparator: exact
+
+  - name: a-triangle-plus-an-isolated-vertex
+    # Three edges for four vertices, so the count is right, yet the graph is
+    # both cyclic and disconnected. The count alone is not enough.
+    arguments: [4, [[0, 1], [1, 2], [2, 0]]]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-path
+    arguments: [3, [[0, 1], [1, 2]]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: a-star
+    arguments: [4, [[0, 1], [0, 2], [0, 3]]]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: two-vertices-no-edge
+    # Disconnected, and one edge short.
+    arguments: [2, []]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-square
+    # Four edges for four vertices, so the count check alone rejects it.
+    arguments: [4, [[0, 1], [1, 2], [2, 3], [3, 0]]]
+    expected: false
+    comparator: exact
+    hidden: true

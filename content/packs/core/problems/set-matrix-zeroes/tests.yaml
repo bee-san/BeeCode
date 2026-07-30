@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-central-zero
+    arguments: [[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]
+    expected: [[1, 0, 1], [0, 0, 0], [1, 0, 1]]
+    comparator: exact
+
+  - name: example-a-corner-zero
+    arguments: [[[0, 1], [1, 1]]]
+    expected: [[0, 0], [0, 1]]
+    comparator: exact
+
+  - name: created-zeroes-do-not-cascade
+    # The single zero blanks row 0 and column 1. Zeroing during the scan would
+    # then see the new zero at (0, 0) and blank column 0 too.
+    arguments: [[[1, 0], [1, 1]]]
+    expected: [[0, 0], [1, 0]]
+    comparator: exact
+
+  - name: no-zeroes-at-all
+    arguments: [[[1, 2], [3, 4]]]
+    expected: [[1, 2], [3, 4]]
+    comparator: exact
+
+  - name: a-single-cell-that-is-zero
+    arguments: [[[0]]]
+    expected: [[0]]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-cell-that-is-not
+    arguments: [[[5]]]
+    expected: [[5]]
+    comparator: exact
+    hidden: true
+
+  - name: a-non-square-grid
+    # One row, so the whole row goes.
+    arguments: [[[1, 0, 3]]]
+    expected: [[0, 0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-column
+    arguments: [[[1], [0], [3]]]
+    expected: [[0], [0], [0]]
+    comparator: exact
+    hidden: true
+
+  - name: two-zeroes-in-different-rows
+    arguments: [[[1, 0, 1], [1, 1, 1], [0, 1, 1]]]
+    expected: [[0, 0, 0], [0, 0, 1], [0, 0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: every-cell-is-already-zero
+    arguments: [[[0, 0], [0, 0]]]
+    expected: [[0, 0], [0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: a-zero-in-the-first-row-and-column
+    # The in-grid marker version writes into row 0 and column 0 here, so those
+    # must be applied last.
+    arguments: [[[1, 2, 3], [4, 0, 6], [7, 8, 9]]]
+    expected: [[1, 0, 3], [0, 0, 0], [7, 0, 9]]
+    comparator: exact
+    hidden: true

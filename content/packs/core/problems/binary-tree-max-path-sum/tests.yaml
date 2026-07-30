@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-through-the-root
+    arguments: [[1, 2, 3]]
+    expected: 6
+    comparator: exact
+
+  - name: example-skips-a-negative-root
+    arguments: [[-10, 9, 20, null, null, 15, 7]]
+    expected: 42
+    comparator: exact
+
+  - name: single-negative-node
+    # Seeding the answer at 0 returns 0 here. A path must contain a node.
+    arguments: [[-3]]
+    expected: -3
+    comparator: exact
+
+  - name: all-negative
+    # The best path is the single largest node.
+    arguments: [[-2, -1]]
+    expected: -1
+    comparator: exact
+
+  - name: negative-children-are-dropped
+    arguments: [[2, -1, -2]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: best-path-is-one-leaf
+    arguments: [[-1, -2, 10]]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: straight-chain
+    arguments: [[1, 2, null, 3]]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: turning-path-below-the-root
+    # The root has two children, but the best path is 15 -> 20 and never
+    # reaches it. Assuming the root is involved gives 34.
+    arguments: [[-10, 9, 20, null, null, 15, -7]]
+    expected: 35
+    comparator: exact
+    hidden: true
+
+  - name: wide-positive-tree
+    arguments: [[5, 4, 8, 11, null, 13, 4]]
+    expected: 41
+    comparator: exact
+    hidden: true

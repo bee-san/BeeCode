@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-no-repeats
+    arguments: ["abc"]
+    expected: 3
+    comparator: exact
+
+  - name: example-three-identical
+    # Occurrences, not distinct strings, so not 3.
+    arguments: ["aaa"]
+    expected: 6
+    comparator: exact
+
+  - name: single-character
+    arguments: ["a"]
+    expected: 1
+    comparator: exact
+
+  - name: a-matching-pair
+    # Two single "a" and one "aa". Odd centres alone give 2.
+    arguments: ["aa"]
+    expected: 3
+    comparator: exact
+
+  - name: a-longer-palindrome
+    # Seven singles, plus cec, aceca, racecar.
+    arguments: ["racecar"]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: two-differing-characters
+    arguments: ["ab"]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: four-identical
+    # 4 + 3 + 2 + 1, every substring being a palindrome.
+    arguments: ["aaaa"]
+    expected: 10
+    comparator: exact
+    hidden: true
+
+  - name: an-even-palindrome-inside
+    # Six singles, plus bb and abba.
+    arguments: ["xabbay"]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: alternating-characters
+    # Five singles, two aba, one bab, one ababa.
+    arguments: ["ababa"]
+    expected: 9
+    comparator: exact
+    hidden: true

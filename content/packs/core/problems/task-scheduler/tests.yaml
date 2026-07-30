@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-idling-required
+    arguments: [["A", "A", "A", "B", "B", "B"], 2]
+    expected: 8
+    comparator: exact
+
+  - name: example-no-cooldown
+    arguments: [["A", "A", "A", "B", "B", "B"], 0]
+    expected: 6
+    comparator: exact
+
+  - name: single-task
+    # One run, so the cooldown never applies.
+    arguments: [["A"], 5]
+    expected: 1
+    comparator: exact
+
+  - name: enough-variety-to-fill-every-gap
+    # The frame is 1 * 3 + 4 = 7, which is fewer than the 8 tasks. Omitting
+    # the max with len(tasks) returns the impossible 7.
+    arguments: [["A", "A", "B", "B", "C", "C", "D", "D"], 2]
+    expected: 8
+    comparator: exact
+
+  - name: all-tasks-identical
+    # A _ _ A _ _ A, with no other task to fill the gaps.
+    arguments: [["A", "A", "A"], 2]
+    expected: 7
+    comparator: exact
+    hidden: true
+
+  - name: two-tasks-tied-at-the-maximum
+    # Frame is 1 * 4 + 2 = 6. Counting only one maximum gives 5.
+    arguments: [["A", "A", "B", "B"], 3]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: one-dominant-task-among-many
+    arguments: [["A", "A", "A", "A", "B", "C", "D", "E"], 3]
+    expected: 13
+    comparator: exact
+    hidden: true
+
+  - name: cooldown-longer-than-anything-needed
+    # No task repeats, so no waiting.
+    arguments: [["A", "B", "C"], 100]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: long-uniform-run
+    arguments: [["A", "A", "A", "A", "A", "A", "A", "A", "A", "A"], 1]
+    expected: 19
+    comparator: exact
+    hidden: true

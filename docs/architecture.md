@@ -124,18 +124,43 @@ performed.
 A Problem is source-controlled content:
 
 ```text
-content/packs/core/problems/two-sum/
-├── problem.yaml
-├── statement.md
-├── starter.py
-├── tests.yaml
-├── explanation.md
-├── reference.py
-└── assets/
+content/packs/core/
+├── taxonomy.yaml            # the pack's classification vocabulary
+└── problems/two-sum/
+    ├── problem.yaml
+    ├── statement.md
+    ├── starter.py
+    ├── tests.yaml
+    ├── explanation.md
+    ├── reference.py
+    └── assets/
 ```
 
 Tooling discovers folders automatically. Adding a Problem never requires a
 central Kotlin registry.
+
+### Classification
+
+Every Problem declares two lists in `problem.yaml`: `dataStructures` (what it is
+made of) and `algorithms` (what it trains). They are separate because they are
+different questions a learner filters by — "I want to practise trees" and "I want
+to practise binary search" are not the same request, and one flat list cannot
+tell them apart. `topics` is derived as their union, so existing filtering and
+statistics keep working against a single list.
+
+Both are validated against `taxonomy.yaml`, a closed vocabulary of slugs and
+their prose descriptions. An unrecognised slug fails the pack load. The point is
+consistency rather than bureaucracy: free-form tags let `dfs` and
+`depth-first-search` coexist, silently splitting one topic in two so a learner
+filtering for either sees half the Problems.
+
+The vocabulary lives in content rather than in Kotlin for the same reason the
+Problems do — extending it is a reviewed content change, and a file of slugs and
+descriptions cannot introduce executable logic.
+
+Classification is deliberately **excluded from the content revision hash**, so
+retagging the catalogue does not rotate revision IDs or detach a learner's review
+history from the content they solved.
 
 Build-time tooling:
 

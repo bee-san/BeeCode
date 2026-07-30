@@ -1,0 +1,44 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-levels
+    arguments: [[3, 9, 20, null, null, 15, 7]]
+    expected: [[3], [9, 20], [15, 7]]
+    comparator: exact
+
+  - name: empty-tree
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: root-only
+    arguments: [[1]]
+    expected: [[1]]
+    comparator: exact
+
+  - name: right-leaning-chain
+    # Each level holds one node; no empty inner lists.
+    arguments: [[1, null, 2, null, null, null, 3]]
+    expected: [[1], [2], [3]]
+    comparator: exact
+
+  - name: gap-does-not-shift-the-level
+    # 3's left child is absent, so 4 is still the first value on level 2 but
+    # must not be reordered with 7.
+    arguments: [[5, 3, 8, null, 4, 7]]
+    expected: [[5], [3, 8], [4, 7]]
+    comparator: exact
+    hidden: true
+
+  - name: zero-is-a-node-not-a-gap
+    arguments: [[0, 0, 0]]
+    expected: [[0], [0, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: full-three-levels
+    arguments: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: [[1], [2, 3], [4, 5, 6, 7]]
+    comparator: exact
+    hidden: true

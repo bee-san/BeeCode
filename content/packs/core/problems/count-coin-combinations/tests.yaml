@@ -1,0 +1,64 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-combinations
+    # Counting orderings instead would give 9.
+    arguments: [[1, 2, 5], 5]
+    expected: 4
+    comparator: exact
+
+  - name: example-impossible
+    arguments: [[2], 3]
+    expected: 0
+    comparator: exact
+
+  - name: an-amount-of-zero
+    # The empty combination, which is also the base case.
+    arguments: [[1], 0]
+    expected: 1
+    comparator: exact
+
+  - name: one-coin-divides-the-amount
+    # Only three 3s, in one combination.
+    arguments: [[3], 9]
+    expected: 1
+    comparator: exact
+
+  - name: order-does-not-create-combinations
+    # 1+1+1 and 1+2. Swapping the loops counts 1+2 and 2+1 separately for 3.
+    arguments: [[1, 2], 3]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-coin-equal-to-the-amount
+    arguments: [[5, 10], 5]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: no-coin-fits
+    arguments: [[10], 5]
+    expected: 0
+    comparator: exact
+    hidden: true
+
+  - name: all-ones
+    arguments: [[1], 100]
+    expected: 1
+    comparator: exact
+    hidden: true
+
+  - name: three-coin-values
+    # 1+1+1+1; 1+1+2; 2+2; 1+3.
+    arguments: [[1, 2, 3], 4]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: a-larger-amount
+    arguments: [[2, 5, 10], 20]
+    expected: 6
+    comparator: exact
+    hidden: true

@@ -2,11 +2,14 @@ package dev.bee.beecode.desktop
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import dev.bee.beecode.app.BeeCodeProfile
@@ -95,7 +98,7 @@ class EditorHeightTest {
             // pane, and `onFirst()` then clicked *that* — a green assertion about a
             // completely different control.
             val tests = ProblemCatalogue.fromResource(PACK_RESOURCE)
-                .allProblems().first { it.title == "Two Sum" }.tests.size
+                .allProblems().first { it.title == TWO_SUM_TITLE }.tests.size
             onNodeWithText("Show the $tests tests").performClick()
             waitForIdle()
             onNodeWithText("Hide the $tests tests").assertExists()
@@ -120,7 +123,11 @@ class EditorHeightTest {
         try {
             runComposeUiTest {
                 setContent { DesktopApp(profile) }
-                onAllNodesWithText("Two Sum").onFirst().performClick()
+                // Scrolled to rather than assumed on screen: the queue is a lazy list
+                // and Two Sum sits below the fold in a catalogue this size, so the row
+                // has no semantics to click until it composes.
+                onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
+                onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
                 waitForIdle()
                 body(editorHeight())
             }
@@ -134,6 +141,9 @@ class EditorHeightTest {
 
     private companion object {
         const val EDITOR = "Python solution editor"
+
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
 
         /** The scripted runner passes on this marker; see [ScriptedPythonRunner]. */
         val PASSING_SOURCE = """

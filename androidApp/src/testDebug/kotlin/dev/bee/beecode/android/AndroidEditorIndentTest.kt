@@ -5,12 +5,15 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.test.performTextReplacement
@@ -20,6 +23,7 @@ import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.text.TextRange
 import androidx.test.core.app.ApplicationProvider
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
@@ -201,14 +205,18 @@ class AndroidEditorIndentTest {
         assertEquals("value = 1", editorText())
     }
 
-    /** Open the first Problem and put [source] in its editor. */
+    /** Open Two Sum and put [source] in its editor. */
     private fun openEditorWith(source: String): SemanticsNodeInteraction {
         compose.setContent {
             BeeCodeTheme {
                 BeeCodeApp(StudyViewModel(profile))
             }
         }
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        // Scrolled to rather than assumed on screen: the queue is a lazy list and Two Sum
+        // sits below the fold in a catalogue this size, so the row has no semantics to
+        // click until it composes.
+        compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
+        compose.onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
         val editor = compose.onNodeWithContentDescription("Python solution editor")
         editor.requestFocus()
         editor.performTextReplacement(source)
@@ -234,4 +242,9 @@ class AndroidEditorIndentTest {
         .fetchSemanticsNode()
         .config[SemanticsProperties.EditableText]
         .text
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
+    }
 }

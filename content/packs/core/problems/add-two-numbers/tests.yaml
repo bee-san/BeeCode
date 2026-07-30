@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-no-final-carry
+    arguments: [[2, 4, 3], [5, 6, 4]]
+    expected: [7, 0, 8]
+    comparator: exact
+
+  - name: example-carry-past-the-end
+    # The single most common failure: dropping the last carry.
+    arguments: [[9, 9], [1]]
+    expected: [0, 0, 1]
+    comparator: exact
+
+  - name: zero-plus-zero
+    arguments: [[0], [0]]
+    expected: [0]
+    comparator: exact
+
+  - name: different-lengths
+    # 1 + 999 = 1000. Carries ripple the entire length and then one further.
+    arguments: [[1], [9, 9, 9]]
+    expected: [0, 0, 0, 1]
+    comparator: exact
+
+  - name: zero-plus-a-number
+    arguments: [[0], [5, 6]]
+    expected: [5, 6]
+    comparator: exact
+    hidden: true
+
+  - name: single-digit-carry
+    arguments: [[5], [5]]
+    expected: [0, 1]
+    comparator: exact
+    hidden: true
+
+  - name: long-carry-chain
+    # Twenty nines, so the carry survives twenty additions.
+    arguments: [[9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9], [1]]
+    expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+    comparator: exact
+    hidden: true
+
+  - name: no-carries-at-all
+    arguments: [[1, 2, 3], [1, 1, 1]]
+    expected: [2, 3, 4]
+    comparator: exact
+    hidden: true

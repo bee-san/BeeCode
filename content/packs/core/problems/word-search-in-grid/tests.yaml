@@ -1,0 +1,66 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-present
+    arguments: [[["a", "b", "c", "e"], ["s", "f", "c", "s"], ["a", "d", "e", "e"]], "abcced"]
+    expected: true
+    comparator: exact
+
+  - name: example-not-adjacent
+    # Would require a diagonal step from b to c.
+    arguments: [[["a", "b"], ["c", "d"]], "abcd"]
+    expected: false
+    comparator: exact
+
+  - name: single-cell-single-letter
+    arguments: [[["a"]], "a"]
+    expected: true
+    comparator: exact
+
+  - name: a-cell-cannot-be-reused
+    # Without a visited mark the search stands still and reports True.
+    arguments: [[["a"]], "aa"]
+    expected: false
+    comparator: exact
+
+  - name: the-right-start-is-not-the-first-match
+    # Three cells hold a and only the bottom-left one reaches the b. Giving up
+    # after the first failed start reports False.
+    arguments: [[["a", "a"], ["a", "b"]], "ab"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: path-must-turn-a-corner
+    arguments: [[["a", "b"], ["d", "c"]], "abcd"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: word-longer-than-the-board
+    arguments: [[["a", "b"]], "abab"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: letter-absent-entirely
+    arguments: [[["a", "b"], ["c", "d"]], "z"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: a-failed-branch-must-be-released
+    # The left s dead-ends immediately, and from the right s the upward e
+    # dead-ends too. Only after releasing it does the downward path reach the
+    # second e.
+    arguments: [[["a", "b", "c", "e"], ["s", "f", "c", "s"], ["a", "d", "e", "e"]], "see"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: single-column
+    arguments: [[["a"], ["b"], ["c"]], "abc"]
+    expected: true
+    comparator: exact
+    hidden: true

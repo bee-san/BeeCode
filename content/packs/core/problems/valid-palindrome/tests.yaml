@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-canal-panama
+    arguments: ["A man, a plan, a canal: Panama"]
+    expected: true
+    comparator: exact
+
+  - name: example-race-a-car
+    arguments: ["race a car"]
+    expected: false
+    comparator: exact
+
+  - name: empty-string
+    arguments: [""]
+    expected: true
+    comparator: exact
+
+  - name: only-punctuation
+    # Nothing survives the filter, and the empty sequence is a palindrome.
+    arguments: [" .,;"]
+    expected: true
+    comparator: exact
+
+  - name: digits-count
+    # Catches an isalpha() filter, which drops the 0 and answers True.
+    arguments: ["0P"]
+    expected: false
+    comparator: exact
+    hidden: true
+
+  - name: adjacent-punctuation
+    # Two skippable characters in a row; a single-step skip misreads this.
+    arguments: ["a,,a"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: odd-length-with-mixed-case
+    arguments: ["Madam, I'm Adam"]
+    expected: true
+    comparator: exact
+    hidden: true
+
+  - name: single-character
+    arguments: ["z"]
+    expected: true
+    comparator: exact
+    hidden: true

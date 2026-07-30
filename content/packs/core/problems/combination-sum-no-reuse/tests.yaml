@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-with-repeated-ones
+    # [1, 1, 6] uses both ones, while [1, 7] must appear only once.
+    arguments: [[10, 1, 2, 7, 6, 1, 5], 8]
+    expected: [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]
+    comparator: unordered_list
+
+  - name: example-repeated-twos
+    arguments: [[2, 5, 2, 1, 2], 5]
+    expected: [[1, 2, 2], [5]]
+    comparator: unordered_list
+
+  - name: no-combination-exists
+    arguments: [[2, 4], 5]
+    expected: []
+    comparator: unordered_list
+
+  - name: an-element-cannot-be-reused
+    # With reuse this would be [[3, 3]]. Here there is only one 3.
+    arguments: [[3], 6]
+    expected: []
+    comparator: unordered_list
+
+  - name: duplicate-values-give-one-combination
+    # Two distinct elements, one combination. Omitting the skip yields it
+    # twice.
+    arguments: [[1, 1], 1]
+    expected: [[1]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: both-duplicates-used-together
+    # Skipping every repeat, rather than only later siblings, loses this
+    # entirely.
+    arguments: [[1, 1], 2]
+    expected: [[1, 1]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: single-element-equal-to-the-target
+    arguments: [[7], 7]
+    expected: [[7]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: three-identical-values
+    # Three ways to pick two 2s, but only one combination.
+    arguments: [[2, 2, 2], 4]
+    expected: [[2, 2]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: every-element-needed
+    arguments: [[1, 2, 3], 6]
+    expected: [[1, 2, 3]]
+    comparator: unordered_list
+    hidden: true

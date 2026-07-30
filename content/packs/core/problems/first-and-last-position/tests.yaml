@@ -1,0 +1,67 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-repeated-value
+    arguments: [[5, 7, 7, 8, 8, 10], 8]
+    expected: [3, 4]
+    comparator: exact
+
+  - name: example-an-absent-value
+    arguments: [[5, 7, 7, 8, 8, 10], 6]
+    expected: [-1, -1]
+    comparator: exact
+
+  - name: an-empty-list
+    arguments: [[], 1]
+    expected: [-1, -1]
+    comparator: exact
+
+  - name: a-single-occurrence
+    arguments: [[1, 2, 3], 2]
+    expected: [1, 1]
+    comparator: exact
+
+  - name: the-target-fills-the-list
+    # Scanning outwards from a match is O(n) here.
+    arguments: [[4, 4, 4, 4], 4]
+    expected: [0, 3]
+    comparator: exact
+    hidden: true
+
+  - name: the-target-is-the-last-value
+    # A half-open search ending at len - 1 misses this.
+    arguments: [[1, 2, 3], 3]
+    expected: [2, 2]
+    comparator: exact
+    hidden: true
+
+  - name: the-target-is-the-first-value
+    arguments: [[1, 2, 3], 1]
+    expected: [0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: below-everything
+    arguments: [[5, 6, 7], 1]
+    expected: [-1, -1]
+    comparator: exact
+    hidden: true
+
+  - name: above-everything
+    arguments: [[5, 6, 7], 9]
+    expected: [-1, -1]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-element-that-matches
+    arguments: [[3], 3]
+    expected: [0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-run-at-the-end
+    arguments: [[1, 2, 2, 2], 2]
+    expected: [1, 3]
+    comparator: exact
+    hidden: true

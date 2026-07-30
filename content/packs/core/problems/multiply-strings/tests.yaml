@@ -1,0 +1,70 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-single-digits
+    # The result needs one digit where the array has two, so the strip
+    # matters.
+    arguments: ["2", "3"]
+    expected: "6"
+    comparator: exact
+
+  - name: example-three-digits-each
+    arguments: ["123", "456"]
+    expected: "56088"
+    comparator: exact
+
+  - name: multiplying-by-zero
+    # Not the empty string.
+    arguments: ["0", "999"]
+    expected: "0"
+    comparator: exact
+
+  - name: both-are-zero
+    arguments: ["0", "0"]
+    expected: "0"
+    comparator: exact
+
+  - name: multiplying-by-one
+    arguments: ["1", "12345"]
+    expected: "12345"
+    comparator: exact
+    hidden: true
+
+  - name: trailing-zeroes-are-kept
+    # Only leading zeroes are stripped.
+    arguments: ["10", "10"]
+    expected: "100"
+    comparator: exact
+    hidden: true
+
+  - name: a-carry-through-every-column
+    arguments: ["99", "99"]
+    expected: "9801"
+    comparator: exact
+    hidden: true
+
+  - name: different-lengths
+    arguments: ["123", "45"]
+    expected: "5535"
+    comparator: exact
+    hidden: true
+
+  - name: nine-nines-squared
+    # Beyond a 64-bit integer, which is the point of doing it by hand.
+    arguments: ["999999999", "999999999"]
+    expected: "999999998000000001"
+    comparator: exact
+    hidden: true
+
+  - name: a-long-product
+    arguments: ["123456789", "987654321"]
+    expected: "121932631112635269"
+    comparator: exact
+    hidden: true
+
+  - name: powers-of-ten
+    arguments: ["1000", "1000"]
+    expected: "1000000"
+    comparator: exact
+    hidden: true

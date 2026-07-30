@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-opposite-sides-of-the-root
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 2, 8]
+    expected: 6
+    comparator: exact
+
+  - name: example-one-is-the-ancestor
+    # Descending past node 2 loses it. This is the case a non-strict
+    # comparison breaks.
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 2, 4]
+    expected: 2
+    comparator: exact
+
+  - name: arguments-in-the-other-order
+    # No ordering is promised between first and second.
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 8, 2]
+    expected: 6
+    comparator: exact
+
+  - name: single-node
+    # The two values may be equal, and a node is its own descendant.
+    arguments: [[1], 1, 1]
+    expected: 1
+    comparator: exact
+
+  - name: both-deep-on-the-same-side
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 3, 5]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: spanning-a-subtree-boundary
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 0, 5]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: both-in-the-right-subtree
+    arguments: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 7, 9]
+    expected: 8
+    comparator: exact
+    hidden: true
+
+  - name: two-node-tree
+    arguments: [[2, 1], 2, 1]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: ancestor-is-neither-target-nor-root
+    arguments: [[5, 3, 6, 2, 4, null, null, 1], 1, 4]
+    expected: 3
+    comparator: exact
+    hidden: true

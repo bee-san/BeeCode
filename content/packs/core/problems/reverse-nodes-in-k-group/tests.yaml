@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-short-tail-kept
+    arguments: [[1, 2, 3, 4, 5], 3]
+    expected: [3, 2, 1, 4, 5]
+    comparator: exact
+
+  - name: example-exact-groups
+    arguments: [[1, 2, 3, 4], 2]
+    expected: [2, 1, 4, 3]
+    comparator: exact
+
+  - name: empty-list
+    arguments: [[], 3]
+    expected: []
+    comparator: exact
+
+  - name: k-is-one
+    # Groups of one, so nothing moves.
+    arguments: [[1, 2, 3], 1]
+    expected: [1, 2, 3]
+    comparator: exact
+
+  - name: k-larger-than-the-list
+    # No full group exists. Reversing anyway is the classic error.
+    arguments: [[1, 2], 5]
+    expected: [1, 2]
+    comparator: exact
+    hidden: true
+
+  - name: k-equals-the-length
+    # Exactly one full group and no tail.
+    arguments: [[1, 2, 3], 3]
+    expected: [3, 2, 1]
+    comparator: exact
+    hidden: true
+
+  - name: one-short-of-two-groups
+    arguments: [[1, 2, 3, 4, 5], 2]
+    expected: [2, 1, 4, 3, 5]
+    comparator: exact
+    hidden: true
+
+  - name: several-groups-with-a-tail
+    arguments: [[1, 2, 3, 4, 5, 6, 7, 8], 3]
+    expected: [3, 2, 1, 6, 5, 4, 7, 8]
+    comparator: exact
+    hidden: true

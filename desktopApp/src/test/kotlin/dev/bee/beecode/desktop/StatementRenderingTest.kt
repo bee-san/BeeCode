@@ -6,7 +6,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.runComposeUiTest
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
@@ -58,7 +60,8 @@ class StatementRenderingTest {
     /** Open Two Sum and hand the callback its raw statement Markdown. */
     private fun withTwoSumOpen(body: ComposeUiTest.(statement: String) -> Unit) {
         val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
-        val statement = catalogue.allProblems().first { it.title == "Two Sum" }.statementMarkdown
+        val statement =
+            catalogue.allProblems().first { it.title == TWO_SUM_TITLE }.statementMarkdown
         val profile = BeeCodeProfile.inMemory(
             catalogue = catalogue,
             runner = ScriptedPythonRunner(),
@@ -66,12 +69,21 @@ class StatementRenderingTest {
         try {
             runComposeUiTest {
                 setContent { DesktopApp(profile) }
-                onAllNodesWithText("Two Sum").onFirst().performClick()
+                // Scrolled to rather than assumed on screen: the queue is a lazy list
+                // and Two Sum sits below the fold in a catalogue this size, so the row
+                // has no semantics to click until it composes.
+                onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
+                onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
                 waitForIdle()
                 body(statement)
             }
         } finally {
             profile.close()
         }
+    }
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
     }
 }

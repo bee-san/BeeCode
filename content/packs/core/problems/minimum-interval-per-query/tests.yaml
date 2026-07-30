@@ -1,0 +1,71 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-queries
+    arguments: [[[1, 4], [2, 4], [3, 6], [4, 4]], [2, 3, 4, 5]]
+    expected: [3, 3, 1, 4]
+    comparator: exact
+
+  - name: example-nothing-covers-it
+    arguments: [[[2, 3]], [1]]
+    expected: [-1]
+    comparator: exact
+
+  - name: a-single-point-interval
+    # Inclusive sizes, so this is 1 rather than 0.
+    arguments: [[[4, 4]], [4]]
+    expected: [1]
+    comparator: exact
+
+  - name: the-queries-are-unsorted
+    # The answers must come back in the given order, which is why the sweep
+    # sorts positions rather than values.
+    arguments: [[[1, 10], [5, 6]], [7, 5]]
+    expected: [10, 2]
+    comparator: exact
+
+  - name: one-interval-one-query
+    arguments: [[[1, 5]], [3]]
+    expected: [5]
+    comparator: exact
+    hidden: true
+
+  - name: a-query-at-each-boundary
+    # Both ends are included.
+    arguments: [[[2, 5]], [2, 5, 1, 6]]
+    expected: [4, 4, -1, -1]
+    comparator: exact
+    hidden: true
+
+  - name: the-shortest-is-not-the-first
+    arguments: [[[1, 100], [50, 52]], [51]]
+    expected: [3]
+    comparator: exact
+    hidden: true
+
+  - name: an-expired-interval-must-not-be-returned
+    # The size-2 interval is the shortest at the first query and expired by
+    # the second, so it must be discarded rather than reported.
+    arguments: [[[1, 2], [1, 10]], [1, 5]]
+    expected: [2, 10]
+    comparator: exact
+    hidden: true
+
+  - name: repeated-queries
+    arguments: [[[1, 3]], [2, 2, 2]]
+    expected: [3, 3, 3]
+    comparator: exact
+    hidden: true
+
+  - name: no-interval-covers-anything
+    arguments: [[[10, 20]], [1, 2, 30]]
+    expected: [-1, -1, -1]
+    comparator: exact
+    hidden: true
+
+  - name: nested-intervals
+    arguments: [[[1, 20], [2, 15], [3, 10], [4, 5]], [4, 12]]
+    expected: [2, 14]
+    comparator: exact
+    hidden: true

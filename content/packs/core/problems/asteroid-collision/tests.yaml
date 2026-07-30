@@ -1,0 +1,52 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-shielded
+    arguments: [[5, 10, -5]]
+    expected: [5, 10]
+    comparator: exact
+
+  - name: example-mutual-destruction
+    # Equal sizes destroy both. Returning [-8] is the usual error.
+    arguments: [[8, -8]]
+    expected: []
+    comparator: exact
+
+  - name: no-asteroids
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: moving-apart
+    # The left-mover is already ahead of the right-mover, so they diverge.
+    arguments: [[-2, 1]]
+    expected: [-2, 1]
+    comparator: exact
+
+  - name: one-asteroid-clears-several
+    # The -15 must keep fighting after destroying the 2.
+    arguments: [[10, 2, -15]]
+    expected: [-15]
+    comparator: exact
+    hidden: true
+
+  - name: all-moving-right
+    arguments: [[1, 2, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+    hidden: true
+
+  - name: all-moving-left
+    arguments: [[-1, -2, -3]]
+    expected: [-1, -2, -3]
+    comparator: exact
+    hidden: true
+
+  - name: survivor-then-mutual-destruction
+    # The -5 destroys the 2 and dies to the 10; then the -10 meets the 10 and
+    # both go.
+    arguments: [[10, 2, -5, -10]]
+    expected: []
+    comparator: exact
+    hidden: true

@@ -1,0 +1,58 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-islands
+    arguments: [[[1, 1, 0], [0, 1, 0], [0, 0, 1]]]
+    expected: 2
+    comparator: exact
+
+  - name: all-water
+    arguments: [[[0, 0], [0, 0]]]
+    expected: 0
+    comparator: exact
+
+  - name: empty-grid
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: one-solid-island
+    # Every cell is one component, so the count is 1, not 4.
+    arguments: [[[1, 1], [1, 1]]]
+    expected: 1
+    comparator: exact
+
+  - name: diagonals-are-not-connected
+    # Corner contact does not connect; eight-neighbour code says 1.
+    arguments: [[[1, 0], [0, 1]]]
+    expected: 2
+    comparator: exact
+
+  - name: single-row
+    arguments: [[[1, 0, 1, 1, 0, 1]]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: single-column
+    arguments: [[[1], [0], [1], [1]]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: edges-must-not-wrap-around
+    # Top and bottom rows both hold land in column 0. Negative indexing
+    # without a bounds check joins them into one island.
+    arguments: [[[1, 0, 0], [0, 0, 0], [1, 0, 0]]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: spiral-needs-a-full-flood
+    # A ring plus the isolated centre. Tests that the flood follows the whole
+    # perimeter rather than stopping at a local dead end.
+    arguments: [[[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, 1, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]]]
+    expected: 2
+    comparator: exact
+    hidden: true

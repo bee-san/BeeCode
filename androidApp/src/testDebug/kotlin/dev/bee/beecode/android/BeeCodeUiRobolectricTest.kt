@@ -6,6 +6,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -13,6 +15,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import android.app.Application
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
@@ -109,12 +112,31 @@ class BeeCodeUiRobolectricTest {
         }
     }
 
+    /**
+     * Scroll the queue until [title] is composed, and return it.
+     *
+     * The catalogue grows, so a Problem that was once the first row ends up below the
+     * fold — and a lazy list does not compose what is off screen, so a node that is
+     * merely present in the data has no semantics and no bounds to assert against.
+     * Scrolling to it is what keeps adding a Problem from breaking the UI suite, the
+     * same reason the solved count below is derived from the catalogue rather than
+     * written as a literal. Mirrors `DesktopUiTest`, which shares the tag.
+     */
+    private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
+        compose.onAllNodesWithText(title).onFirst()
+    }
+
+    private fun openTwoSum() {
+        scrollQueueTo(TWO_SUM_TITLE).performClick()
+    }
+
     @Test
     fun theQueueShowsTheBundledProblems() {
         launch()
         compose.onNodeWithText("BeeCode").assertIsDisplayed()
         compose.onNodeWithText("New Problems").assertIsDisplayed()
-        compose.onAllNodesWithText("Two Sum").onFirst().assertIsDisplayed()
+        scrollQueueTo(TWO_SUM_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -136,7 +158,7 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun openingAProblemShowsItsStatementAndEditor() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         // The Problem view replaces the whole screen, navigation bar included, so a
         // stray tab tap cannot lose an attempt in progress.
@@ -151,7 +173,7 @@ class BeeCodeUiRobolectricTest {
         // A phone keyboard buries or omits the colon and brackets Python needs, and
         // indentation is syntactically significant.
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         // Asserted by existence rather than by display, deliberately.
         //
         // The symbol row is a horizontally scrolling Row nested inside the screen's
@@ -177,7 +199,7 @@ class BeeCodeUiRobolectricTest {
         // Revealing is legitimate when genuinely stuck, but it must be an informed
         // choice: it forfeits the solve and caps the rating at Hard.
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
         compose.onNodeWithText("Stuck?").performScrollTo().assertIsDisplayed()
         compose.onNode(hasText("will not count", substring = true))
             .performScrollTo()
@@ -193,7 +215,7 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun runningAWrongSolutionShowsAFailureAndOnlyOffersAgain() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         compose.onNodeWithContentDescription("Python solution editor")
             .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
@@ -217,7 +239,7 @@ class BeeCodeUiRobolectricTest {
     @Test
     fun theFullAnswerRunFinalizeJourneyWorksThroughTheUi() {
         launch()
-        compose.onAllNodesWithText("Two Sum").onFirst().performClick()
+        openTwoSum()
 
         compose.onNodeWithContentDescription("Python solution editor").performTextReplacement(
             """
@@ -420,5 +442,10 @@ class BeeCodeUiRobolectricTest {
         assert(profile.settings.dailyReviewLimit() == 10) {
             "expected a stored daily limit of 10, got ${profile.settings.dailyReviewLimit()}"
         }
+    }
+
+    private companion object {
+        /** The Problem these tests drive. Solvable in a few lines and stable content. */
+        const val TWO_SUM_TITLE = "Two Sum"
     }
 }

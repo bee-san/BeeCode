@@ -1,0 +1,42 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-three-pairs
+    arguments: [3]
+    expected: ["((()))", "(()())", "(())()", "()(())", "()()()"]
+    comparator: unordered_list
+
+  - name: example-one-pair
+    arguments: [1]
+    expected: ["()"]
+    comparator: unordered_list
+
+  - name: zero-pairs
+    # The empty string is balanced, so the answer is a list of one item, not
+    # an empty list.
+    arguments: [0]
+    expected: [""]
+    comparator: unordered_list
+
+  - name: two-pairs
+    arguments: [2]
+    expected: ["(())", "()()"]
+    comparator: unordered_list
+
+  - name: four-pairs-count
+    # The 4th Catalan number is 14. A solution that admits ')(' produces more;
+    # one that stops early produces fewer.
+    arguments: [4]
+    expected: ["(((())))", "((()()))", "((())())", "((()))()", "(()(()))", "(()()())", "(()())()", "(())(())", "(())()()", "()((()))", "()(()())", "()(())()", "()()(())", "()()()()"]
+    comparator: unordered_list
+    hidden: true
+
+  - name: three-pairs-again-with-order-ignored
+    # The same five strings in a different order. Pins the promise that any
+    # generation order is accepted, so a learner need not match the
+    # reference's traversal.
+    arguments: [3]
+    expected: ["()()()", "()(())", "(())()", "(()())", "((()))"]
+    comparator: unordered_list
+    hidden: true
