@@ -1,0 +1,50 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-triangle
+    arguments: [[[1, 2], [0, 2], [0, 1]]]
+    expected: [[1, 2], [0, 2], [0, 1]]
+    comparator: exact
+
+  - name: example-single-node
+    arguments: [[[]]]
+    expected: [[]]
+    comparator: exact
+
+  - name: empty-graph
+    arguments: [[]]
+    expected: []
+    comparator: exact
+
+  - name: two-joined-nodes
+    # The smallest cycle. Registering the copy too late hangs here.
+    arguments: [[[1], [0]]]
+    expected: [[1], [0]]
+    comparator: exact
+
+  - name: square-cycle
+    arguments: [[[1, 3], [0, 2], [1, 3], [0, 2]]]
+    expected: [[1, 3], [0, 2], [1, 3], [0, 2]]
+    comparator: exact
+    hidden: true
+
+  - name: path-of-four
+    arguments: [[[1], [0, 2], [1, 3], [2]]]
+    expected: [[1], [0, 2], [1, 3], [2]]
+    comparator: exact
+    hidden: true
+
+  - name: neighbours-come-back-sorted
+    # Node 0's neighbours are given out of order and must be returned
+    # ascending.
+    arguments: [[[2, 1], [0], [0]]]
+    expected: [[1, 2], [0], [0]]
+    comparator: exact
+    hidden: true
+
+  - name: star
+    arguments: [[[1, 2, 3], [0], [0], [0]]]
+    expected: [[1, 2, 3], [0], [0], [0]]
+    comparator: exact
+    hidden: true

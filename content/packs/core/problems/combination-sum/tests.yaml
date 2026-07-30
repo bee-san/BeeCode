@@ -1,0 +1,57 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-reuse-and-a-single-value
+    arguments: [[2, 3, 6, 7], 7]
+    expected: [[2, 2, 3], [7]]
+    comparator: unordered_list
+
+  - name: example-impossible
+    arguments: [[2], 1]
+    expected: []
+    comparator: unordered_list
+
+  - name: single-candidate-used-repeatedly
+    # Reuse is the only way to reach the target.
+    arguments: [[3], 9]
+    expected: [[3, 3, 3]]
+    comparator: unordered_list
+
+  - name: no-duplicate-orderings
+    # Allowing earlier indices again produces [3, 2, 3] and [5, 3] as well,
+    # which are the same combinations reordered.
+    arguments: [[2, 3, 5], 8]
+    expected: [[2, 2, 2, 2], [2, 3, 3], [3, 5]]
+    comparator: unordered_list
+
+  - name: candidate-equals-the-target
+    arguments: [[1, 5], 5]
+    expected: [[1, 1, 1, 1, 1], [5]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: unsorted-input
+    # Each combination must come back ascending regardless of input order.
+    arguments: [[7, 2, 6, 3], 7]
+    expected: [[2, 2, 3], [7]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: every-candidate-too-large
+    arguments: [[8, 9], 7]
+    expected: []
+    comparator: unordered_list
+    hidden: true
+
+  - name: target-of-one
+    arguments: [[1], 1]
+    expected: [[1]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: several-routes-to-the-target
+    arguments: [[2, 4, 6], 8]
+    expected: [[2, 2, 2, 2], [2, 2, 4], [2, 6], [4, 4]]
+    comparator: unordered_list
+    hidden: true

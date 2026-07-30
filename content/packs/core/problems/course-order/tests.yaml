@@ -1,0 +1,54 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-one-prerequisite
+    arguments: [2, [[1, 0]]]
+    expected: [0, 1]
+    comparator: exact
+
+  - name: example-mutual-prerequisites
+    arguments: [2, [[1, 0], [0, 1]]]
+    expected: []
+    comparator: exact
+
+  - name: single-course
+    arguments: [1, []]
+    expected: [0]
+    comparator: exact
+
+  - name: a-forced-chain
+    # Exactly one valid order, so the direction of the edges is pinned down.
+    arguments: [4, [[1, 0], [2, 1], [3, 2]]]
+    expected: [0, 1, 2, 3]
+    comparator: exact
+
+  - name: a-course-requiring-itself
+    # A self-loop is a cycle of length one.
+    arguments: [1, [[0, 0]]]
+    expected: []
+    comparator: exact
+    hidden: true
+
+  - name: a-cycle-alongside-schedulable-courses
+    # Courses 2 and 3 are fine, so the order comes back non-empty but short.
+    # Only the length check against n catches this.
+    arguments: [4, [[1, 0], [0, 1], [3, 2]]]
+    expected: []
+    comparator: exact
+    hidden: true
+
+  - name: repeated-pairs
+    # The count reaches three and must be decremented three times, so it still
+    # hits zero exactly once.
+    arguments: [2, [[1, 0], [1, 0], [1, 0]]]
+    expected: [0, 1]
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-forced-chain
+    # Pairs given in reverse order; the chain is still forced.
+    arguments: [5, [[4, 3], [3, 2], [2, 1], [1, 0]]]
+    expected: [0, 1, 2, 3, 4]
+    comparator: exact
+    hidden: true

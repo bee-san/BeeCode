@@ -1,0 +1,38 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-four-by-four
+    arguments: [4]
+    expected: [[".Q..", "...Q", "Q...", "..Q."], ["..Q.", "Q...", "...Q", ".Q.."]]
+    comparator: unordered_list
+
+  - name: example-one-by-one
+    arguments: [1]
+    expected: [["Q"]]
+    comparator: unordered_list
+
+  - name: two-by-two-is-impossible
+    # No arrangement exists. An empty list, not an error.
+    arguments: [2]
+    expected: []
+    comparator: unordered_list
+
+  - name: three-by-three-is-impossible
+    arguments: [3]
+    expected: []
+    comparator: unordered_list
+
+  - name: five-by-five
+    # Ten arrangements. A missing undo makes this come out short.
+    arguments: [5]
+    expected: [["Q....", "..Q..", "....Q", ".Q...", "...Q."], ["Q....", "...Q.", ".Q...", "....Q", "..Q.."], [".Q...", "...Q.", "Q....", "..Q..", "....Q"], [".Q...", "....Q", "..Q..", "Q....", "...Q."], ["..Q..", "Q....", "...Q.", ".Q...", "....Q"], ["..Q..", "....Q", ".Q...", "...Q.", "Q...."], ["...Q.", "Q....", "..Q..", "....Q", ".Q..."], ["...Q.", ".Q...", "....Q", "..Q..", "Q...."], ["....Q", ".Q...", "...Q.", "Q....", "..Q.."], ["....Q", "..Q..", "Q....", "...Q.", ".Q..."]]
+    comparator: unordered_list
+    hidden: true
+
+  - name: six-by-six
+    # Only four, fewer than for n = 5. The count is not monotonic.
+    arguments: [6]
+    expected: [[".Q....", "...Q..", ".....Q", "Q.....", "..Q...", "....Q."], ["..Q...", ".....Q", ".Q....", "....Q.", "Q.....", "...Q.."], ["...Q..", "Q.....", "....Q.", ".Q....", ".....Q", "..Q..."], ["....Q.", "..Q...", "Q.....", ".....Q", "...Q..", ".Q...."]]
+    comparator: unordered_list
+    hidden: true

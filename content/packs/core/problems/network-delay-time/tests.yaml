@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-hops
+    arguments: [4, [[2, 1, 1], [2, 3, 1], [3, 4, 1]], 2]
+    expected: 2
+    comparator: exact
+
+  - name: example-unreachable-node
+    arguments: [2, [[1, 2, 1]], 2]
+    expected: -1
+    comparator: exact
+
+  - name: a-single-node
+    # The start already has the signal.
+    arguments: [1, [], 1]
+    expected: 0
+    comparator: exact
+
+  - name: the-cheap-route-is-the-longer-one
+    # Two links via node 3 cost 2, beating the direct link's 10. Breadth-first
+    # search would report 10.
+    arguments: [3, [[1, 2, 10], [1, 3, 1], [3, 2, 1]], 1]
+    expected: 2
+    comparator: exact
+
+  - name: the-answer-is-the-furthest-not-the-total
+    # Summing gives 7. The signal travels both links at once.
+    arguments: [3, [[1, 2, 3], [1, 3, 4]], 1]
+    expected: 4
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-links-of-different-weights
+    # The cheaper parallel link wins.
+    arguments: [2, [[1, 2, 5], [1, 2, 2]], 1]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-chain
+    arguments: [4, [[1, 2, 1], [2, 3, 2], [3, 4, 3]], 1]
+    expected: 6
+    comparator: exact
+    hidden: true
+
+  - name: no-links-at-all
+    arguments: [2, [], 1]
+    expected: -1
+    comparator: exact
+    hidden: true
+
+  - name: a-cycle-back-to-the-start
+    # The link back to the start must not re-settle it at a worse distance.
+    arguments: [3, [[1, 2, 1], [2, 3, 1], [3, 1, 1]], 1]
+    expected: 2
+    comparator: exact
+    hidden: true

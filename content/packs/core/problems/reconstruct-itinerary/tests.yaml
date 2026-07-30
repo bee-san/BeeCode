@@ -1,0 +1,59 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-repeated-airports
+    arguments: [[["JFK", "SFO"], ["JFK", "ATL"], ["SFO", "ATL"], ["ATL", "JFK"], ["ATL", "SFO"]]]
+    expected: ["JFK", "ATL", "JFK", "SFO", "ATL", "SFO"]
+    comparator: exact
+
+  - name: example-a-simple-chain
+    arguments: [[["MUC", "LHR"], ["JFK", "MUC"], ["SFO", "SJC"], ["LHR", "SFO"]]]
+    expected: ["JFK", "MUC", "LHR", "SFO", "SJC"]
+    comparator: exact
+
+  - name: a-single-ticket
+    arguments: [[["JFK", "ATL"]]]
+    expected: ["JFK", "ATL"]
+    comparator: exact
+
+  - name: dictionary-order-decides-the-first-hop
+    # Taking ZZZ first strands the trip with a ticket unused, so greed must be
+    # over the smallest code and the walk must still consume everything.
+    arguments: [[["JFK", "ZZZ"], ["JFK", "AAA"], ["AAA", "JFK"]]]
+    expected: ["JFK", "AAA", "JFK", "ZZZ"]
+    comparator: exact
+
+  - name: a-round-trip
+    # An airport is visited twice, so a visited set over airports is wrong.
+    arguments: [[["JFK", "ATL"], ["ATL", "JFK"]]]
+    expected: ["JFK", "ATL", "JFK"]
+    comparator: exact
+    hidden: true
+
+  - name: duplicate-tickets
+    # The same ticket twice must be used twice.
+    arguments: [[["JFK", "ATL"], ["ATL", "JFK"], ["JFK", "ATL"]]]
+    expected: ["JFK", "ATL", "JFK", "ATL"]
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-chain
+    arguments: [[["JFK", "AAA"], ["AAA", "BBB"], ["BBB", "CCC"], ["CCC", "DDD"]]]
+    expected: ["JFK", "AAA", "BBB", "CCC", "DDD"]
+    comparator: exact
+    hidden: true
+
+  - name: a-detour-then-a-loop
+    # KUL is dictionary-smaller than NRT but taking it first strands the trip.
+    # Hierholzer's walk still produces the only valid order.
+    arguments: [[["JFK", "KUL"], ["JFK", "NRT"], ["NRT", "JFK"]]]
+    expected: ["JFK", "NRT", "JFK", "KUL"]
+    comparator: exact
+    hidden: true
+
+  - name: three-choices-from-the-start
+    arguments: [[["JFK", "CCC"], ["JFK", "AAA"], ["AAA", "JFK"], ["JFK", "BBB"], ["BBB", "JFK"]]]
+    expected: ["JFK", "AAA", "JFK", "BBB", "JFK", "CCC"]
+    comparator: exact
+    hidden: true

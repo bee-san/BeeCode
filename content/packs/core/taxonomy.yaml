@@ -61,6 +61,9 @@ algorithms:
   breadth-first-search: Exploring in order of distance, level by level.
   topological-sort: Ordering a DAG so every edge points forward.
   shortest-path: Finding a minimum-cost route through a weighted graph.
+  minimum-spanning-tree: Connecting every vertex at the least total edge cost.
+  eulerian-path: Walking a graph so every edge is used exactly once.
+  multi-source-search: Seeding a traversal from every source at once instead of one at a time.
   cycle-detection: Deciding whether a structure loops back on itself.
   monotonic-stack: A stack kept sorted, for next-greater and span questions.
   monotonic-queue: A deque kept sorted, for sliding-window extremes.

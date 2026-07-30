@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-five-points
+    arguments: [[[0, 0], [2, 2], [3, 10], [5, 2], [7, 0]]]
+    expected: 20
+    comparator: exact
+
+  - name: example-three-points
+    arguments: [[[3, 12], [-2, 5], [-4, 1]]]
+    expected: 18
+    comparator: exact
+
+  - name: one-point-costs-nothing
+    # Nothing to connect.
+    arguments: [[[0, 0]]]
+    expected: 0
+    comparator: exact
+
+  - name: two-points
+    # Manhattan distance, so 2 rather than the Euclidean root of 2.
+    arguments: [[[0, 0], [1, 1]]]
+    expected: 2
+    comparator: exact
+
+  - name: a-chain-beats-connecting-to-the-first
+    # Joining both to the origin costs 14. Going through the middle point
+    # costs 9, which is why intermediate points count.
+    arguments: [[[0, 0], [0, 5], [0, 9]]]
+    expected: 9
+    comparator: exact
+    hidden: true
+
+  - name: a-unit-square
+    # Three edges of cost 1 span four points.
+    arguments: [[[0, 0], [0, 1], [1, 0], [1, 1]]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: negative-coordinates
+    arguments: [[[-5, -5], [-5, -3], [-2, -3]]]
+    expected: 5
+    comparator: exact
+    hidden: true
+
+  - name: a-far-outlier
+    # The outlier is attached once, by its cheapest link, not to every point.
+    arguments: [[[0, 0], [1, 0], [2, 0], [100, 100]]]
+    expected: 200
+    comparator: exact
+    hidden: true
+
+  - name: collinear-points-in-scrambled-order
+    # Input order must not matter; the tree is the chain either way.
+    arguments: [[[0, 6], [0, 0], [0, 4], [0, 2]]]
+    expected: 6
+    comparator: exact
+    hidden: true

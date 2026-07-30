@@ -1,0 +1,60 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-two-rows
+    arguments: [[[2147483647, -1, 0, 2147483647], [2147483647, 2147483647, 2147483647, -1]]]
+    expected: [[4, -1, 0, 1], [3, 2, 1, -1]]
+    comparator: exact
+
+  - name: example-single-gate
+    arguments: [[[0]]]
+    expected: [[0]]
+    comparator: exact
+
+  - name: no-gate-leaves-everything-unknown
+    # With no seed the frontier is empty and nothing changes.
+    arguments: [[[2147483647, 2147483647]]]
+    expected: [[2147483647, 2147483647]]
+    comparator: exact
+
+  - name: a-walled-off-room
+    # The wall is not passable, so the far room keeps the marker.
+    arguments: [[[0, -1, 2147483647]]]
+    expected: [[0, -1, 2147483647]]
+    comparator: exact
+
+  - name: two-gates-and-a-room-between-them
+    # Each room takes the nearer gate. A single search from the left would
+    # write 1 and 2.
+    arguments: [[[0, 2147483647, 2147483647, 0]]]
+    expected: [[0, 1, 1, 0]]
+    comparator: exact
+    hidden: true
+
+  - name: one-gate-in-a-corner
+    arguments: [[[0, 2147483647], [2147483647, 2147483647]]]
+    expected: [[0, 1], [1, 2]]
+    comparator: exact
+    hidden: true
+
+  - name: distance-around-a-wall
+    # The top-right room is two columns from the gate but six steps away,
+    # because the wall forces the wave down and along the bottom row.
+    arguments: [[[0, -1, 2147483647], [2147483647, -1, 2147483647], [2147483647, 2147483647, 2147483647]]]
+    expected: [[0, -1, 6], [1, -1, 5], [2, 3, 4]]
+    comparator: exact
+    hidden: true
+
+  - name: all-walls
+    arguments: [[[-1, -1], [-1, -1]]]
+    expected: [[-1, -1], [-1, -1]]
+    comparator: exact
+    hidden: true
+
+  - name: every-cell-is-a-gate
+    # Nothing to fill, and no gate may be overwritten with 1.
+    arguments: [[[0, 0], [0, 0]]]
+    expected: [[0, 0], [0, 0]]
+    comparator: exact
+    hidden: true
