@@ -298,13 +298,24 @@ class AndroidStudyJourneyTest {
         assertTrue("two-sum must be tagged to rehearse anything", topics.isNotEmpty())
 
         openProfile().use { profile ->
+            // `run` needs an open session — without it the outcome is `NoSession` and no
+            // review is ever recorded, so the fan-out assertions below would be testing
+            // an empty log.
+            requireNotNull(profile.study.open(problemId))
             val passed = profile.study.run(problemId, TWO_SUM_SOLUTION) as RunOutcome.Completed
             assertEquals(
                 "expected a pass, output was: ${passed.run.output}",
                 ExecutionOutcome.PASSED,
                 passed.run.outcome,
             )
-            profile.study.finalize(problemId, passed.run.id, ReviewRating.GOOD)
+            // Asserted rather than discarded: a rejected finalize records no review, and
+            // "no topic schedules" would then be correct behaviour for the wrong reason.
+            assertTrue(
+                "the review was not finalized",
+                profile.study.finalize(
+                    problemId, passed.run.id, ReviewRating.GOOD,
+                ) is FinalizeResult.Finalized,
+            )
 
             // Every tagged technique, not just the first: fanning out to one of them
             // would be the silent half-failure this design is most exposed to.
