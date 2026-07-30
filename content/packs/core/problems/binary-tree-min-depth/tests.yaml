@@ -1,0 +1,63 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-a-shallow-left-leaf
+    arguments: [[3, 9, 20, null, null, 15, 7]]
+    expected: 2
+    comparator: exact
+
+  - name: example-a-chain-of-single-children
+    # Taking min unconditionally answers 1 here.
+    arguments: [[2, null, 3, null, null, null, 4]]
+    expected: 3
+    comparator: exact
+
+  - name: an-empty-tree
+    arguments: [[]]
+    expected: 0
+    comparator: exact
+
+  - name: a-single-node
+    # Nodes, not edges.
+    arguments: [[1]]
+    expected: 1
+    comparator: exact
+
+  - name: a-root-with-only-a-left-child
+    arguments: [[1, 2]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-root-with-only-a-right-child
+    arguments: [[1, null, 2]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-perfect-tree
+    # Every leaf is at the same depth.
+    arguments: [[1, 2, 3, 4, 5, 6, 7]]
+    expected: 3
+    comparator: exact
+    hidden: true
+
+  - name: the-shallow-leaf-is-on-the-right
+    arguments: [[1, 2, 3, 4, null, null, null, 8]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: one-deep-branch-and-one-shallow
+    # The leaf 5 stops the search before the deep left branch is walked.
+    arguments: [[1, 2, 3, 4, 5, null, null, 8]]
+    expected: 2
+    comparator: exact
+    hidden: true
+
+  - name: a-left-leaning-chain
+    arguments: [[1, 2, null, 3]]
+    expected: 3
+    comparator: exact
+    hidden: true

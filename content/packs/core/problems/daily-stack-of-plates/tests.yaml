@@ -1,0 +1,68 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-push-sum-pop-sum
+    arguments: [[["push", 3], ["push", 4], ["sum"], ["pop"], ["sum"]]]
+    expected: [7, 4, 3]
+    comparator: exact
+
+  - name: example-queries-on-an-empty-stack
+    arguments: [[["pop"], ["sum"], ["size"]]]
+    expected: [null, 0, 0]
+    comparator: exact
+
+  - name: the-total-is-adjusted-on-pop
+    # Failing to subtract on pop answers 15 here.
+    arguments: [[["push", 5], ["push", 10], ["pop"], ["sum"]]]
+    expected: [10, 5]
+    comparator: exact
+
+  - name: size-tracks-pushes-and-pops
+    arguments: [[["push", 1], ["size"], ["push", 2], ["size"], ["pop"], ["size"]]]
+    expected: [1, 2, 2, 1]
+    comparator: exact
+
+  - name: emptying-the-stack-returns-the-total-to-zero
+    arguments: [[["push", 4], ["push", -4], ["pop"], ["pop"], ["sum"]]]
+    expected: [-4, 4, 0]
+    comparator: exact
+    hidden: true
+
+  - name: negative-values
+    arguments: [[["push", -3], ["push", -7], ["sum"]]]
+    expected: [-10]
+    comparator: exact
+    hidden: true
+
+  - name: values-cancelling-to-zero
+    # A sum of zero does not mean an empty stack.
+    arguments: [[["push", 5], ["push", -5], ["sum"], ["size"]]]
+    expected: [0, 2]
+    comparator: exact
+    hidden: true
+
+  - name: popping-past-empty
+    # The failed pop must leave the total alone.
+    arguments: [[["push", 1], ["pop"], ["pop"], ["sum"]]]
+    expected: [1, null, 0]
+    comparator: exact
+    hidden: true
+
+  - name: pushing-after-emptying
+    arguments: [[["push", 1], ["pop"], ["push", 9], ["sum"], ["size"]]]
+    expected: [1, 9, 1]
+    comparator: exact
+    hidden: true
+
+  - name: a-longer-sequence
+    arguments: [[["push", 1], ["push", 2], ["push", 3], ["sum"], ["pop"], ["pop"], ["sum"], ["size"]]]
+    expected: [6, 3, 2, 1, 1]
+    comparator: exact
+    hidden: true
+
+  - name: only-pushes
+    arguments: [[["push", 100], ["push", 200], ["push", 300], ["sum"]]]
+    expected: [600]
+    comparator: exact
+    hidden: true

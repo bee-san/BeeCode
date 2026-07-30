@@ -1,0 +1,62 @@
+# The official suite. Passing every test here is what "passed" means, and only an
+# unaided pass counts as solved.
+
+tests:
+  - name: example-mixed
+    arguments: [[0, 1, 0, 3, 12]]
+    expected: [1, 3, 12, 0, 0]
+    comparator: exact
+
+  - name: example-a-single-zero
+    arguments: [[0]]
+    expected: [0]
+    comparator: exact
+
+  - name: no-zeroes-at-all
+    # Every swap is with itself.
+    arguments: [[1, 2, 3]]
+    expected: [1, 2, 3]
+    comparator: exact
+
+  - name: every-value-is-zero
+    arguments: [[0, 0, 0]]
+    expected: [0, 0, 0]
+    comparator: exact
+
+  - name: order-is-preserved
+    # A sort would give ascending order instead.
+    arguments: [[4, 0, 3, 0, 2, 0, 1]]
+    expected: [4, 3, 2, 1, 0, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-leading-zero
+    # Overwriting rather than swapping gives [5, 5] here.
+    arguments: [[0, 5]]
+    expected: [5, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-trailing-zero
+    arguments: [[5, 0]]
+    expected: [5, 0]
+    comparator: exact
+    hidden: true
+
+  - name: zeroes-in-a-block
+    arguments: [[1, 0, 0, 0, 2]]
+    expected: [1, 2, 0, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: negative-values-are-not-zero
+    arguments: [[0, -1, 0, -2]]
+    expected: [-1, -2, 0, 0]
+    comparator: exact
+    hidden: true
+
+  - name: a-single-non-zero
+    arguments: [[7]]
+    expected: [7]
+    comparator: exact
+    hidden: true
