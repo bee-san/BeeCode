@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -75,6 +76,15 @@ import dev.bee.beecode.python.RunnerCapability
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+
+/**
+ * Identifies the scrolling study queue so a test can scroll it to a given Problem.
+ *
+ * The catalogue is expected to keep growing, so any Problem may be below the fold. A
+ * test that reaches one by name needs the scrollable container, and finding it by tag
+ * is stabler than matching on a layout property.
+ */
+internal const val QUEUE_LIST_TAG = "queue-list"
 
 /**
  * The desktop UI.
@@ -166,7 +176,11 @@ private fun QueuePane(
     val statistics: StudyStatistics = remember(refreshToken) { profile.statistics() }
 
     LazyColumn(
-        Modifier.fillMaxSize(),
+        // Tagged so a test can scroll the queue to a specific Problem. Without it a
+        // test must assert against whatever happens to be above the fold, which turns
+        // adding a Problem into a UI failure — the same reason the solved count is
+        // derived from the catalogue rather than written as a literal.
+        Modifier.fillMaxSize().testTag(QUEUE_LIST_TAG),
         contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

@@ -42,7 +42,7 @@ real reveal action without shipping the executable CI reference.
 | Starter | Syntactically valid editable Python source. |
 | Tests | Structured values, limits, comparator ID, and human-safe labels. |
 | Provenance | Author, source relationship, license, attribution, review date. |
-| Classification | Difficulty, topics, prerequisites, estimated solve/review time. |
+| Classification | Difficulty, plus `dataStructures` and `algorithms` drawn from the pack's closed `taxonomy.yaml`; `topics` is their derived union. Prerequisites and estimated solve/review time. |
 | Compatibility | Minimum pack schema, runner contract, and Python version. |
 
 The authoring source may be YAML/Markdown/Python, but compilation produces one
