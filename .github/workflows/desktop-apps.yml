@@ -1,0 +1,209 @@
+name: Desktop apps
+
+# Builds the desktop client for every OS BeeCode supports.
+#
+# This exists because jpackage can only target the OS it runs on: a macOS .dmg
+# genuinely cannot be cross-built from Linux, so "build the Mac app" means "get a
+# macOS runner", not "add a flag". `ci.yml` already builds the Linux distributable
+# on every push; this workflow is what produces the other platforms' apps.
+#
+# Manual trigger only, deliberately. macOS runners bill at ten times the Linux rate
+# and Windows at two, so building all four on every push would spend the whole
+# free-tier minute budget on artifacts nobody downloaded. `ci.yml` remains the gate
+# that runs unattended; this is the button you press when you want the apps.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-tests:
+        description: 'Run the full test suite first'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The same gate release.yml applies: shipping a binary that failed its tests is
+  # worse than shipping nothing. Skippable, because when you are debugging the
+  # packaging itself the tests are 20 minutes of noise between attempts.
+  verify:
+    name: Verify
+    if: inputs.run-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # The study-journey and content-gate tests execute real CPython, so the
+      # interpreter has to be here or they fail for the wrong reason.
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test
+        run: ./gradlew test --stacktrace
+
+  package:
+    name: ${{ matrix.label }}
+    # `always()` with an explicit failure check rather than a plain `needs`: this
+    # has to run when the tests were skipped on purpose, but must NOT run when they
+    # ran and failed. A bare `if: always()` would package a broken build.
+    needs: verify
+    if: always() && needs.verify.result != 'failure' && needs.verify.result != 'cancelled'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform's toolchain breaking should not deny you the other three
+      # artifacts — that is the whole reason to build them in parallel.
+      fail-fast: false
+      matrix:
+        include:
+          # Pinned runner images rather than `macos-latest`, because the label's
+          # architecture changes under you: macos-latest moved from Intel to Apple
+          # silicon, and an artifact named "-arm64" that is quietly x64 is worse
+          # than no artifact. macos-13 is Intel; macos-14 is Apple silicon.
+          - os: macos-14
+            label: macOS (Apple silicon)
+            artifact: macos-arm64
+            task: packageDmg
+            # A .dmg is the installer a Mac user expects, and unlike deb/msi it
+            # needs no tooling beyond the JDK's own jpackage.
+            pattern: '*.dmg'
+          - os: macos-13
+            label: macOS (Intel)
+            artifact: macos-x64
+            task: packageDmg
+            pattern: '*.dmg'
+          - os: windows-latest
+            label: Windows
+            artifact: windows-x64
+            # createDistributable, not packageMsi: an MSI needs the WiX Toolset,
+            # which is not guaranteed on the runner image, and jpackage's MSI
+            # version rules reject this project's zero major version. A portable
+            # app image has neither problem and is the same pattern release.yml
+            # already uses for Linux.
+            task: createDistributable
+            pattern: ''
+          - os: ubuntu-latest
+            label: Linux
+            artifact: linux-x64
+            # Deb needs dpkg, absent on some hosts; the distributable does not.
+            task: createDistributable
+            pattern: ''
+
+    defaults:
+      run:
+        # bash on all four runners, Windows included, so one script works
+        # everywhere instead of a PowerShell fork of every step.
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # `createDistributable` is asked for explicitly alongside the installer task
+      # rather than assumed: jpackage builds a .dmg from the runtime image via
+      # `packageAppImage`, and while that happens to leave `binaries/main/app`
+      # behind today, the verification step below reads that directory and should
+      # not depend on an internal of the packaging task graph.
+      - name: Build
+        run: ./gradlew :desktopApp:createDistributable :desktopApp:${{ matrix.task }} --stacktrace
+
+      # An app image that launches into a crash is not a build success. Two things
+      # have silently gone missing before and both are cheap to assert: the Problem
+      # pack, which reaches the classpath through a generated resources directory
+      # rather than a normal dependency, and the native launcher itself.
+      - name: Verify the app carries its launcher and its Problem pack
+        run: |
+          set -euo pipefail
+          app=desktopApp/build/compose/binaries/main/app
+          [ -d "$app" ] || { echo "::error::no app image at $app"; exit 1; }
+
+          # `jar` ships with the JDK, so this works on the Windows runner too,
+          # where `unzip` may not be present.
+          pack=""
+          while IFS= read -r jar; do
+            if jar tf "$jar" | grep -q '^dev/bee/beecode/problems.json$'; then
+              pack="$jar"
+              break
+            fi
+          done < <(find "$app" -name '*.jar')
+          [ -n "$pack" ] || { echo "::error::problems.json is in no jar"; exit 1; }
+          echo "ok: Problem pack in $(basename "$pack")"
+
+          # BeeCode, BeeCode.exe, or BeeCode.app/Contents/MacOS/BeeCode.
+          #
+          # `while read` rather than `find | head -1`: under `pipefail`, head closing
+          # the pipe early kills find with SIGPIPE and the step exits 141. That is
+          # invisible when the pattern matches once and fatal when it matches often,
+          # which is the worst way for a CI script to be wrong.
+          launcher=""
+          while IFS= read -r candidate; do
+            launcher="$candidate"
+            break
+          done < <(find "$app" -type f \( -name 'BeeCode' -o -name 'BeeCode.exe' \))
+          [ -n "$launcher" ] || { echo "::error::no BeeCode launcher in the app image"; exit 1; }
+          echo "ok: launcher at $launcher"
+
+      # Named with the version and the commit, because an artifact called
+      # "BeeCode.dmg" tells you nothing three downloads later. The version comes
+      # from libs.versions.toml, which is what the app itself reports.
+      - name: Name the artifact for humans
+        id: name
+        run: |
+          set -euo pipefail
+          version=$(grep '^appVersionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
+          [ -n "$version" ] || { echo "::error::could not read appVersionName"; exit 1; }
+          stem="BeeCode-$version-${GITHUB_SHA::7}-${{ matrix.artifact }}"
+          mkdir -p dist
+
+          if [ -n "${{ matrix.pattern }}" ]; then
+            # An installer: take the file jpackage produced, wherever it put it.
+            # `while read` rather than `| head -1`, which SIGPIPEs under pipefail.
+            installer=""
+            while IFS= read -r candidate; do
+              installer="$candidate"
+              break
+            done < <(find desktopApp/build/compose/binaries \
+              -name '${{ matrix.pattern }}' -type f)
+            [ -n "$installer" ] || {
+              echo "::error::no ${{ matrix.pattern }} was produced"; exit 1; }
+            cp "$installer" "dist/$stem.${installer##*.}"
+          else
+            # An app image: archive the directory, preserving the launcher's
+            # executable bit — which a plain upload-artifact of a directory loses,
+            # leaving the user a Linux "app" they cannot start.
+            tar -czf "dist/$stem.tar.gz" \
+              -C desktopApp/build/compose/binaries/main/app BeeCode
+          fi
+
+          ls -la dist
+          echo "stem=$stem" >> "$GITHUB_OUTPUT"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          # Unique per matrix entry: upload-artifact v4 rejects a second upload
+          # under a name that already exists, so a shared name would fail the
+          # three jobs that finish last.
+          name: beecode-${{ matrix.artifact }}
+          path: dist/*
+          if-no-files-found: error
