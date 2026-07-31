@@ -14,7 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -50,9 +52,16 @@ import androidx.compose.ui.unit.sp
  *   tedious thing about writing Python in a plain text box.
  * - **Backspace at the start of a line's text deletes a whole indent level**, so
  *   dedenting is one keystroke rather than four.
- * - **Escape releases focus.** Since Tab is claimed by indentation the field would
- *   otherwise have no keyboard exit at all, which makes it a focus trap for anyone
- *   not using a mouse.
+ * - **Escape moves focus on to the next control.** Since Tab is claimed by indentation
+ *   the field would otherwise have no keyboard exit at all, which makes it a focus trap
+ *   for anyone not using a mouse. It must *advance* rather than merely release: the
+ *   editor is followed in traversal order by "Run tests", so a bare `clearFocus()` left
+ *   the pane's primary action unreachable going forwards — Tab from nothing focused
+ *   restarts at "← Back" rather than continuing past the editor, and the only route to
+ *   Run tests was Shift+Tab backwards from the top, which nobody would find. When there
+ *   is nowhere to advance to — this field alone in a tree, as in its own tests —
+ *   traversal wraps back onto the editor, so Escape checks whether it actually left and
+ *   releases focus if not. Either way the field is never a trap.
  */
 @Composable
 fun CodeEditor(
@@ -62,6 +71,9 @@ fun CodeEditor(
     focusManager: FocusManager = LocalFocusManager.current,
 ) {
     var value by remember { mutableStateOf(TextFieldValue(source, TextRange(source.length))) }
+
+    // Tracked so Escape can tell whether it actually left the field. See the Escape branch.
+    var isFocused by remember { mutableStateOf(false) }
 
     // Adopt [source] only when it genuinely disagrees with the buffer — an external
     // reset such as "Reset to starter", or switching Problem.
@@ -121,6 +133,7 @@ fun CodeEditor(
                 // way, which also keeps the two clients' UI tests addressing it by the
                 // same identifier.
                 .semantics { contentDescription = "Python solution editor" }
+                .onFocusChanged { isFocused = it.isFocused }
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (event.key) {
@@ -144,8 +157,24 @@ fun CodeEditor(
                         // Tab is claimed by indentation, so the field has no keyboard exit.
                         // Escape gives it one, which matters for anyone driving BeeCode
                         // without a mouse: without it the editor is a focus trap.
+                        //
+                        // `moveFocus(Next)`, not `clearFocus()`. Releasing focus escaped the
+                        // trap but skipped the rest of the pane: with nothing focused, Tab
+                        // restarts traversal at "← Back", so "Run tests" — the next stop
+                        // after the editor, and the whole point of the screen — could only
+                        // be reached by Shift+Tab backwards from the top. Advancing lands on
+                        // it directly.
+                        //
+                        // Then clear if the move did not actually leave. Testing the return
+                        // value is not enough: when this editor is the only focusable thing
+                        // in the tree, traversal wraps round and `moveFocus` reports `true`
+                        // having landed back here — so Escape would report success and the
+                        // field would still be a trap. Asking whether *this* field still has
+                        // focus is the question that was meant, and it holds whatever the
+                        // editor is hosted in.
                         Key.Escape -> {
-                            focusManager.clearFocus()
+                            focusManager.moveFocus(FocusDirection.Next)
+                            if (isFocused) focusManager.clearFocus()
                             true
                         }
                         Key.Enter, Key.NumPadEnter -> {

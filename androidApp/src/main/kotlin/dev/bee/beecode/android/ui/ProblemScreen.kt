@@ -49,6 +49,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -61,9 +62,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.bee.beecode.design.BeeCodeAccents
+import dev.bee.beecode.android.LocalBeeCodePalette
+import dev.bee.beecode.android.accentCaution
+import dev.bee.beecode.android.accentDanger
+import dev.bee.beecode.android.accentSuccess
 import dev.bee.beecode.design.EditorEdits
 import dev.bee.beecode.design.Markdown
+import dev.bee.beecode.design.RunOutcomePresentation
+import dev.bee.beecode.design.ScreenReaderLabels
+import dev.bee.beecode.design.tint
 import dev.bee.beecode.domain.ExecutionOutcome
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ReviewRating
@@ -536,24 +543,31 @@ private fun RunningIndicator(onCancel: () -> Unit) {
  */
 @Composable
 private fun ResultCard(run: ExecutionRun) {
-    val (headline, tint) = when (run.outcome) {
-        ExecutionOutcome.PASSED -> "All tests passed" to Color(BeeCodeAccents.Success)
-        ExecutionOutcome.FAILED ->
-            "${run.passedTestCount} of ${run.totalTestCount} tests passed" to Color(BeeCodeAccents.Caution)
-        ExecutionOutcome.SYNTAX_ERROR -> "Your code has a syntax error" to Color(BeeCodeAccents.Danger)
-        ExecutionOutcome.RUNTIME_ERROR -> "Your code raised an error" to Color(BeeCodeAccents.Danger)
-        ExecutionOutcome.TIMEOUT -> "Your code ran out of time" to Color(BeeCodeAccents.Caution)
-        ExecutionOutcome.CANCELLED -> "Run stopped" to Color(BeeCodeAccents.Muted)
-        ExecutionOutcome.WORKER_FAILURE -> "BeeCode could not run your code" to Color(BeeCodeAccents.Danger)
-    }
+    // The mapping is in :shared so desktop cannot word the same outcome differently.
+    val outcome = RunOutcomePresentation.of(run.outcome, run.passedTestCount, run.totalTestCount)
+    val tint = Color(outcome.tint(LocalBeeCodePalette.current))
 
     Card {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).background(tint, RoundedCornerShape(4.dp)))
+                // A glyph rather than the coloured dot this replaced. The dot's only
+                // content was its tint, so a learner who cannot separate the green from
+                // the amber — or who reads the screen in greyscale — got nothing from it
+                // that the headline did not already say, which is what WCAG 1.4.1
+                // forbids. The glyph says pass, warn, or fail in its shape.
+                Text(
+                    outcome.glyph,
+                    color = tint,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelMedium,
+                    // Cleared rather than described: `outcome.headline` is the very next
+                    // node and already reads "All tests passed". Unlike the per-test rows,
+                    // where the glyph is the only verdict, here it is a second copy of one.
+                    modifier = Modifier.clearAndSetSemantics {},
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    headline,
+                    outcome.headline,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
@@ -606,8 +620,16 @@ private fun TestResultRow(result: TestCaseResult) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (result.passed) "✓" else "✗",
-                color = if (result.passed) Color(BeeCodeAccents.Success) else Color(BeeCodeAccents.Danger),
+                color = if (result.passed) accentSuccess() else accentDanger(),
                 fontWeight = FontWeight.Bold,
+                // The glyph is the only thing separating a pass from a failure here — the
+                // rest of the row is the test's name, identical either way. Left bare,
+                // TalkBack announces the character or skips it, so a learner heard a list
+                // of test names with no verdicts. `clearAndSetSemantics` replaces the
+                // glyph rather than adding to it.
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = ScreenReaderLabels.testCase(result.passed)
+                },
             )
             Spacer(Modifier.width(8.dp))
             Text(

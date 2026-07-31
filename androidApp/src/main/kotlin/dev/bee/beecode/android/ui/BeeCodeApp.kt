@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -35,6 +37,8 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
@@ -71,9 +75,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.bee.beecode.android.LocalBeeCodePalette
+import dev.bee.beecode.android.accentCaution
+import dev.bee.beecode.android.accentDanger
+import dev.bee.beecode.android.accentSuccess
 import dev.bee.beecode.app.AchievementState
 import dev.bee.beecode.app.ActivityBucket
 import dev.bee.beecode.android.DocumentSyncStore
+import dev.bee.beecode.design.ScreenReaderLabels
+import dev.bee.beecode.design.ThemeFamily
 import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.SyncReport
@@ -85,7 +95,6 @@ import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.app.StatisticsPeriod
 import dev.bee.beecode.app.TopicProgress
 import dev.bee.beecode.app.IntervalRange
-import dev.bee.beecode.design.BeeCodeAccents
 import dev.bee.beecode.design.ThemeChoice
 import dev.bee.beecode.domain.DueDescription
 import dev.bee.beecode.domain.DueUrgency
@@ -154,6 +163,9 @@ fun BeeCodeApp(viewModel: StudyViewModel) {
                 // destinations with the same symbols. All from `material-icons-core`,
                 // which is already a dependency: see the build file for the +3.9 MB the
                 // extended library measured, and why a phone does not pay it.
+                // All three descriptions are null on purpose: each item's own `label`
+                // names the destination, and describing the icon too makes TalkBack
+                // announce "Study, Study" on every tab.
                 NavigationBarItem(
                     selected = screen is Screen.Queue,
                     onClick = viewModel::showQueue,
@@ -415,7 +427,7 @@ private fun ProblemCard(
 @Composable
 private fun DueBadge(due: DueDescription) {
     val color = when (due.urgency) {
-        DueUrgency.OVERDUE -> Color(BeeCodeAccents.Danger)
+        DueUrgency.OVERDUE -> accentDanger()
         DueUrgency.DUE -> MaterialTheme.colorScheme.primary
         DueUrgency.UPCOMING -> MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -425,9 +437,9 @@ private fun DueBadge(due: DueDescription) {
 @Composable
 private fun DifficultyBadge(difficulty: ProblemDifficulty) {
     val (label, color) = when (difficulty) {
-        ProblemDifficulty.EASY -> "Easy" to Color(BeeCodeAccents.Success)
-        ProblemDifficulty.MEDIUM -> "Medium" to Color(BeeCodeAccents.Caution)
-        ProblemDifficulty.HARD -> "Hard" to Color(BeeCodeAccents.Danger)
+        ProblemDifficulty.EASY -> "Easy" to accentSuccess()
+        ProblemDifficulty.MEDIUM -> "Medium" to accentCaution()
+        ProblemDifficulty.HARD -> "Hard" to accentDanger()
     }
     Surface(color = color.copy(alpha = 0.18f), shape = RoundedCornerShape(6.dp)) {
         Text(
@@ -736,7 +748,7 @@ private fun ScheduleCard(stats: StudyStatistics, titleOf: (ProblemId) -> String?
                 Text(
                     "${stats.leeches.size} ${if (stats.leeches.size == 1) "leech" else "leeches"}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(BeeCodeAccents.Danger),
+                    color = accentDanger(),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -1074,10 +1086,13 @@ private fun AchievementRow(state: AchievementState) {
             ) {
                 Icon(
                     if (state.earned) Icons.Filled.Star else Icons.Outlined.Lock,
-                    // The list is read top to bottom and the title says what the
-                    // achievement is; the icon repeats the state the detail text on the
-                    // right already gives, so announcing it would be noise.
-                    contentDescription = null,
+                    // Labelled, unlike the nav-bar icons that sit beside their own text.
+                    // This one used to be null on the grounds that `state.detail` on the
+                    // right already gave the state, and it does not: the detail is a count
+                    // — "3 of 7 days" — which is progress, and at "7 of 7 days" it does
+                    // not separate earned from about to be. Earned was carried by a filled
+                    // amber star against a muted outlined lock, and by nothing else.
+                    contentDescription = ScreenReaderLabels.achievement(state.earned),
                     modifier = Modifier.size(20.dp),
                     // Earned is the app's own amber and unearned is deliberately muted:
                     // the state should be legible from colour at a glance, without
@@ -1137,6 +1152,7 @@ private fun AchievementRow(state: AchievementState) {
 private fun SettingsScreen(viewModel: StudyViewModel) {
     val runnerStatus by viewModel.runnerStatus.collectAsStateWithLifecycle()
     val theme by viewModel.themeChoice.collectAsStateWithLifecycle()
+    val family by viewModel.themeFamily.collectAsStateWithLifecycle()
     val showProgress by viewModel.showProgress.collectAsStateWithLifecycle()
     val showMotivation by viewModel.showStreaksAndAchievements.collectAsStateWithLifecycle()
     var transferMessage by remember { mutableStateOf<String?>(null) }
@@ -1249,6 +1265,34 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                                 Text(label)
                             }
                         }
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    // Word for word desktop's copy. A learner with both clients is
+                    // configuring one preference, and two explanations of it read as two
+                    // settings that might not agree.
+                    "Which colours to use. Independent of the setting above — every theme " +
+                        "has a dark and a light scheme.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    // One traversal stop for the group rather than three, which is what
+                    // TalkBack's radio-group navigation expects.
+                    Modifier.selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ThemeFamily.entries.forEach { candidate ->
+                        ThemeFamilyRow(
+                            candidate = candidate,
+                            selected = family == candidate,
+                            onSelect = { viewModel.setThemeFamily(candidate) },
+                        )
                     }
                 }
             }
@@ -1611,6 +1655,54 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/**
+ * One theme family, as a radio row. Deliberately the same shape as desktop's row.
+ *
+ * ## Why a radio row rather than another button strip
+ *
+ * The mode above it is three one-word options that fit on a line. A family needs its
+ * description shown — "Maximum legibility. Text meets WCAG AAA." is the whole reason a
+ * learner would pick it, and a button has room for a word. The two controls look
+ * different because they answer differently-sized questions.
+ *
+ * ## Accessibility
+ *
+ * `selectable` with [Role.RadioButton] is what makes TalkBack announce "selected" rather
+ * than leaving the state to whichever circle is filled. `onClick = null` on the button
+ * itself is deliberate: the row already handles the click, and a handler on the button
+ * would make the label a dead zone beside a live 20dp circle — the whole row is the
+ * target, which is also what keeps it above the 48dp touch minimum.
+ */
+@Composable
+private fun ThemeFamilyRow(
+    candidate: ThemeFamily,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.weight(1f)) {
+            Text(
+                candidate.label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            Text(
+                candidate.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

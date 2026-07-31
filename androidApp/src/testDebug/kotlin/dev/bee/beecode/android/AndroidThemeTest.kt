@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import dev.bee.beecode.design.BeeCodePalette
 import dev.bee.beecode.design.BeeCodeTypeScale
+import dev.bee.beecode.design.ThemeFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,13 +32,13 @@ import org.junit.Test
 class AndroidThemeTest {
 
     @Test
-    fun everyRoleInTheDarkSchemeComesFromTheDarkPalette() {
-        assertSchemeMatchesPalette(BeeCodePalette.Dark, "Dark")
-    }
-
-    @Test
-    fun everyRoleInTheLightSchemeComesFromTheLightPalette() {
-        assertSchemeMatchesPalette(BeeCodePalette.Light, "Light")
+    fun everyRoleInEverySchemeComesFromItsOwnPalette() {
+        // Every family and both of its schemes. A family added with a role left copied from
+        // Honey is exactly what a two-scheme version of this test would wave through.
+        for (family in ThemeFamily.entries) {
+            assertSchemeMatchesPalette(family.dark, "${family.label} dark")
+            assertSchemeMatchesPalette(family.light, "${family.label} light")
+        }
     }
 
     @Test
@@ -46,7 +47,7 @@ class AndroidThemeTest {
         // missing palette field and fails the build, rather than quietly rendering in
         // baseline purple on phones only.
         val schemeRoles = colorRoleNames().toSet()
-        val paletteRoles = BeeCodePalette.Dark.javaClass.methods
+        val paletteRoles = BeeCodePalette.HoneyDark.javaClass.methods
             .mapNotNull { method ->
                 if (method.parameterCount == 0 &&
                     method.returnType == java.lang.Long.TYPE &&
@@ -57,6 +58,11 @@ class AndroidThemeTest {
                     null
                 }
             }
+            // The four semantic accents are palette fields with no Material role. They sit
+            // in the palette so the contrast suite walks them — it did not when they were
+            // global constants, and a 1.787:1 difficulty badge shipped — but they are not
+            // roles Material has dropped.
+            .filterNot { it.startsWith("accent") }
             .toSet()
 
         assertEquals(
@@ -79,7 +85,10 @@ class AndroidThemeTest {
         // Both baselines are checked, not just the one matching the scheme, because the
         // wrong-baseline mistake is easy to make and produces a test that reads as
         // thorough while catching half the cases.
-        for ((name, palette) in listOf("Dark" to BeeCodePalette.Dark, "Light" to BeeCodePalette.Light)) {
+        val schemes = ThemeFamily.entries.flatMap {
+            listOf("${it.label} dark" to it.dark, "${it.label} light" to it.light)
+        }
+        for ((name, palette) in schemes) {
             val scheme = palette.toColorScheme()
             for (role in colorRoleNames()) {
                 val ours = roleValue(scheme, role)

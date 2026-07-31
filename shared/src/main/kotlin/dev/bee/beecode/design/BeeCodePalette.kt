@@ -131,6 +131,50 @@ data class BeeCodePalette(
     val tertiaryFixedDim: Long,
     val onTertiaryFixed: Long,
     val onTertiaryFixedVariant: Long,
+    /**
+     * A pass, and the Easy difficulty.
+     *
+     * ## Why the semantic accents live in the palette
+     *
+     * They used to be four constants in `BeeCodeAccents`, one value each, on the stated
+     * reasoning that "a passing test is green whichever scheme is active". That reasoning
+     * is right about *hue* and wrong about *lightness*, and the difference shipped a real
+     * defect: every one of the four was chosen against the dark scheme and then drawn as
+     * **text** on cream. `Success` `#6BBF59` on a light `Card` is **1.787:1**, against a
+     * 4.5:1 floor — "All tests passed" was very nearly invisible in light mode, and so was
+     * every Easy badge. `Caution` was 1.783:1, `Muted` 2.462:1, `Danger` 2.868:1.
+     *
+     * `PaletteContrastTest` did not catch it because the accents were not in the palette,
+     * so nothing walked them. That is the whole argument for moving them here: this type
+     * is what the contrast suite enumerates, and a colour outside it is a colour nobody
+     * checks. The same class of bug as the invisible code block in
+     * [surfaceContainerHighest] — a value that was mapped correctly and could not be seen.
+     *
+     * Hue is still constant across schemes; only lightness moves, which is what keeps
+     * green meaning "pass" in both.
+     *
+     * ## Why the three signal accents differ in lightness, not only hue
+     *
+     * The first corrected set cleared every text threshold and still had a defect: dark
+     * `#8ED97A` (success) and `#F0C05A` (caution) are **1.003:1** apart. Different hues,
+     * the same luminance — identical in greyscale, and near-identical to a learner with
+     * deuteranopia, which is around 6% of men. Contrast against the *background* says
+     * nothing about whether two foregrounds can be told apart from each other.
+     *
+     * So the values are spread along lightness as well: within each scheme, every pair of
+     * success/caution/danger is at least 1.25:1 apart. Both properties are asserted —
+     * `accentsAreLegibleAsTextEverywhereTheyAreDrawn` for the background, and
+     * `theAccentsAreDistinguishableFromEachOther` for each other. The luminance spread is
+     * the belt; [BeeCodeAccentGlyphs] is the braces, and it is the one that actually
+     * carries the meaning.
+     */
+    val accentSuccess: Long,
+    /** A partial failure or a timeout: something to look at, not something broken. */
+    val accentCaution: Long,
+    /** A failure, an error, and the Hard difficulty. */
+    val accentDanger: Long,
+    /** Cancelled or absent: present but not asserting anything. */
+    val accentMuted: Long,
 ) {
     companion object {
         /**
@@ -140,7 +184,7 @@ data class BeeCodePalette(
          * amount of yellow chroma rather than being true greys, so a card reads as
          * being lit by the same light as the amber rather than sitting beside it.
          */
-        val Dark: BeeCodePalette = BeeCodePalette(
+        val HoneyDark: BeeCodePalette = BeeCodePalette(
             primary = 0xFFF2B32C,
             onPrimary = 0xFF241A00,
             primaryContainer = 0xFF3A2E0A,
@@ -196,13 +240,21 @@ data class BeeCodePalette(
             tertiaryFixedDim = 0xFFE0A886,
             onTertiaryFixed = 0xFF2E1607,
             onTertiaryFixedVariant = 0xFF5D3A22,
+            // Lifted off the old shared constants so they clear AA against a *dark* Card,
+            // not merely against the page: #6BBF59 was 5.765:1 on surface but the old
+            // Danger and Muted were 3.591:1 and 4.183:1 on surfaceContainerHighest.
+            // Lightness is also spread deliberately — see accentSuccess's KDoc.
+            accentSuccess = 0xFF5EC970,
+            accentCaution = 0xFFF1C253,
+            accentDanger = 0xFFF26F61,
+            accentMuted = 0xFFB8B0A0,
         )
 
         /**
          * The same palette for daylight: warm cream rather than the M3 baseline's cool
          * off-white, so the amber does not look like a stain on grey paper.
          */
-        val Light: BeeCodePalette = BeeCodePalette(
+        val HoneyLight: BeeCodePalette = BeeCodePalette(
             primary = 0xFF7A5900,
             onPrimary = 0xFFFFFFFF,
             primaryContainer = 0xFFFFDF9E,
@@ -251,30 +303,356 @@ data class BeeCodePalette(
             tertiaryFixedDim = 0xFFE0A886,
             onTertiaryFixed = 0xFF2E1607,
             onTertiaryFixedVariant = 0xFF5D3A22,
+            // Darkened substantially: these are drawn as text on cream, where the old
+            // dark-tuned values ran 1.78:1–2.87:1. Same hues, and now legible.
+            accentSuccess = 0xFF1C6F2A,
+            accentCaution = 0xFF724903,
+            accentDanger = 0xFF841A0F,
+            accentMuted = 0xFF5C564A,
+        )
+
+        /**
+         * Maximum legibility: pure black or white pages, and text at AAA.
+         *
+         * ## Why this is a theme rather than a toggle
+         *
+         * A "high contrast mode" that post-processes another palette has to guess which
+         * roles are text and which are decoration, and gets the accents wrong for the same
+         * reason the old shared constants did. Declaring the values instead means every one
+         * of them is walked by the same contrast suite as the default family — at a 7:1
+         * floor rather than 4.5:1, asserted in `PaletteContrastTest`.
+         *
+         * The warm chroma of [HoneyDark] is deliberately dropped. Tinted neutrals cost
+         * contrast for atmosphere, which is exactly the wrong trade here, so surfaces are
+         * near-neutral and the amber survives only in [primary] — where it stays because a
+         * high-contrast theme should still be recognisably BeeCode.
+         */
+        val HighContrastDark: BeeCodePalette = BeeCodePalette(
+            primary = 0xFFFFD24A,
+            onPrimary = 0xFF000000,
+            primaryContainer = 0xFFFFD24A,
+            onPrimaryContainer = 0xFF000000,
+            inversePrimary = 0xFF4A3600,
+            secondary = 0xFFF0E6D2,
+            onSecondary = 0xFF000000,
+            secondaryContainer = 0xFF2E2A20,
+            onSecondaryContainer = 0xFFFFFFFF,
+            tertiary = 0xFFFFC49A,
+            onTertiary = 0xFF000000,
+            tertiaryContainer = 0xFF3A2415,
+            onTertiaryContainer = 0xFFFFFFFF,
+            background = 0xFF000000,
+            onBackground = 0xFFFFFFFF,
+            surface = 0xFF000000,
+            onSurface = 0xFFFFFFFF,
+            surfaceVariant = 0xFF1C1C1C,
+            onSurfaceVariant = 0xFFF0EDE6,
+            surfaceTint = 0xFFFFD24A,
+            inverseSurface = 0xFFFFFFFF,
+            inverseOnSurface = 0xFF000000,
+            error = 0xFFFF9A8E,
+            onError = 0xFF000000,
+            errorContainer = 0xFF5C0F06,
+            onErrorContainer = 0xFFFFFFFF,
+            // Brighter than the default family's outline: at this contrast level a
+            // divider that merely "reads as a rule" is not enough, it has to be crisp.
+            outline = 0xFFD6D0C4,
+            outlineVariant = 0xFF8A8478,
+            scrim = 0xFF000000,
+            surfaceBright = 0xFF2A2A2A,
+            surfaceDim = 0xFF000000,
+            surfaceContainerLowest = 0xFF000000,
+            surfaceContainerLow = 0xFF0D0D0B,
+            surfaceContainer = 0xFF141410,
+            surfaceContainerHigh = 0xFF1C1B17,
+            surfaceContainerHighest = 0xFF24231D,
+            primaryFixed = 0xFFFFE9B8,
+            primaryFixedDim = 0xFFFFD24A,
+            onPrimaryFixed = 0xFF000000,
+            onPrimaryFixedVariant = 0xFF4A3600,
+            secondaryFixed = 0xFFF0E6CC,
+            secondaryFixedDim = 0xFFD9C9A3,
+            onSecondaryFixed = 0xFF000000,
+            onSecondaryFixedVariant = 0xFF3A3323,
+            tertiaryFixed = 0xFFFFE0CC,
+            tertiaryFixedDim = 0xFFFFC49A,
+            onTertiaryFixed = 0xFF000000,
+            onTertiaryFixedVariant = 0xFF53301A,
+            accentSuccess = 0xFF8CDE9A,
+            accentCaution = 0xFFFAE198,
+            accentDanger = 0xFFF89181,
+            accentMuted = 0xFFD6D0C4,
+        )
+
+        /** [HighContrastDark]'s daylight counterpart: black text on white, accents at AAA. */
+        val HighContrastLight: BeeCodePalette = BeeCodePalette(
+            primary = 0xFF4A3600,
+            onPrimary = 0xFFFFFFFF,
+            primaryContainer = 0xFFFFE9B8,
+            onPrimaryContainer = 0xFF000000,
+            inversePrimary = 0xFFFFD24A,
+            secondary = 0xFF3A3323,
+            onSecondary = 0xFFFFFFFF,
+            secondaryContainer = 0xFFF0E6CC,
+            onSecondaryContainer = 0xFF000000,
+            tertiary = 0xFF53301A,
+            onTertiary = 0xFFFFFFFF,
+            tertiaryContainer = 0xFFFFE0CC,
+            onTertiaryContainer = 0xFF000000,
+            background = 0xFFFFFFFF,
+            onBackground = 0xFF000000,
+            surface = 0xFFFFFFFF,
+            onSurface = 0xFF000000,
+            surfaceVariant = 0xFFF0EDE6,
+            onSurfaceVariant = 0xFF24221C,
+            surfaceTint = 0xFF4A3600,
+            inverseSurface = 0xFF000000,
+            inverseOnSurface = 0xFFFFFFFF,
+            error = 0xFF8C0009,
+            onError = 0xFFFFFFFF,
+            errorContainer = 0xFFFFDAD6,
+            onErrorContainer = 0xFF000000,
+            outline = 0xFF3A362E,
+            outlineVariant = 0xFF6E6A60,
+            scrim = 0xFF000000,
+            surfaceBright = 0xFFFFFFFF,
+            surfaceDim = 0xFFE0DDD4,
+            surfaceContainerLowest = 0xFFFFFFFF,
+            surfaceContainerLow = 0xFFFAF8F2,
+            surfaceContainer = 0xFFF5F2EA,
+            surfaceContainerHigh = 0xFFEFECE2,
+            surfaceContainerHighest = 0xFFE8E4DA,
+            primaryFixed = 0xFFFFE9B8,
+            primaryFixedDim = 0xFFFFD24A,
+            onPrimaryFixed = 0xFF000000,
+            onPrimaryFixedVariant = 0xFF4A3600,
+            secondaryFixed = 0xFFF0E6CC,
+            secondaryFixedDim = 0xFFD9C9A3,
+            onSecondaryFixed = 0xFF000000,
+            onSecondaryFixedVariant = 0xFF3A3323,
+            tertiaryFixed = 0xFFFFE0CC,
+            tertiaryFixedDim = 0xFFFFC49A,
+            onTertiaryFixed = 0xFF000000,
+            onTertiaryFixedVariant = 0xFF53301A,
+            accentSuccess = 0xFF0B4014,
+            accentCaution = 0xFF5F3F00,
+            accentDanger = 0xFF4E0E04,
+            accentMuted = 0xFF3A362E,
+        )
+
+        /**
+         * Cool desaturated blue-grey, with a cyan primary.
+         *
+         * The counterpoint to [HoneyDark]: where that one is warm and close, this is cool
+         * and quiet. Low-chroma neutrals stay restful over a long session, and the cyan
+         * gives the queue's "due" markers a colour that is not competing with the
+         * red/amber/green the difficulty badges and run results already use — the one
+         * complaint the amber family cannot answer, since its primary *is* amber.
+         */
+        val SlateDark: BeeCodePalette = BeeCodePalette(
+            primary = 0xFF7FD4E8,
+            onPrimary = 0xFF00363F,
+            primaryContainer = 0xFF1B4650,
+            onPrimaryContainer = 0xFFB8EAF8,
+            inversePrimary = 0xFF00606E,
+            secondary = 0xFFB4C4CC,
+            onSecondary = 0xFF1E2C31,
+            secondaryContainer = 0xFF33424A,
+            onSecondaryContainer = 0xFFD4E3EB,
+            tertiary = 0xFFC0C2E8,
+            onTertiary = 0xFF282A4D,
+            tertiaryContainer = 0xFF3E4165,
+            onTertiaryContainer = 0xFFE0E0FF,
+            background = 0xFF0E1417,
+            onBackground = 0xFFDDE3E7,
+            surface = 0xFF0E1417,
+            onSurface = 0xFFDDE3E7,
+            surfaceVariant = 0xFF212A2E,
+            onSurfaceVariant = 0xFFBFC8CC,
+            surfaceTint = 0xFF7FD4E8,
+            inverseSurface = 0xFFDDE3E7,
+            inverseOnSurface = 0xFF2A3135,
+            error = 0xFFFFB4A4,
+            onError = 0xFF5F1600,
+            errorContainer = 0xFF54231A,
+            onErrorContainer = 0xFFFFDAD4,
+            outline = 0xFF8A9499,
+            outlineVariant = 0xFF404A4F,
+            scrim = 0xFF000000,
+            surfaceBright = 0xFF333C41,
+            surfaceDim = 0xFF0E1417,
+            surfaceContainerLowest = 0xFF080D0F,
+            surfaceContainerLow = 0xFF151C20,
+            surfaceContainer = 0xFF1B2327,
+            surfaceContainerHigh = 0xFF252E33,
+            surfaceContainerHighest = 0xFF2F393E,
+            primaryFixed = 0xFFB8EAF8,
+            primaryFixedDim = 0xFF7FD4E8,
+            onPrimaryFixed = 0xFF001F26,
+            onPrimaryFixedVariant = 0xFF004E5A,
+            secondaryFixed = 0xFFD4E3EB,
+            secondaryFixedDim = 0xFFB4C4CC,
+            onSecondaryFixed = 0xFF061E25,
+            onSecondaryFixedVariant = 0xFF33424A,
+            tertiaryFixed = 0xFFE0E0FF,
+            tertiaryFixedDim = 0xFFC0C2E8,
+            onTertiaryFixed = 0xFF0A0B33,
+            onTertiaryFixedVariant = 0xFF3E4165,
+            accentSuccess = 0xFF65CC76,
+            accentCaution = 0xFFF2C761,
+            accentDanger = 0xFFF48377,
+            accentMuted = 0xFFAAB4B9,
+        )
+
+        /** [SlateDark] for daylight: cool near-white paper rather than cream. */
+        val SlateLight: BeeCodePalette = BeeCodePalette(
+            primary = 0xFF00606E,
+            onPrimary = 0xFFFFFFFF,
+            primaryContainer = 0xFFB8EAF8,
+            onPrimaryContainer = 0xFF001F26,
+            inversePrimary = 0xFF7FD4E8,
+            secondary = 0xFF4A5A62,
+            onSecondary = 0xFFFFFFFF,
+            secondaryContainer = 0xFFD4E3EB,
+            onSecondaryContainer = 0xFF061E25,
+            tertiary = 0xFF4E5080,
+            onTertiary = 0xFFFFFFFF,
+            tertiaryContainer = 0xFFE0E0FF,
+            onTertiaryContainer = 0xFF0A0B33,
+            background = 0xFFF7FAFC,
+            onBackground = 0xFF171D20,
+            surface = 0xFFF7FAFC,
+            onSurface = 0xFF171D20,
+            surfaceVariant = 0xFFDCE4E8,
+            onSurfaceVariant = 0xFF40484C,
+            surfaceTint = 0xFF00606E,
+            inverseSurface = 0xFF2B3134,
+            inverseOnSurface = 0xFFEDF2F5,
+            error = 0xFFBA1A1A,
+            onError = 0xFFFFFFFF,
+            errorContainer = 0xFFFFDAD6,
+            onErrorContainer = 0xFF410002,
+            outline = 0xFF70787C,
+            outlineVariant = 0xFFC0C8CC,
+            scrim = 0xFF000000,
+            surfaceBright = 0xFFFFFFFF,
+            surfaceDim = 0xFFD8DEE2,
+            surfaceContainerLowest = 0xFFFFFFFF,
+            surfaceContainerLow = 0xFFF1F5F8,
+            surfaceContainer = 0xFFEBF0F3,
+            surfaceContainerHigh = 0xFFE5EAEE,
+            surfaceContainerHighest = 0xFFDFE5E9,
+            primaryFixed = 0xFFB8EAF8,
+            primaryFixedDim = 0xFF7FD4E8,
+            onPrimaryFixed = 0xFF001F26,
+            onPrimaryFixedVariant = 0xFF004E5A,
+            secondaryFixed = 0xFFD4E3EB,
+            secondaryFixedDim = 0xFFB4C4CC,
+            onSecondaryFixed = 0xFF061E25,
+            onSecondaryFixedVariant = 0xFF33424A,
+            tertiaryFixed = 0xFFE0E0FF,
+            tertiaryFixedDim = 0xFFC0C2E8,
+            onTertiaryFixed = 0xFF0A0B33,
+            onTertiaryFixedVariant = 0xFF3E4165,
+            accentSuccess = 0xFF1C6F2A,
+            accentCaution = 0xFF724903,
+            accentDanger = 0xFF841A0F,
+            accentMuted = 0xFF545C60,
         )
     }
 }
 
 /**
- * Semantic accents that are not Material roles.
+ * A pair of palettes that belong together, and the unit a learner actually picks.
  *
- * Difficulty badges and test-result ticks were hard-coded in both clients, with the
- * same six literals copied into each. They are not theme roles — a passing test is
- * green whichever scheme is active — but they are still shared vocabulary, and having
- * them in one place is the difference between "green" meaning one thing and two.
+ * ## Why a family rather than a longer list of themes
+ *
+ * The alternative was one flat enum — `HONEY_DARK`, `HONEY_LIGHT`, `HIGH_CONTRAST_DARK`,
+ * and so on — which reads simpler until "follow the system" has to fit into it. There is
+ * no single entry that means "high contrast, tracking the OS", so either that combination
+ * is unavailable or [ThemeChoice.SYSTEM] silently means the default family. Both are worse
+ * than two settings, and the list doubles in length with every family added.
+ *
+ * Splitting them keeps the two questions separate: [ThemeChoice] answers *when* to be
+ * dark, this answers *which* dark. Every family must supply both schemes — the type makes
+ * a family with only one impossible to declare, which is what stops a learner who prefers
+ * light mode from being pushed back to the default family to get it.
  */
-object BeeCodeAccents {
-    /** A pass, and the Easy difficulty. */
-    const val Success: Long = 0xFF6BBF59
+enum class ThemeFamily(
+    /** What Settings shows. Sentence case on both clients, so the wording cannot drift. */
+    val label: String,
+    /** One line under the label, explaining who each family is for. */
+    val description: String,
+    val dark: BeeCodePalette,
+    val light: BeeCodePalette,
+) {
+    HONEY(
+        label = "Honey",
+        description = "Warm amber. BeeCode's original colours.",
+        dark = BeeCodePalette.HoneyDark,
+        light = BeeCodePalette.HoneyLight,
+    ),
+    HIGH_CONTRAST(
+        label = "High contrast",
+        description = "Maximum legibility. Text meets WCAG AAA.",
+        dark = BeeCodePalette.HighContrastDark,
+        light = BeeCodePalette.HighContrastLight,
+    ),
+    SLATE(
+        label = "Slate",
+        description = "Cool blue-grey, easier on the eyes at length.",
+        dark = BeeCodePalette.SlateDark,
+        light = BeeCodePalette.SlateLight,
+    ),
+    ;
 
-    /** A partial failure or a timeout: something to look at, not something broken. */
-    const val Caution: Long = 0xFFE0A030
+    /** The palette for a resolved mode. */
+    fun palette(dark: Boolean): BeeCodePalette = if (dark) this.dark else this.light
 
-    /** A failure, an error, and the Hard difficulty. */
-    const val Danger: Long = 0xFFE05A4F
+    companion object {
+        /** The family BeeCode uses when nothing is stored. */
+        val Default: ThemeFamily = HONEY
 
-    /** Cancelled or absent: present but not asserting anything. */
-    const val Muted: Long = 0xFF98917F
+        /** Parse a stored value, falling back to [Default] for anything unrecognised. */
+        fun parse(stored: String?): ThemeFamily =
+            entries.firstOrNull { it.name.equals(stored?.trim(), ignoreCase = true) } ?: Default
+    }
+}
+
+/**
+ * A non-colour cue for each semantic accent.
+ *
+ * ## Why colour is not enough
+ *
+ * WCAG 1.4.1 (Use of Colour) requires that colour never be the *only* way information is
+ * conveyed. Auditing both clients found one place that was: the run outcome's status dot,
+ * an 8dp filled square whose entire content was its tint. Green, amber, and grey squares
+ * are one square to a learner with deuteranopia, or on a greyscale screen.
+ *
+ * The rest of the audit came back clean, which is worth recording so it is not re-fixed:
+ * the difficulty badges print "Easy"/"Medium"/"Hard", the due badges print "Overdue by
+ * 3 days", and the per-test rows already drew ✓ and ✗ — in all three, colour restates a
+ * label rather than carrying meaning alone, which 1.4.1 permits.
+ *
+ * The fix is a glyph that differs in *shape*, not only in colour — so the meaning survives
+ * a greyscale screenshot, which is the cheap way to check it.
+ *
+ * These are plain strings rather than icon references because `:shared` holds no UI types
+ * (see [BeeCodePalette]), and because a glyph survives a screen reader reading it aloud
+ * where a tinted vector does not.
+ */
+object BeeCodeAccentGlyphs {
+    /** A pass. */
+    const val Success: String = "✓"
+
+    /** A partial failure or a timeout. Distinct in shape from both other states. */
+    const val Caution: String = "!"
+
+    /** A failure or an error. */
+    const val Danger: String = "✗"
+
+    /** Cancelled or absent: present, but not asserting anything. */
+    const val Muted: String = "–"
 }
 
 /**
@@ -332,6 +710,31 @@ fun dev.bee.beecode.persistence.SettingsRepository.setThemeChoice(
     // way for storage to disagree with itself.
     setAppTheme(if (choice == ThemeChoice.SYSTEM) null else choice.name, now)
 }
+
+/** The learner's stored theme family, defaulting to [ThemeFamily.Default]. */
+fun dev.bee.beecode.persistence.SettingsRepository.themeFamily(): ThemeFamily =
+    ThemeFamily.parse(appThemeFamily())
+
+fun dev.bee.beecode.persistence.SettingsRepository.setThemeFamily(
+    family: ThemeFamily,
+    now: kotlinx.datetime.Instant,
+) {
+    // The default clears the key, for the same reason SYSTEM does above: "never chose"
+    // and "chose the default" should not be two distinguishable states in storage.
+    setAppThemeFamily(if (family == ThemeFamily.Default) null else family.name, now)
+}
+
+/**
+ * The palette to render with, from both stored preferences and the OS signal.
+ *
+ * One function rather than each client combining the three itself — that is how the two
+ * clients drifted the last time colour selection lived in a composable.
+ */
+fun resolvePalette(
+    family: ThemeFamily,
+    choice: ThemeChoice,
+    systemIsDark: Boolean?,
+): BeeCodePalette = family.palette(choice.resolvesToDark(systemIsDark))
 
 /**
  * BeeCode's type scale, as one source both clients read.

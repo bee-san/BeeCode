@@ -5,7 +5,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Contrast assertions on [BeeCodePalette].
+ * Contrast assertions on every [BeeCodePalette] in every [ThemeFamily].
  *
  * ## Why this exists
  *
@@ -20,6 +20,26 @@ import kotlin.test.fail
  * had a test. These assert the second: that a surface which must read as distinct from
  * what it sits on actually does, and that text on each surface stays legible.
  *
+ * ## Why it walks families rather than two palettes
+ *
+ * Because a hand-written palette is exactly the kind of artifact that passes review and
+ * fails a measurement. Adding a family means writing 52 colours by hand, and the failure
+ * mode is not a typo — it is a value that looks right in a swatch and is 2:1 against the
+ * text drawn on it. Enumerating [ThemeFamily.entries] means a new family cannot be added
+ * without being measured; there is no "add the theme now, check contrast later" path,
+ * because the build fails first.
+ *
+ * ## Why the accents are in here now
+ *
+ * They were four constants outside the palette — `BeeCodeAccents.Success` and friends —
+ * on the reasoning that a passing test is green in both schemes. Hue does not flip, so
+ * that much was right; lightness does, and ignoring it shipped the same defect as the
+ * code block. `#6BBF59` drawn as text on a light `Card` is **1.787:1**. Every difficulty
+ * badge and every "All tests passed" in light mode was that ratio, and this suite could
+ * not see it because the values were not in the type it walks. They are fields on
+ * [BeeCodePalette] now, and [accentsAreLegibleAsTextEverywhereTheyAreDrawn] is the
+ * assertion that would have caught it.
+ *
  * ## Why the card is `surfaceContainerHighest`
  *
  * Load-bearing, and the first version of this file got it wrong: it asserted the inset
@@ -27,7 +47,7 @@ import kotlin.test.fail
  * while the device rendered 1.045:1, because a `Card` does not fill with that role.
  * `FilledCardTokens.ContainerColor` is `SurfaceContainerHighest`, read off the shipped
  * `material3-android` bytecode with `javap`, and the card pixel probed out of a device
- * screenshot is `#353024`, which is dark `surfaceContainerHighest` exactly.
+ * screenshot is `#353024`, which is dark `HoneyDark.surfaceContainerHighest` exactly.
  *
  * A test asserting the wrong background is worse than no test: it reports the defect as
  * fixed. So these assertions name the role rather than a nearby one, and the note above
@@ -37,6 +57,9 @@ import kotlin.test.fail
  *
  * Text thresholds are WCAG AA: 4.5:1 for body text, 3.0:1 for large text. Those are
  * borrowed, not invented, and a learner practising at 5am is exactly who they protect.
+ * [ThemeFamily.HIGH_CONTRAST] is held to AAA (7:1) instead — a family that advertises
+ * maximum legibility and then merely matches the default one is a false promise, so the
+ * claim is asserted rather than described.
  *
  * The *surface-against-surface* threshold is not a WCAG figure — WCAG has nothing to
  * say about two adjacent fills, since neither is text. 1.10:1 is chosen from the
@@ -54,10 +77,7 @@ class PaletteContrastTest {
         // was established, and why asserting the neighbouring role instead is what let a
         // 1.045:1 boundary pass. The inset surface — code blocks, examples, test output,
         // empty chart bars — must be visibly not that.
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, _ ->
             assertContrastAtLeast(
                 MIN_SURFACE_SEPARATION,
                 palette.surface,
@@ -87,13 +107,21 @@ class PaletteContrastTest {
      * `surfaceBright` is checked only in dark and `surfaceDim` only in light, because
      * that is the pairing the first fix used: each was chosen for the scheme where it
      * moves *away* from the page, and in the other scheme it is the page colour itself.
+     *
+     * Scoped to [ThemeFamily.HONEY] deliberately. These are measurements of the specific
+     * values that shipped the defect, not a rule the other families have to satisfy — the
+     * high-contrast family's neutrals are far enough apart that its `surfaceVariant`
+     * clears the floor honestly, and asserting otherwise would be demanding a family
+     * reintroduce a collision to satisfy a historical note.
      */
     @Test
-    fun theRejectedInsetCandidatesAreStillTooCloseToACard() {
+    fun theRejectedInsetCandidatesAreStillTooCloseToAHoneyCard() {
+        val light = BeeCodePalette.HoneyLight
+        val dark = BeeCodePalette.HoneyDark
         listOf(
-            Triple("light surfaceVariant", BeeCodePalette.Light.surfaceVariant, BeeCodePalette.Light),
-            Triple("light surfaceDim", BeeCodePalette.Light.surfaceDim, BeeCodePalette.Light),
-            Triple("dark surfaceBright", BeeCodePalette.Dark.surfaceBright, BeeCodePalette.Dark),
+            Triple("light surfaceVariant", light.surfaceVariant, light),
+            Triple("light surfaceDim", light.surfaceDim, light),
+            Triple("dark surfaceBright", dark.surfaceBright, dark),
         ).forEach { (what, candidate, palette) ->
             val ratio = contrast(candidate, palette.surfaceContainerHighest)
             assertTrue(
@@ -108,25 +136,92 @@ class PaletteContrastTest {
     }
 
     @Test
-    fun bodyTextOnAnInsetSurfaceMeetsAa() {
+    fun bodyTextOnAnInsetSurfaceMeetsItsFloor() {
         // Code is body text: mostly onSurface, with onSurfaceVariant for secondary
-        // lines. Both have to clear AA on the fill chosen above.
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        // lines. Both have to clear the floor on the fill chosen above.
+        eachScheme { name, palette, floor ->
             assertContrastAtLeast(
-                AA_BODY,
+                floor,
                 palette.onSurface,
                 palette.surface,
                 "$name onSurface on an inset surface",
             )
             assertContrastAtLeast(
-                AA_BODY,
+                floor,
                 palette.onSurfaceVariant,
                 palette.surface,
                 "$name onSurfaceVariant on an inset surface",
             )
+        }
+    }
+
+    /**
+     * Every semantic accent, as text, on both fills it is drawn on.
+     *
+     * The assertion the old shared constants could not have passed. Difficulty badges sit
+     * on a `Card`; run-outcome lines and per-test rows sit on either a card or the page,
+     * depending on the client and the screen — so both backgrounds are checked rather
+     * than the more forgiving one.
+     *
+     * These are held to the body floor, not the large-text 3.0:1, because that is what
+     * they are: a badge reading "Easy" at 12sp is small text by any reading of the
+     * guideline, and `Caption` is BeeCode's smallest scale.
+     */
+    @Test
+    fun accentsAreLegibleAsTextEverywhereTheyAreDrawn() {
+        eachScheme { name, palette, floor ->
+            listOf(
+                "accentSuccess" to palette.accentSuccess,
+                "accentCaution" to palette.accentCaution,
+                "accentDanger" to palette.accentDanger,
+                "accentMuted" to palette.accentMuted,
+            ).forEach { (role, accent) ->
+                assertContrastAtLeast(floor, accent, palette.surface, "$name $role on the page")
+                assertContrastAtLeast(
+                    floor,
+                    accent,
+                    palette.surfaceContainerHighest,
+                    "$name $role on a Card",
+                )
+            }
+        }
+    }
+
+    /**
+     * The accents stay distinguishable from each other, not merely from the background.
+     *
+     * Legibility and *meaning* are different requirements. Four accents that each clear
+     * 4.5:1 against a card can still be four colours a learner cannot tell apart, which
+     * is the failure that makes a difficulty badge useless — and the reason
+     * [BeeCodeAccentGlyphs] exists. This is the weaker, secondary check: shape carries
+     * the meaning, but the colours should not actively collide either.
+     *
+     * 1.20:1 rather than the surface floor: these are adjacent in a list rather than
+     * adjacent in space, so the bar is "not the same colour" rather than "reads as an
+     * edge". Success against Caution in the high-contrast dark family is the tightest
+     * real pairing, and it is comfortably above this.
+     */
+    @Test
+    fun theAccentsAreDistinguishableFromEachOther() {
+        eachScheme { name, palette, _ ->
+            val accents = listOf(
+                "success" to palette.accentSuccess,
+                "caution" to palette.accentCaution,
+                "danger" to palette.accentDanger,
+            )
+            accents.forEachIndexed { i, (aName, a) ->
+                accents.drop(i + 1).forEach { (bName, b) ->
+                    val ratio = contrast(a, b)
+                    assertTrue(
+                        ratio >= MIN_ACCENT_SEPARATION,
+                        "$name $aName and $bName are ${"%.3f".format(ratio)}:1 apart, below " +
+                            "${"%.2f".format(MIN_ACCENT_SEPARATION)}:1 — ${hex(a)} and ${hex(b)}. " +
+                            "They mark different states, so they should not read as one colour. " +
+                            "Shape carries the meaning (BeeCodeAccentGlyphs), but these should " +
+                            "not collide as well.",
+                    )
+                }
+            }
         }
     }
 
@@ -145,10 +240,7 @@ class PaletteContrastTest {
      */
     @Test
     fun aProgressBarIsVisibleAgainstItsTrack() {
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, _ ->
             assertContrastAtLeast(
                 AA_LARGE,
                 palette.primary,
@@ -173,10 +265,7 @@ class PaletteContrastTest {
      */
     @Test
     fun aProgressTrackIsVisibleAgainstTheCardItSitsOn() {
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, _ ->
             assertContrastAtLeast(
                 MIN_SURFACE_SEPARATION,
                 palette.surface,
@@ -187,13 +276,10 @@ class PaletteContrastTest {
     }
 
     @Test
-    fun bodyTextOnEveryCardAndBackgroundMeetsAa() {
+    fun bodyTextOnEveryCardAndBackgroundMeetsItsFloor() {
         // The ordinary case, asserted because it is the one a palette edit is most
         // likely to break by accident: a warmer background is a one-character change.
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, floor ->
             listOf(
                 "background" to palette.background,
                 "surface" to palette.surface,
@@ -203,14 +289,9 @@ class PaletteContrastTest {
                 "surfaceContainerHigh" to palette.surfaceContainerHigh,
                 "surfaceContainerHighest" to palette.surfaceContainerHighest,
             ).forEach { (role, fill) ->
+                assertContrastAtLeast(floor, palette.onSurface, fill, "$name onSurface on $role")
                 assertContrastAtLeast(
-                    AA_BODY,
-                    palette.onSurface,
-                    fill,
-                    "$name onSurface on $role",
-                )
-                assertContrastAtLeast(
-                    AA_BODY,
+                    floor,
                     palette.onSurfaceVariant,
                     fill,
                     "$name onSurfaceVariant on $role",
@@ -220,14 +301,11 @@ class PaletteContrastTest {
     }
 
     @Test
-    fun everyOnRolePairedWithItsContainerMeetsAa() {
+    fun everyOnRolePairedWithItsContainerMeetsItsFloor() {
         // Walked as pairs rather than spot-checked: a container whose text is
         // unreadable is the same defect as the code surface, and the palette has
         // eleven of these pairings to get wrong.
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, floor ->
             listOf(
                 Triple("primary", palette.onPrimary, palette.primary),
                 Triple("primaryContainer", palette.onPrimaryContainer, palette.primaryContainer),
@@ -246,7 +324,7 @@ class PaletteContrastTest {
                 Triple("secondaryFixed", palette.onSecondaryFixed, palette.secondaryFixed),
                 Triple("tertiaryFixed", palette.onTertiaryFixed, palette.tertiaryFixed),
             ).forEach { (role, on, container) ->
-                assertContrastAtLeast(AA_BODY, on, container, "$name on$role on $role")
+                assertContrastAtLeast(floor, on, container, "$name on$role on $role")
             }
         }
     }
@@ -261,10 +339,7 @@ class PaletteContrastTest {
      */
     @Test
     fun aDividerIsVisibleOnEverySurfaceItIsDrawnOn() {
-        listOf(
-            "light" to BeeCodePalette.Light,
-            "dark" to BeeCodePalette.Dark,
-        ).forEach { (name, palette) ->
+        eachScheme { name, palette, _ ->
             listOf(
                 "surface" to palette.surface,
                 // The role a Card actually fills with, which is where most dividers in
@@ -281,9 +356,56 @@ class PaletteContrastTest {
         }
     }
 
+    /**
+     * The high-contrast family is actually higher contrast than the default one.
+     *
+     * Every other test here checks a palette against an absolute floor, which a family
+     * could satisfy while being no better than `HONEY` — and a "high contrast" theme that
+     * is merely adequate is a promise Settings makes and the colours do not keep. This
+     * compares the two directly, so the claim in [ThemeFamily.HIGH_CONTRAST]'s
+     * description has to remain true rather than merely have been true when written.
+     */
+    @Test
+    fun theHighContrastFamilyBeatsTheDefaultOne() {
+        listOf(true, false).forEach { dark ->
+            val scheme = if (dark) "dark" else "light"
+            val hc = ThemeFamily.HIGH_CONTRAST.palette(dark)
+            val honey = ThemeFamily.HONEY.palette(dark)
+            val hcRatio = contrast(hc.onSurface, hc.surface)
+            val honeyRatio = contrast(honey.onSurface, honey.surface)
+            assertTrue(
+                hcRatio > honeyRatio,
+                "The high-contrast $scheme scheme puts body text at " +
+                    "${"%.3f".format(hcRatio)}:1, which is not better than Honey's " +
+                    "${"%.3f".format(honeyRatio)}:1. Settings calls this family " +
+                    "\"${ThemeFamily.HIGH_CONTRAST.description}\", so it has to be.",
+            )
+        }
+    }
+
+    /** Every family supplies two distinct schemes — a family with one is a broken picker. */
+    @Test
+    fun everyFamilyHasTwoDistinctSchemes() {
+        ThemeFamily.entries.forEach { family ->
+            assertTrue(
+                family.dark != family.light,
+                "${family.label} uses the same palette for dark and light, so choosing " +
+                    "either mode does nothing.",
+            )
+            assertTrue(
+                contrast(family.dark.surface, family.light.surface) > MIN_SURFACE_SEPARATION,
+                "${family.label}'s dark and light pages are nearly the same colour, which " +
+                    "means one of the two is mislabelled.",
+            )
+        }
+    }
+
     private companion object {
         /** WCAG AA for body text. */
         const val AA_BODY = 4.5
+
+        /** WCAG AAA for body text. What [ThemeFamily.HIGH_CONTRAST] promises. */
+        const val AAA_BODY = 7.0
 
         /** WCAG AA for large text and large shapes. */
         const val AA_LARGE = 3.0
@@ -296,6 +418,25 @@ class PaletteContrastTest {
          * that fixes them is 1.207 and 1.447.
          */
         const val MIN_SURFACE_SEPARATION = 1.10
+
+        /** The floor for two accents that mean different things. See the test's KDoc. */
+        const val MIN_ACCENT_SEPARATION = 1.20
+
+        /**
+         * Run a block over every palette BeeCode can render, with the floor it must meet.
+         *
+         * The floor is per-family rather than a constant because [ThemeFamily.HIGH_CONTRAST]
+         * advertises AAA. Passing it in — rather than letting each test look the family up —
+         * is what keeps a new family from being added with a quietly lower bar.
+         */
+        fun eachScheme(block: (name: String, palette: BeeCodePalette, floor: Double) -> Unit) {
+            ThemeFamily.entries.forEach { family ->
+                val floor = if (family == ThemeFamily.HIGH_CONTRAST) AAA_BODY else AA_BODY
+                listOf(true to "dark", false to "light").forEach { (dark, scheme) ->
+                    block("${family.label} $scheme", family.palette(dark), floor)
+                }
+            }
+        }
 
         fun assertContrastAtLeast(minimum: Double, foreground: Long, background: Long, what: String) {
             val ratio = contrast(foreground, background)

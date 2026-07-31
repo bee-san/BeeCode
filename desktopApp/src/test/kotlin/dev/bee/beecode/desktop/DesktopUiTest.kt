@@ -2,6 +2,10 @@ package dev.bee.beecode.desktop
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -9,6 +13,8 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -22,6 +28,10 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.bee.beecode.app.BeeCodeProfile
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
+import dev.bee.beecode.design.themeChoice
+import dev.bee.beecode.design.themeFamily
 import kotlinx.coroutines.runBlocking
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.LeaderboardService
@@ -95,6 +105,46 @@ class DesktopUiTest {
         }
     }
 
+    /**
+     * As [withUi], but with the theme state hoisted the way `Main.kt` hoists it.
+     *
+     * The plain harness composes `DesktopApp(profile)` with the theme parameters left at
+     * their defaults, which is enough for every test that does not touch Appearance and
+     * wrong for the ones that do: a picker whose selection is a constant cannot show a
+     * selection changing. This wraps the pane in the same `BeeCodeTheme` + hoisted state
+     * the window uses, so what these tests exercise is the wiring the app actually has
+     * rather than a rehearsal of it.
+     */
+    private fun withThemedUi(
+        body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit,
+    ) {
+        val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
+        val profile = BeeCodeProfile.inMemory(
+            catalogue = catalogue,
+            runner = ScriptedPythonRunner(),
+        )
+        try {
+            runComposeUiTest {
+                setContent {
+                    var theme by remember { mutableStateOf(profile.settings.themeChoice()) }
+                    var family by remember { mutableStateOf(profile.settings.themeFamily()) }
+                    BeeCodeTheme(choice = theme, family = family) {
+                        DesktopApp(
+                            profile,
+                            theme = theme,
+                            onThemeChange = { theme = it },
+                            family = family,
+                            onFamilyChange = { family = it },
+                        )
+                    }
+                }
+                body(this, profile)
+            }
+        } finally {
+            profile.close()
+        }
+    }
+
     private fun withCompactUi(body: (ui: ComposeUiTest, profile: BeeCodeProfile) -> Unit) {
         val catalogue = ProblemCatalogue.fromResource(PACK_RESOURCE)
         val profile = BeeCodeProfile.inMemory(
@@ -127,7 +177,10 @@ class DesktopUiTest {
         ui.onNodeWithText("Achievements").assertIsDisplayed()
 
         ui.onNodeWithText("Settings").performClick()
-        ui.onNodeWithText("Python execution").assertIsDisplayed()
+        // Scrolled to, for the reason spelled out in `syncIsOffByDefault...`: Settings is
+        // a scrolling Column, and asserting a card below the first one visible without
+        // scrolling really asserts that the cards above it stayed short enough.
+        ui.onNodeWithText("Python execution").performScrollTo().assertIsDisplayed()
 
         ui.onNodeWithText("Study").performClick()
         ui.onNodeWithText("New Problems").assertIsDisplayed()
@@ -350,11 +403,171 @@ class DesktopUiTest {
     }
 
     @Test
+    fun theAppearancePaneOffersEveryThemeWithItsDescription() = withThemedUi { ui, _ ->
+        ui.onNodeWithText("Settings").performClick()
+        for (family in ThemeFamily.entries) {
+            ui.onNodeWithText(family.label).performScrollTo().assertIsDisplayed()
+            // The description too, and not as a nicety: "Maximum legibility. Text meets
+            // WCAG AAA." is the entire reason a learner would choose High contrast, and a
+            // row that renders its label without it offers a choice with no basis.
+            ui.onNodeWithText(family.description).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun pickingAThemeStoresItAndMarksItSelected() = withThemedUi { ui, profile ->
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText(ThemeFamily.SLATE.label).performScrollTo().performClick()
+
+        assertEquals(
+            ThemeFamily.SLATE,
+            profile.settings.themeFamily(),
+            "the click must reach storage, not only the composable's own state — the " +
+                "window reads this back at launch",
+        )
+        // And the control says so. A radio group whose selection is not announced leaves
+        // the state to whichever circle looks filled, which is not available to TalkBack
+        // or to a learner who cannot make out the fill.
+        ui.onNode(hasText(ThemeFamily.SLATE.label) and isSelected())
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun theModeSurvivesPickingATheme() = withThemedUi { ui, profile ->
+        // The property the two-settings design exists for. With one flat list this test
+        // could not be written: choosing a theme would *be* choosing a mode.
+        ui.onNodeWithText("Settings").performClick()
+        ui.onNodeWithText("Light").performScrollTo().performClick()
+        ui.onNodeWithText(ThemeFamily.HIGH_CONTRAST.label).performScrollTo().performClick()
+
+        assertEquals(ThemeChoice.LIGHT, profile.settings.themeChoice())
+        assertEquals(ThemeFamily.HIGH_CONTRAST, profile.settings.themeFamily())
+    }
+
+    @Test
+    fun everyThemeRowIsOneFocusableSelectableControl() = withThemedUi { ui, _ ->
+        // Keyboard reachability, which is the whole point of `selectable` + a
+        // `selectableGroup` rather than three bare rows: each row must be a control a
+        // keyboard can land on and act on, not a decorated label with a live circle
+        // beside it. `onClick = null` on the RadioButton is what makes the row the
+        // target, and removing it would leave the label inert while this test still
+        // found *something* clickable — so the assertion is on the row, matched by its
+        // label text.
+        ui.onNodeWithText("Settings").performClick()
+        for (family in ThemeFamily.entries) {
+            ui.onNode(hasText(family.label) and hasClickAction())
+                .performScrollTo()
+                .assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun eachTestRowAnnouncesItsVerdictRatherThanItsGlyph() = withUi { ui, _ ->
+        // The ✓/✗ is the only thing separating a passing row from a failing one — the rest
+        // of the row is the test's name, identical either way. So the glyph must reach the
+        // accessibility tree as a word: a screen reader either names the character badly
+        // ("multiplication x") or skips it, and a learner using one would hear a list of
+        // test names with no verdict attached to any of them.
+        ui.openTwoSum()
+        ui.onNodeWithContentDescription("Python solution editor")
+            .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
+        ui.onNodeWithText("Run tests").performClick()
+        ui.waitUntil(timeoutMillis = 10_000) { ui.ratingButtons("Again").isNotEmpty() }
+
+        // Every row failed, so every glyph must say Failed and none may say Passed.
+        ui.onAllNodesWithContentDescription("Failed").onFirst().performScrollTo().assertIsDisplayed()
+        assertTrue(
+            ui.onAllNodesWithContentDescription("Passed").fetchSemanticsNodes().isEmpty(),
+            "a failing run must not announce any test as passed",
+        )
+        // And the character itself is gone from the tree rather than announced alongside
+        // the description — which is what `clearAndSetSemantics` buys over `semantics`.
+        assertTrue(
+            ui.onAllNodesWithText("✗").fetchSemanticsNodes().isEmpty(),
+            "the glyph must be replaced in the tree, not merely described",
+        )
+    }
+
+    @Test
+    fun aPassingTestRowAnnouncesPassed() = withUi { ui, _ ->
+        // The other branch, because a label that said "Failed" unconditionally would pass
+        // the test above.
+        ui.openTwoSum()
+        ui.onNodeWithContentDescription("Python solution editor")
+            .performTextReplacement("${ScriptedPythonRunner.PASS_MARKER}\ndef two_sum(n, t):\n    pass\n")
+        ui.onNodeWithText("Run tests").performClick()
+        ui.waitUntil(timeoutMillis = 10_000) {
+            ui.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
+        }
+        // A passing run starts with its rows collapsed — see ResultBlock — so open them.
+        // The exact label, count read from the catalogue: "Show the" as a substring also
+        // matches "Show the explanation" in the statement pane, and clicking that would
+        // leave this test green while never opening the rows.
+        val tests = ProblemCatalogue.fromResource(PACK_RESOURCE)
+            .allProblems().first { it.title == TWO_SUM_TITLE }.tests.size
+        ui.onNodeWithText("Show the $tests tests").performScrollTo().performClick()
+
+        ui.onAllNodesWithContentDescription("Passed").onFirst().performScrollTo().assertIsDisplayed()
+        assertTrue(
+            ui.onAllNodesWithContentDescription("Failed").fetchSemanticsNodes().isEmpty(),
+            "a passing run must not announce any test as failed",
+        )
+    }
+
+    @Test
+    fun anAchievementAnnouncesWhetherItIsEarned() = withUi { ui, _ ->
+        // Earned state here is carried by a filled amber star against a muted outlined
+        // lock: shape and colour, no words. `state.detail` beside it reads "0 of 1", which
+        // is progress rather than status — at "7 of 7 days" it does not separate earned
+        // from about to be. So the marker itself has to say which.
+        ui.onNodeWithText("Progress").performClick()
+        // Achievements are a tab on the Progress pane, not the pane itself.
+        ui.onNodeWithText("Achievements").performScrollTo().performClick()
+        // A fresh profile has solved nothing, so every achievement is unearned.
+        ui.onAllNodesWithContentDescription("Not yet earned")
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTrue(
+            ui.onAllNodesWithContentDescription("Earned").fetchSemanticsNodes().isEmpty(),
+            "a profile that has solved nothing must not announce an earned achievement",
+        )
+    }
+
+    @Test
+    fun anEarnedAchievementSaysSo() = withUi { ui, profile ->
+        // The opposite branch, driven through a real solve rather than a fixture: an
+        // unearned-only assertion would pass against a marker hard-coded to "Not yet
+        // earned", which is exactly the defect this replaced.
+        ui.openTwoSum()
+        ui.onNodeWithContentDescription("Python solution editor")
+            .performTextReplacement("${ScriptedPythonRunner.PASS_MARKER}\ndef two_sum(n, t):\n    pass\n")
+        ui.onNodeWithText("Run tests").performClick()
+        ui.waitUntil(timeoutMillis = 10_000) {
+            ui.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
+        }
+        ui.onNode(isRatingButton("Good")).performClick()
+        ui.waitUntil(timeoutMillis = 10_000) { profile.allReviews().isNotEmpty() }
+
+        // The Problem pane is full-screen — the navigation rail is not on screen until it
+        // is left, which is deliberate and covered elsewhere.
+        ui.onNodeWithText("Back to queue").performClick()
+        ui.onNodeWithText("Progress").performClick()
+        ui.onNodeWithText("Achievements").performScrollTo().performClick()
+        // First Solve is now earned, so at least one marker announces it.
+        ui.onNodeWithText("First Solve").performScrollTo().assertIsDisplayed()
+        ui.onAllNodesWithContentDescription("Earned").onFirst().performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun settingsStatesTheRunnerLimitationPlainly() = withUi { ui, _ ->
         // The plan forbids calling the runner a sandbox. Asserted in the UI rather than
         // trusted to a code comment, on both clients.
         ui.onNodeWithText("Settings").performClick()
-        ui.onNode(hasText("not a security sandbox", substring = true)).assertIsDisplayed()
+        ui.onNode(hasText("not a security sandbox", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

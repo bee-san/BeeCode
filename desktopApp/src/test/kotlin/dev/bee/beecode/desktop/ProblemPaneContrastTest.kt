@@ -63,8 +63,8 @@ class ProblemPaneContrastTest {
     @Test
     fun theStatementCardIsPaintedBehindTheStatement() {
         withProblemPane(ThemeChoice.DARK) { ui ->
-            val card = BeeCodePalette.Dark.surfaceContainerHighest.rgb()
-            val page = BeeCodePalette.Dark.surface.rgb()
+            val card = BeeCodePalette.HoneyDark.surfaceContainerHighest.rgb()
+            val page = BeeCodePalette.HoneyDark.surface.rgb()
             val pixels = ui.leftColumnPixels()
 
             // The card must actually be the dominant fill of the left column. When the
@@ -102,8 +102,8 @@ class ProblemPaneContrastTest {
     @Test
     fun theExamplesBoxIsInsetAgainstTheCard() {
         listOf(
-            ThemeChoice.DARK to BeeCodePalette.Dark,
-            ThemeChoice.LIGHT to BeeCodePalette.Light,
+            ThemeChoice.DARK to BeeCodePalette.HoneyDark,
+            ThemeChoice.LIGHT to BeeCodePalette.HoneyLight,
         ).forEach { (choice, palette) ->
             withProblemPane(choice) { ui ->
                 val card = palette.surfaceContainerHighest.rgb()
