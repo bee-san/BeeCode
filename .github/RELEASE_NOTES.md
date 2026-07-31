@@ -44,21 +44,22 @@ which is the same command that produces the DMG above.
 
 Download the `.tar.gz`, extract it, and run `BeeCode/bin/BeeCode`. Needs `python3`.
 
-## What's new in v0.4.0
+## What's new in v0.5.0
 
-- **Choose a colour family independently from light or dark mode.** Honey keeps
-  BeeCode's original amber palette, High contrast targets maximum legibility, and
-  Slate provides a cooler alternative. Each family can be light, dark, or follow the
-  operating system.
-- **Every palette is checked for readable contrast.** All six family/mode
-  combinations meet WCAG AA for body and large text; High contrast is held to WCAG
-  AAA because that is the promise it makes.
-- **Status no longer depends on colour alone.** Pass, failure, timeout, and
-  cancellation use distinct glyphs, while meaningful test and achievement icons now
-  have screen-reader labels shared by Android and desktop.
-- **The desktop study flow is keyboard accessible.** Escape moves focus out of the
-  code editor, so its Tab-to-indent behavior no longer traps keyboard users before
-  the Run tests action.
+- **Study is now a guided session.** One primary action starts with due reviews,
+  advances through them automatically, and then returns you to recommended new
+  Problems.
+- **New Problems are ranked from your own history.** BeeCode prioritizes weak recall,
+  unseen topics, and low curriculum coverage, while varying the first suggestions so
+  they do not all train the same thing. Recall and coverage remain visible as separate
+  signals rather than being collapsed into a made-up mastery score.
+- **The Study dashboard now shows a year of activity.** A GitHub-style heatmap sits
+  alongside streak, solved, review, and today's queue totals, with the full new-Problem
+  catalogue still available when you want to browse.
+- **Android and desktop share a focused new design.** The prominent amber Study
+  action, restrained white surfaces, compact cards, recommendation reasons, and
+  desktop sidebar follow one design language while preserving every visible FSRS
+  interval and review count.
 
 ## What works
 
@@ -119,8 +120,8 @@ builds. See the
 
 ## Verification
 
-667 automated test cases: 640 JVM tests across nine modules and 27 Android
-instrumented tests. All 640 JVM tests and 18 non-UI device tests run in CI; the hosted
+673 automated test cases: 646 JVM tests across nine modules and 27 Android
+instrumented tests. All 646 JVM tests and 18 non-UI device tests run in CI; the hosted
 emulator skips 9 Compose touch tests because it refuses injected input. The passing
 device tests include the full answer → fail → fix → pass → finalize → restart journey
 against real CPython and real SQLite.
@@ -131,7 +132,7 @@ instead of failing a learner. The same gate proves each starter does *not* alrea
 pass, and that no reference solution is readable before you choose to reveal it.
 
 Both clients' UI is tested headlessly on every push. Android's UI behavior is covered
-by 29 Robolectric tests on the JVM; desktop Compose UI tests run headlessly as well.
+by 30 Robolectric tests on the JVM; desktop Compose UI tests run headlessly as well.
 
 FSRS-7 (35 parameters) is checked against 384 reference vectors generated from
 upstream's own `models/fsrs_v7.py`, at 1e-9 relative tolerance.
