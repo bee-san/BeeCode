@@ -166,6 +166,12 @@ object ProfileTransfer {
         val rebuilt = profile.reviews.rebuildSchedulesFromHistory()
         profile.reviews.replaceSchedules(rebuilt)
 
+        // And the topic cards, from the same log crossed with the pack's current tags.
+        // That they are rebuilt here rather than carried in the payload is the whole
+        // reason this format version does not move: topic state is a projection, so
+        // there is nothing about it for two devices to disagree over.
+        val topicsRebuilt = profile.rebuildTopicSchedules()
+
         var draftsApplied = 0
         for (wire in payload.drafts) {
             val draft = try {
@@ -202,6 +208,7 @@ object ProfileTransfer {
             draftsApplied = draftsApplied,
             settingsApplied = settingsApplied,
             schedulesRebuilt = rebuilt.size,
+            topicSchedulesRebuilt = topicsRebuilt,
         )
     }
 
@@ -299,6 +306,15 @@ sealed interface RestoreResult {
         val draftsApplied: Int,
         val settingsApplied: Int,
         val schedulesRebuilt: Int,
+        /**
+         * Topics whose schedule was rebuilt from the merged log.
+         *
+         * Reported separately from [schedulesRebuilt] because they answer different
+         * questions — how many Problems have a due date, and how many techniques do —
+         * and because a learner who sees only the first would have no way to tell
+         * whether their review queue came back.
+         */
+        val topicSchedulesRebuilt: Int = 0,
     ) : RestoreResult {
         fun describe(): String = buildString {
             append("Restored $reviewsApplied reviews")
@@ -307,7 +323,7 @@ sealed interface RestoreResult {
                 append(", $reviewsForUnknownProblems for Problems this version does not have")
             }
             append(". $draftsApplied drafts and $settingsApplied settings applied; ")
-            append("$schedulesRebuilt schedules rebuilt.")
+            append("$schedulesRebuilt schedules and $topicSchedulesRebuilt topics rebuilt.")
         }
     }
 

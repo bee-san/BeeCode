@@ -141,12 +141,12 @@ class AndroidScheduleVisibleTest {
     }
 
     @Test
-    fun aReviewedProblemsQueueRowCarriesItsIntervalAndReviewCount() {
+    fun aReviewedTechniquesQueueCardCarriesItsIntervalAndReviewCount() {
         // The queue is where the learner chooses what to work on, and before this every due
-        // row looked identical — so the ordering the queue had already computed, soonest due
+        // card looked identical — so the ordering the queue had already computed, soonest due
         // first, was information the UI threw away.
         //
-        // A lapse is what returns a Problem to the queue in one step: FSRS-7 reschedules it
+        // A lapse is what returns a technique to the queue in one step: FSRS-7 reschedules it
         // *seconds* out rather than days, which is also the case a whole-day interval format
         // would render as "0 days". Those seconds are still the future, so the clock moves
         // rather than the test sleeping — sleeping would be slow when it worked and flaky
@@ -157,23 +157,43 @@ class AndroidScheduleVisibleTest {
         clock.advanceBy(1.minutes)
         compose.onNodeWithText("Back to queue").performScrollTo().performClick()
 
-        compose.onNode(hasText("interval", substring = true)).assertIsDisplayed()
-        compose.onNode(hasText("Reviewed 1×", substring = true)).assertIsDisplayed()
-        // Two: the section header and the row's own badge. Both say "Due now" because a
-        // Problem a minute past due *is* simply due — the badge earns its place on the
-        // overdue case below, not on this one.
+        // Read the interval back out of the stored topic schedule rather than naming a span,
+        // so a card showing a plausible-but-different number fails. There is one card per
+        // technique the Problem is tagged with and they were all advanced by the same review,
+        // so several may carry the same wording — the first is enough.
+        val schedule = requireNotNull(profile.reviews.topicSchedule(twoSumTopics().first())) {
+            "the review did not fan out to its techniques"
+        }
+        compose.onAllNodesWithText(
+            "Memory lasts about ${formatIntervalDays(schedule.intervalDays)}",
+            substring = true,
+        ).onFirst().performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("reviewed 1×", substring = true)
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        // Due, and saying so on the card itself. A technique a minute past due *is* simply
+        // due — the badge earns its stronger wording on the overdue case below, so nothing
+        // here may claim to be overdue.
+        assertTrue(
+            "the due badge should be on the card",
+            compose.onAllNodesWithText("Due now").fetchSemanticsNodes().isNotEmpty(),
+        )
         assertEquals(
-            2,
-            compose.onAllNodesWithText("Due now").fetchSemanticsNodes().size,
+            0,
+            compose.onAllNodesWithText("Overdue by", substring = true)
+                .fetchSemanticsNodes()
+                .size,
         )
     }
 
     @Test
-    fun aBadlyOverdueProblemSaysSoRatherThanLookingLikeTheRest() {
-        // What the badge is *for*. A Problem three days late and one a minute late are both
-        // in "Due now", and treating them the same is how a backlog stops being legible.
+    fun aBadlyOverdueTechniqueSaysSoRatherThanLookingLikeTheRest() {
+        // What the badge is *for*. A technique three days late and one a minute late are both
+        // due, and treating them the same is how a backlog stops being legible.
         //
-        // Backdated rather than fast-forwarded, and that direction is forced: the queue rows
+        // Backdated rather than fast-forwarded, and that direction is forced: the queue cards
         // describe due times against `Clock.System.now()` while only the profile's clock is
         // injectable. Moving the profile into the past is the one arrangement where both
         // clocks agree about what happened.
@@ -184,11 +204,17 @@ class AndroidScheduleVisibleTest {
         clock.advanceBy(1.minutes)
         compose.onNodeWithText("Back to queue").performScrollTo().performClick()
 
-        compose.onNode(hasText("Overdue by", substring = true)).assertIsDisplayed()
-        // And it is not *also* claiming to be merely due: only the section header should say
-        // that, so a row cannot carry two contradictory verdicts.
+        // `onAllNodes` rather than `onNode`: one review advances every technique the Problem
+        // is tagged with, so three cards are overdue together. That is the fan-out working,
+        // not an ambiguous match.
+        compose.onAllNodesWithText("Overdue by", substring = true)
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+        // And no card is *also* claiming to be merely due, which would be two contradictory
+        // verdicts on the same schedule.
         assertEquals(
-            1,
+            0,
             compose.onAllNodesWithText("Due now").fetchSemanticsNodes().size,
         )
     }
@@ -250,6 +276,15 @@ class AndroidScheduleVisibleTest {
     private fun openTwoSum() {
         scrollQueueTo(TWO_SUM_TITLE).performClick()
     }
+
+    /**
+     * The techniques Two Sum rehearses, read out of the pack rather than named.
+     *
+     * The pack's `taxonomy.yaml` owns these slugs and has already renamed one, so a literal
+     * here would turn a reviewed content change into a failure of the schedule rendering.
+     */
+    private fun twoSumTopics(): List<String> =
+        profile.catalogue.allProblems().first { it.title == TWO_SUM_TITLE }.topics
 
     private fun solveTwoSum() {
         openTwoSum()

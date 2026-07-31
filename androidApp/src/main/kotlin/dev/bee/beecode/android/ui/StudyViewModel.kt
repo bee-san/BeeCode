@@ -17,6 +17,7 @@ import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.RunnerStatus
 import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
+import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.design.ThemeChoice
 import dev.bee.beecode.design.setThemeChoice
 import dev.bee.beecode.design.themeChoice
@@ -58,6 +59,9 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     private val _achievements = MutableStateFlow<AchievementProjection?>(null)
     val achievements: StateFlow<AchievementProjection?> = _achievements.asStateFlow()
 
+    private val _topicMastery = MutableStateFlow<TopicMasteryProjection?>(null)
+    val topicMastery: StateFlow<TopicMasteryProjection?> = _topicMastery.asStateFlow()
+
     private val _runnerStatus = MutableStateFlow<RunnerStatus?>(null)
     val runnerStatus: StateFlow<RunnerStatus?> = _runnerStatus.asStateFlow()
 
@@ -80,6 +84,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _queue.value = profile.study.queue()
         _statistics.value = profile.statistics()
         _achievements.value = profile.achievements()
+        _topicMastery.value = profile.topicMastery()
         refreshVisibility()
     }
 

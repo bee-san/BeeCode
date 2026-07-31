@@ -12,18 +12,23 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The version 1 to 2 migration: integer intervals widened to fractional.
+ * Migrations, exercised against real databases built at the old shape.
  *
  * Version 2 exists because FSRS-7 schedules in fractional days, and `interval_days`
  * was declared INTEGER. The danger is specific and quiet: SQLite would coerce a
  * ten-minute interval toward zero, so the exact case the new algorithm exists to
- * handle would be the case that silently broke.
+ * handle would be the case that silently broke. Version 4 adds `topic_schedule`,
+ * the card a learner actually studies.
  *
- * These tests build a **real version 1 database** with the original DDL and real rows,
+ * These tests build a **real old database** with the original DDL and real rows,
  * then open it through [BeeCodeDatabase] and check the data survived. Asserting
  * against the migration SQL alone would only prove the statements parse; a learner
  * upgrading BeeCode cares whether their review history is still there and still
  * correct afterwards.
+ *
+ * The old DDL is spelled out in this file rather than generated from [Schema], so a
+ * test cannot be made to pass by editing a shipped migration — which is the mistake
+ * the schema's "never edit an existing migration" rule exists to prevent.
  */
 class SchemaMigrationTest {
 
@@ -130,12 +135,141 @@ class SchemaMigrationTest {
     }
 
     @Test
+    fun aVersionThreeDatabaseGainsTheTopicScheduleAndKeepsItsRows() {
+        withTempFile { path ->
+            createVersionThreeDatabase(path)
+
+            BeeCodeDatabase.open(path).use { database ->
+                assertEquals(Schema.VERSION, database.schemaVersion())
+
+                // Version 4 only appends a table. The learner's existing history is
+                // the thing a migration is most able to quietly damage, so it is
+                // checked even when nothing was supposed to touch it.
+                val schedule = assertNotNull(
+                    ReviewRepository(database, BeeCodeScheduler()).schedule(ProblemId("two-sum")),
+                )
+                assertEquals(7.0, schedule.intervalDays)
+                assertEquals(9L, schedule.version)
+                assertNotNull(
+                    ReviewRepository(database, BeeCodeScheduler()).review(ReviewSessionId("session-1")),
+                )
+
+                assertTrue("topic_schedule" in tableNames(database), tableNames(database).toString())
+                assertTrue("idx_topic_schedule_due" in indexNames(database), indexNames(database).toString())
+            }
+        }
+    }
+
+    @Test
+    fun theTopicIntervalIsFractionalFromTheStart() {
+        withTempFile { path ->
+            createVersionThreeDatabase(path)
+
+            BeeCodeDatabase.open(path).use { database ->
+                // `problem_schedule` shipped this column as INTEGER and needed a whole
+                // rename-copy-drop migration to widen it, because SQLite cannot alter a
+                // declared type. A ten-minute topic interval must survive a round trip
+                // on the first day this table exists, not after a version 5.
+                database.transaction { connection ->
+                    connection.prepareStatement(
+                        """
+                        INSERT INTO topic_schedule (
+                            topic, stability, difficulty, due_at, last_reviewed_at,
+                            interval_days, review_count, lapse_count, version, updated_at
+                        ) VALUES ('dynamic-programming', 2.5, 6.0, 1000600, 1000000, ?, 1, 0, 1, 1000000)
+                        """.trimIndent(),
+                    ).use { statement ->
+                        statement.setDouble(1, 10.0 / 1_440.0)
+                        statement.executeUpdate()
+                    }
+                }
+
+                val stored = database.read { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery(
+                            "SELECT interval_days FROM topic_schedule WHERE topic = 'dynamic-programming'",
+                        ).use { rows ->
+                            assertTrue(rows.next(), "the row must be there to read")
+                            rows.getDouble(1)
+                        }
+                    }
+                }
+                assertEquals(10.0 / 1_440.0, stored)
+            }
+        }
+    }
+
+    @Test
+    fun aFreshDatabaseAndAMigratedOneEndUpTheSameShape() {
+        // The upgrade path and the create-from-empty path both reach version 4, and
+        // it would be easy for them not to agree: a table added only to the last
+        // migration is invisible to anyone reading version 1's DDL. Comparing the
+        // two schemas is what makes "append a migration" actually equivalent to
+        // "declare the table".
+        withTempFile { migratedPath ->
+            createVersionThreeDatabase(migratedPath)
+            val migrated = BeeCodeDatabase.open(migratedPath).use { schemaShape(it) }
+
+            withTempFile { freshPath ->
+                val fresh = BeeCodeDatabase.open(freshPath).use { schemaShape(it) }
+                assertEquals(fresh, migrated)
+            }
+        }
+    }
+
+    @Test
     fun theMigrationListStaysInStepWithTheDeclaredVersion() {
         // Schema's own init already checks these agree. What this adds is that the
         // count is what a reviewer expects to see change: bumping VERSION without
         // appending a migration, or vice versa, fails here with a number to read.
-        assertEquals(3, Schema.VERSION, "bump this deliberately when adding a migration")
+        assertEquals(4, Schema.VERSION, "bump this deliberately when adding a migration")
         assertEquals(Schema.VERSION, Schema.MIGRATIONS.size)
+    }
+
+    private fun tableNames(database: BeeCodeDatabase): Set<String> =
+        namesFromMaster(database, "type = 'table' AND name NOT LIKE 'sqlite_%'")
+
+    private fun indexNames(database: BeeCodeDatabase): Set<String> =
+        namesFromMaster(database, "type = 'index'")
+
+    private fun namesFromMaster(database: BeeCodeDatabase, predicate: String): Set<String> =
+        database.read { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT name FROM sqlite_master WHERE $predicate").use { rows ->
+                    buildSet { while (rows.next()) add(rows.getString(1)) }
+                }
+            }
+        }
+
+    /**
+     * The database's shape, as a comparable set of facts.
+     *
+     * Column names with their *declared* types, plus nullability and primary keys,
+     * rather than the raw `sqlite_master` SQL — two databases can be identical and
+     * still store differently indented DDL text, and this test is about the shape
+     * rather than the formatting. Declared types are the interesting part: the whole
+     * reason version 2 exists is that a column was declared INTEGER.
+     */
+    private fun schemaShape(database: BeeCodeDatabase): Set<String> {
+        val tables = tableNames(database)
+        val columns = database.read { connection ->
+            buildSet {
+                for (table in tables) {
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery("PRAGMA table_info($table)").use { rows ->
+                            while (rows.next()) {
+                                val name = rows.getString("name")
+                                val type = rows.getString("type")
+                                val notNull = rows.getInt("notnull")
+                                val primaryKey = rows.getInt("pk")
+                                add("$table.$name $type notnull=$notNull pk=$primaryKey")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return columns + indexNames(database).map { "index $it" }
     }
 
     private fun withTempFile(block: (String) -> Unit) {
@@ -187,6 +321,29 @@ class SchemaMigrationTest {
         }
     }
 
+    /**
+     * Build a database with version 3's shape, then insert real rows.
+     *
+     * Spelled out here for the reason [createVersionOneDatabase] explains, and
+     * spelled out *in full* rather than assembled from version 1's DDL plus the
+     * later migrations: this is the shape a learner's file is actually in before
+     * version 4 runs, and reading it from [Schema] would make the test agree with
+     * whatever the code currently says instead of with what shipped.
+     */
+    private fun createVersionThreeDatabase(path: String) {
+        DriverManager.getConnection("jdbc:sqlite:$path").use { connection ->
+            connection.autoCommit = false
+            connection.createStatement().use { statement ->
+                for (sql in VERSION_THREE_DDL) {
+                    statement.execute(sql)
+                }
+            }
+            insertVersionOneRows(connection)
+            connection.createStatement().use { it.execute("PRAGMA user_version = 3") }
+            connection.commit()
+        }
+    }
+
     private fun insertVersionOneRows(connection: Connection) {
         connection.prepareStatement(
             """
@@ -224,6 +381,124 @@ class SchemaMigrationTest {
     }
 
     private companion object {
+        /**
+         * Version 3's complete DDL, as an installed client's file actually stands.
+         *
+         * The tables version 2 widened appear here already widened, because a learner
+         * arriving at version 4 has run version 2. What this must *not* contain is
+         * `topic_schedule` — that is the thing version 4 adds, and if it crept in here
+         * the migration test would pass without the migration running.
+         */
+        private val VERSION_THREE_DDL: List<String> = listOf(
+            """
+            CREATE TABLE settings (
+                key         TEXT    NOT NULL PRIMARY KEY,
+                value       TEXT    NOT NULL,
+                updated_at  INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE solution_draft (
+                problem_id           TEXT    NOT NULL PRIMARY KEY,
+                problem_revision_id  TEXT    NOT NULL,
+                source               TEXT    NOT NULL,
+                starter_baseline     TEXT    NOT NULL,
+                version              INTEGER NOT NULL,
+                updated_at           INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE problem_schedule (
+                problem_id        TEXT    NOT NULL PRIMARY KEY,
+                stability         REAL    NOT NULL,
+                difficulty        REAL    NOT NULL,
+                due_at            INTEGER NOT NULL,
+                last_reviewed_at  INTEGER NOT NULL,
+                interval_days     REAL    NOT NULL,
+                review_count      INTEGER NOT NULL,
+                lapse_count       INTEGER NOT NULL,
+                version           INTEGER NOT NULL,
+                updated_at        INTEGER NOT NULL
+            )
+            """,
+            "CREATE INDEX idx_problem_schedule_due ON problem_schedule (due_at)",
+            """
+            CREATE TABLE problem_review (
+                review_session_id      TEXT    NOT NULL PRIMARY KEY,
+                event_id               TEXT    NOT NULL UNIQUE,
+                problem_id             TEXT    NOT NULL,
+                problem_revision_id    TEXT    NOT NULL,
+                execution_run_id       TEXT    NOT NULL,
+                outcome                TEXT    NOT NULL,
+                rating                 TEXT    NOT NULL,
+                aided                  INTEGER NOT NULL,
+                counts_as_solved       INTEGER NOT NULL,
+                finalized_at           INTEGER NOT NULL,
+                device_id              TEXT    NOT NULL,
+                selected_source        TEXT    NOT NULL,
+                local_date             TEXT    NOT NULL,
+                local_hour             INTEGER NOT NULL,
+                streak_zone_id         TEXT    NOT NULL,
+                fsrs_algorithm_id      TEXT    NOT NULL,
+                fsrs_engine_version    TEXT    NOT NULL,
+                fsrs_parameters_hash   TEXT    NOT NULL,
+                fsrs_prev_state_hash   TEXT    NOT NULL,
+                fsrs_prev_stability    REAL,
+                fsrs_prev_difficulty   REAL,
+                fsrs_elapsed_days      REAL    NOT NULL,
+                fsrs_rating_value      INTEGER NOT NULL,
+                fsrs_desired_retention REAL    NOT NULL,
+                fsrs_max_interval_days REAL    NOT NULL,
+                fsrs_next_stability    REAL    NOT NULL,
+                fsrs_next_difficulty   REAL    NOT NULL,
+                fsrs_next_interval     REAL    NOT NULL,
+                fsrs_retrievability    REAL    NOT NULL,
+                fsrs_due_at            INTEGER NOT NULL
+            )
+            """,
+            "CREATE INDEX idx_problem_review_problem ON problem_review (problem_id, finalized_at)",
+            "CREATE INDEX idx_problem_review_finalized ON problem_review (finalized_at)",
+            "CREATE INDEX idx_problem_review_solved_date ON problem_review (counts_as_solved, local_date)",
+            """
+            CREATE TABLE achievement_award (
+                achievement_id  TEXT    NOT NULL PRIMARY KEY,
+                awarded_at      INTEGER NOT NULL,
+                local_date      TEXT    NOT NULL,
+                detail_json     TEXT,
+                updated_at      INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE achievement_progress (
+                achievement_id  TEXT    NOT NULL PRIMARY KEY,
+                progress_json   TEXT    NOT NULL,
+                updated_at      INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE projection_cursor (
+                name             TEXT    NOT NULL PRIMARY KEY,
+                last_finalized_at INTEGER NOT NULL,
+                last_session_id  TEXT    NOT NULL,
+                updated_at       INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE activity_outbox (
+                event_id        TEXT    NOT NULL PRIMARY KEY,
+                problem_id      TEXT    NOT NULL,
+                occurred_at     INTEGER NOT NULL,
+                local_date      TEXT    NOT NULL,
+                counts_as_solved INTEGER NOT NULL,
+                state           TEXT    NOT NULL,
+                attempts        INTEGER NOT NULL,
+                next_attempt_at INTEGER NOT NULL,
+                last_reason     TEXT
+            )
+            """,
+            "CREATE INDEX idx_activity_outbox_ready ON activity_outbox (state, next_attempt_at, occurred_at)",
+        ).map { it.trimIndent() }
+
         /** Version 1's `problem_schedule`, with `interval_days` as INTEGER. */
         private val VERSION_ONE_PROBLEM_SCHEDULE = """
             CREATE TABLE problem_schedule (

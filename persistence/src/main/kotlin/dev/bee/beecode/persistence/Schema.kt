@@ -31,7 +31,7 @@ internal object Schema {
      * existing migration: an installed client has already run it, and changing it
      * would leave the two databases silently different.
      */
-    const val VERSION: Int = 3
+    const val VERSION: Int = 4
 
     /**
      * Migrations, indexed by the version they produce.
@@ -345,6 +345,50 @@ internal object Schema {
             // The batch query's exact shape: pending rows whose backoff has
             // elapsed, oldest first.
             "CREATE INDEX idx_activity_outbox_ready ON activity_outbox (state, next_attempt_at, occurred_at)",
+        ),
+
+        // ---- Version 4: the topic schedule ----------------------------------
+        //
+        // The card the learner actually studies. A learner does not forget
+        // *two-sum*; they forget dynamic programming, so FSRS's memory state
+        // belongs on the technique and the Problem is the exercise that rehearses
+        // it. With the card here, "frequently forgets DP" needs no weakness
+        // heuristic: lapses lower DP's stability, FSRS shortens DP's interval, and
+        // DP comes back sooner.
+        //
+        // Keyed by the topic slug, which is content-derived and therefore stable
+        // across devices without coordination (ADR 0002 property 1). No
+        // autoincrement, for the same reason nothing else here has one.
+        //
+        // A projection, like `problem_schedule`: folded from the append-only review
+        // log crossed with the pack's current topic tags. That is what keeps it out
+        // of the sync payload entirely — it is rebuilt after a merge rather than
+        // merged, so no format version moves.
+        //
+        // Deliberately *not* joined to anything. `problem_review` rows outlive the
+        // Problems they name, and a topic must keep its history when a Problem
+        // leaves the pack — the same reasoning `activity_outbox` above records.
+        listOf(
+            """
+            CREATE TABLE topic_schedule (
+                topic             TEXT    NOT NULL PRIMARY KEY,
+                stability         REAL    NOT NULL,
+                difficulty        REAL    NOT NULL,
+                due_at            INTEGER NOT NULL,
+                last_reviewed_at  INTEGER NOT NULL,
+                -- REAL from the outset. `problem_schedule` declared this INTEGER in
+                -- version 1 and version 2 had to rename-copy-drop the whole table to
+                -- widen it, because SQLite cannot alter a column's declared type.
+                -- FSRS-7 schedules fractional days; there is no reason to repeat that.
+                interval_days     REAL    NOT NULL,
+                review_count      INTEGER NOT NULL,
+                lapse_count       INTEGER NOT NULL,
+                version           INTEGER NOT NULL,
+                updated_at        INTEGER NOT NULL
+            )
+            """,
+            // The topic queue's only query shape: due soonest first.
+            "CREATE INDEX idx_topic_schedule_due ON topic_schedule (due_at)",
         ),
     )
 

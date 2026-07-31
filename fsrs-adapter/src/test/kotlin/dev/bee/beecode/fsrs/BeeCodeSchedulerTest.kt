@@ -10,6 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private val PROBLEM = ProblemId("two-sum")
+private const val TOPIC = "dynamic-programming"
 private val T0 = Instant.parse("2026-07-29T12:00:00Z")
 
 class BeeCodeSchedulerTest {
@@ -289,6 +290,174 @@ class BeeCodeSchedulerTest {
             .onSuccess { error("maximumIntervalDays 0 must be rejected") }
         runCatching { SchedulerPolicy(parameters = DoubleArray(3)) }
             .onSuccess { error("a 3-value parameter set must be rejected") }
+    }
+
+    // ---- Topic cards -----------------------------------------------------
+    //
+    // A topic is scheduled by the same mathematics as a Problem, and these tests
+    // exist to keep it that way. The two paths share a private core precisely so a
+    // rounding rule cannot be fixed in one and missed in the other; if that core is
+    // ever forked, `topicSchedulingIsTheSameMathematicsAsProblemScheduling` is the
+    // test that notices.
+
+    @Test
+    fun topicSchedulingIsTheSameMathematicsAsProblemScheduling() {
+        val ratings = listOf(ReviewRating.GOOD, ReviewRating.AGAIN, ReviewRating.HARD, ReviewRating.EASY)
+
+        var problem = scheduler.schedule(PROBLEM, null, ratings[0], T0).schedule
+        var topic = scheduler.scheduleTopic(TOPIC, null, ratings[0], T0).schedule
+        assertScheduleStatesAgree(problem, topic)
+
+        for ((index, rating) in ratings.drop(1).withIndex()) {
+            val at = T0.plusDays(3.0 * (index + 1))
+            problem = scheduler.schedule(PROBLEM, problem, rating, at).schedule
+            topic = scheduler.scheduleTopic(TOPIC, topic, rating, at).schedule
+            assertScheduleStatesAgree(problem, topic)
+        }
+    }
+
+    @Test
+    fun aFirstTopicReviewCreatesStateWithNoPreviousValues() {
+        val t = scheduler.scheduleTopic(TOPIC, previous = null, rating = ReviewRating.GOOD, reviewedAt = T0)
+
+        assertEquals(TOPIC, t.schedule.topic)
+        assertEquals(1, t.schedule.reviewCount)
+        assertEquals(1L, t.schedule.version)
+        assertNull(t.previousVersion)
+        assertTrue(t.record.isFirstReview)
+        assertEquals(0.0, t.record.retrievability)
+    }
+
+    @Test
+    fun replayingATopicReproducesIncrementalScheduling() {
+        // The guarantee the whole rebuild path rests on: a topic's state can be
+        // recovered from the review log, so it never has to be merged (ADR 0002).
+        val history = listOf(
+            ReplayEntry(ReviewRating.GOOD, T0),
+            ReplayEntry(ReviewRating.AGAIN, T0.plusDays(4.0)),
+            ReplayEntry(ReviewRating.GOOD, T0.plusDays(5.0)),
+            ReplayEntry(ReviewRating.EASY, T0.plusDays(12.0)),
+        )
+
+        var incremental: dev.bee.beecode.domain.TopicSchedule? = null
+        for (entry in history) {
+            incremental = scheduler.scheduleTopic(TOPIC, incremental, entry.rating, entry.reviewedAt).schedule
+        }
+
+        assertEquals(incremental, scheduler.replayTopic(TOPIC, history))
+    }
+
+    @Test
+    fun replayingATopicSortsOutOfOrderHistory() {
+        // Reviews arrive interleaved from several Problems, and after a sync merge
+        // they arrive in whatever order the union produced.
+        val ordered = listOf(
+            ReplayEntry(ReviewRating.GOOD, T0),
+            ReplayEntry(ReviewRating.HARD, T0.plusDays(6.0)),
+            ReplayEntry(ReviewRating.GOOD, T0.plusDays(9.0)),
+        )
+        assertEquals(
+            scheduler.replayTopic(TOPIC, ordered),
+            scheduler.replayTopic(TOPIC, ordered.reversed()),
+        )
+    }
+
+    @Test
+    fun replayingNoTopicHistoryLeavesNoSchedule() {
+        assertNull(scheduler.replayTopic(TOPIC, emptyList()))
+    }
+
+    @Test
+    fun forgettingATopicRepeatedlyShortensItsInterval() {
+        // The product claim in one test: if a learner keeps forgetting dynamic
+        // programming, dynamic programming must come back sooner. Nothing else in
+        // this change has to decide that — FSRS does, once the card is the topic.
+        val remembered = scheduler.replayTopic(
+            TOPIC,
+            (0..4).map { ReplayEntry(ReviewRating.GOOD, T0.plusDays(it * 7.0)) },
+        )!!
+        val forgotten = scheduler.replayTopic(
+            TOPIC,
+            (0..4).map { ReplayEntry(ReviewRating.AGAIN, T0.plusDays(it * 7.0)) },
+        )!!
+
+        assertTrue(
+            forgotten.intervalDays < remembered.intervalDays,
+            "forgotten ${forgotten.intervalDays} < remembered ${remembered.intervalDays}",
+        )
+        assertTrue(forgotten.dueAt < remembered.dueAt, "a forgotten topic must fall due sooner")
+        assertEquals(5, forgotten.lapseCount)
+        assertEquals(0, remembered.lapseCount)
+    }
+
+    @Test
+    fun aBurstOfTopicReviewsInOneSittingBarelyMovesStability() {
+        // Five `arrays` Problems in one sitting all advance the `arrays` card with
+        // elapsed ~0. FSRS's own gain term scales with (1 - retrievability), and
+        // retrievability is ~1 at zero elapsed, so cramming cannot inflate a topic.
+        // This is why fanning one review out to every tag needs no extra rule.
+        val single = scheduler.scheduleTopic(TOPIC, null, ReviewRating.GOOD, T0).schedule
+        var burst = single
+        repeat(4) { burst = scheduler.scheduleTopic(TOPIC, burst, ReviewRating.GOOD, T0).schedule }
+
+        val spaced = scheduler.replayTopic(
+            TOPIC,
+            (0..4).map { ReplayEntry(ReviewRating.GOOD, T0.plusDays(it * 10.0)) },
+        )!!
+
+        assertTrue(
+            burst.stability < spaced.stability,
+            "burst ${burst.stability} < spaced ${spaced.stability}",
+        )
+        // The review count still rises: the reviews happened, they just did not buy
+        // much memory. Hiding them would misreport the learner's own history.
+        assertEquals(5, burst.reviewCount)
+    }
+
+    @Test
+    fun aTopicCarriesItsOwnElapsedTimeIndependently() {
+        // Two topics reviewed on different days must not borrow each other's
+        // elapsed time, which is what makes per-topic intervals meaningful.
+        val early = scheduler.scheduleTopic("arrays", null, ReviewRating.GOOD, T0).schedule
+        val late = scheduler.scheduleTopic("graphs", null, ReviewRating.GOOD, T0.plusDays(30.0)).schedule
+
+        val earlyNext = scheduler.scheduleTopic("arrays", early, ReviewRating.GOOD, T0.plusDays(31.0))
+        val lateNext = scheduler.scheduleTopic("graphs", late, ReviewRating.GOOD, T0.plusDays(31.0))
+
+        assertEquals(31.0, earlyNext.record.elapsedDays, 1e-9)
+        assertEquals(1.0, lateNext.record.elapsedDays, 1e-9)
+    }
+
+    @Test
+    fun theDesiredRetentionIsTheOneThePolicyHolds() {
+        // Read by the mastery projection as its fallback prior. It must be the same
+        // number the scheduler actually schedules toward, or the displayed figure
+        // would disagree with the mathematics that produced the intervals.
+        assertEquals(SchedulerPolicy.DEFAULT_DESIRED_RETENTION, scheduler.desiredRetention)
+        assertEquals(
+            0.85,
+            BeeCodeScheduler(SchedulerPolicy(desiredRetention = 0.85)).desiredRetention,
+        )
+    }
+
+    /**
+     * Assert a Problem card and a topic card hold identical FSRS state.
+     *
+     * Compares the memory numbers and the schedule, not the key — the keys differ by
+     * design and everything else must not.
+     */
+    private fun assertScheduleStatesAgree(
+        problem: dev.bee.beecode.domain.ProblemSchedule,
+        topic: dev.bee.beecode.domain.TopicSchedule,
+    ) {
+        assertEquals(problem.stability, topic.stability)
+        assertEquals(problem.difficulty, topic.difficulty)
+        assertEquals(problem.intervalDays, topic.intervalDays)
+        assertEquals(problem.dueAt, topic.dueAt)
+        assertEquals(problem.lastReviewedAt, topic.lastReviewedAt)
+        assertEquals(problem.reviewCount, topic.reviewCount)
+        assertEquals(problem.lapseCount, topic.lapseCount)
+        assertEquals(problem.version, topic.version)
     }
 }
 

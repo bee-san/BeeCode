@@ -3,6 +3,7 @@ package dev.bee.beecode.android
 // assertDoesNotExist is a member of SemanticsNodeInteraction here rather than a
 // top-level extension, so it needs no import -- unlike assertIsDisplayed.
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -21,7 +22,12 @@ import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
+import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.StatisticsPeriod
+import dev.bee.beecode.app.TopicMastery
+import dev.bee.beecode.domain.ProblemId
+import dev.bee.beecode.domain.ReviewRating
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -82,6 +88,17 @@ class BeeCodeUiRobolectricTest {
     private lateinit var profile: BeeCodeProfile
     private lateinit var runner: ScriptedPythonRunner
 
+    /**
+     * The profile's clock, which these tests move by hand.
+     *
+     * Needed because topic scheduling is the only thing here that cannot be observed
+     * without waiting: FSRS hands back an interval measured in days, so a topic card
+     * only reaches the queue once the test has arrived on the far side of it. Started at
+     * the real *now* rather than a fixed instant so every pre-existing test in this class
+     * behaves exactly as it did before the clock became injectable.
+     */
+    private lateinit var clock: MutableClock
+
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Application>()
@@ -97,9 +114,10 @@ class BeeCodeUiRobolectricTest {
             .use { ProblemCatalogue.fromPackJson(it.readText()) }
 
         runner = ScriptedPythonRunner()
+        clock = MutableClock(kotlinx.datetime.Clock.System.now())
         // In-memory: every test gets a clean profile with no file to clean up, and the
         // schema is created by the same migrations the shipped app runs.
-        profile = BeeCodeProfile.inMemory(catalogue = catalogue, runner = runner)
+        profile = BeeCodeProfile.inMemory(catalogue = catalogue, runner = runner, clock = clock)
     }
 
     @After
@@ -348,6 +366,98 @@ class BeeCodeUiRobolectricTest {
     }
 
     @Test
+    fun theQueueHeadlinesTheTechniqueAndNamesTheProblemThatRehearsesIt() {
+        // The point of topic-level scheduling, asserted where the learner meets it: what
+        // fell due is a *technique*, and Two Sum is the exercise offered to rehearse it. A
+        // queue that still headlined the Problem would pass every layer below this one.
+        //
+        // The technique is read out of the pack rather than named, because `taxonomy.yaml`
+        // owns the vocabulary and has already renamed a slug — a literal here would make a
+        // reviewed content change look like a UI regression.
+        val twoSum = ProblemId("two-sum")
+        val topic = checkNotNull(profile.catalogue.problem(twoSum)) { "two-sum left the pack" }
+            .topics
+            .first()
+        solve(twoSum)
+        arriveWhenDue(topic)
+        launch()
+
+        compose.onNodeWithText("Techniques to review").performScrollTo().assertIsDisplayed()
+
+        // Asserted as one card rather than three loose text nodes. Two Sum carries several
+        // tags, so a review fans out to several cards and every line below appears more
+        // than once on screen — matching the lines separately would pass even if the
+        // interval and the Problem were rendered against different techniques.
+        //
+        // The subtitle expectation spans the two string literals the UI concatenates, so
+        // a future split into two Text nodes fails here instead of quietly passing. The
+        // member count comes from the catalogue: a literal "1 of 10" would turn authoring
+        // another Problem in this technique into a UI-test failure, which teaches the
+        // wrong lesson.
+        val members = profile.catalogue.allProblems().count { topic in it.topics }
+        compose.onNode(
+            hasClickAction() and
+                hasText(TopicMastery.displayName(topic)) and
+                hasText("Memory lasts about", substring = true) and
+                hasText("Two Sum · 1 of $members practised", substring = true),
+        ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun aBarelyPractisedTechniqueSaysSoRatherThanClaimingZeroPercent() {
+        // The one number in this feature that could turn into a lie. One review is not
+        // evidence of a recall rate, so the shared projection returns null — and the UI
+        // has to render that as words. "0% recall" after a *successful* solve would be
+        // false, and it is the reading a learner would act on.
+        solve(ProblemId("two-sum"))
+        launch()
+
+        compose.onNodeWithText("Progress").performClick()
+        // Under Coverage, not Overview: Overview answers "what did I do lately" while
+        // recall and interval are standing facts, and coverage has to be read beside
+        // recall. Matched on the full heading because the coverage axis selector has a
+        // button labelled just "Techniques", so the bare word is ambiguous here.
+        compose.onNodeWithText("Coverage").performClick()
+        compose.onNodeWithText("Techniques you have practised")
+            .performScrollTo()
+            .assertIsDisplayed()
+        // The evidence base, stated before the numbers: recall of what has been solved,
+        // not raw ability. Asserted across the soft wrap.
+        compose.onNode(hasText("recall Problems you have already solved", substring = true))
+            .performScrollTo()
+            .assertIsDisplayed()
+        // Every practised technique says it in words. Counted rather than taken as the
+        // first match, because Two Sum carries several tags: asserting one node would
+        // still pass if another had rendered a fabricated zero.
+        val practised = profile.topicMastery().practised
+        assert(practised.isNotEmpty()) { "solving Two Sum must have practised at least one topic" }
+        assertEquals(
+            "every under-evidenced technique must say so in words",
+            practised.size,
+            compose.onAllNodesWithText("Not enough practice yet").fetchSemanticsNodes().size,
+        )
+        // Matched on "% recall" rather than "recall": the explanatory line above the
+        // numbers legitimately contains the word, and matching that would make this
+        // unprovable either way.
+        assert(compose.onAllNodesWithText("% recall", substring = true).fetchSemanticsNodes().isEmpty()) {
+            "an under-evidenced technique must never be reported as a percentage"
+        }
+
+        // And the counts beside it are real, spanning the boundary between the coverage
+        // clause and the review clause so the two cannot silently become separate lines.
+        // Read off the projection rather than counted here, so this asserts the UI renders
+        // what the shared fold computed rather than re-deriving it and agreeing with
+        // itself.
+        practised.forEach { ability ->
+            compose.onAllNodesWithText(
+                "${ability.solvedMemberProblems} of ${ability.memberProblems} solved · " +
+                    "${ability.reviews} review",
+                substring = true,
+            ).onFirst().performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun settingsStatesTheAndroidRunnerLimitationPlainly() {
         // The plan requires that same-process execution is never called a sandbox.
         // This asserts the UI actually says so, rather than only a code comment.
@@ -503,6 +613,43 @@ class BeeCodeUiRobolectricTest {
         assert(profile.settings.dailyReviewLimit() == 10) {
             "expected a stored daily limit of 10, got ${profile.settings.dailyReviewLimit()}"
         }
+    }
+
+    /**
+     * Solve a Problem through the real study service and finalize it.
+     *
+     * Below the UI on purpose. Driving the editor and the rating buttons is already
+     * covered by [theFullAnswerRunFinalizeJourneyWorksThroughTheUi]; what the topic tests
+     * need is a review in the log so the *queue* has something to render, and doing that
+     * through the service keeps them asserting the composed tree rather than re-testing
+     * the study loop.
+     */
+    private fun solve(problemId: ProblemId, rating: ReviewRating = ReviewRating.GOOD) =
+        runBlocking {
+            checkNotNull(profile.study.open(problemId)) { "$problemId is not in the pack" }
+            val attempt = profile.study.run(problemId, ScriptedPythonRunner.PASS_MARKER)
+            val completed = attempt as RunOutcome.Completed
+            profile.study.finalize(problemId, completed.run.id, rating)
+            profile.study.abandon(problemId)
+        }
+
+    /**
+     * Move the clock to just past when [topic]'s card comes round.
+     *
+     * Read from the schedule rather than added as a fixed number of days, because the
+     * interval is FSRS's to choose: hard-coding "one day later" would make this test fail
+     * the next time the parameters move, for a reason that has nothing to do with the UI.
+     */
+    private fun arriveWhenDue(topic: String) {
+        val schedule = checkNotNull(profile.reviews.topicSchedule(topic)) {
+            "no card for $topic — the review did not fan out to its topics"
+        }
+        clock.current = schedule.dueAt + kotlin.time.Duration.parse("1m")
+    }
+
+    /** A clock the test moves by hand; see [clock]. */
+    private class MutableClock(var current: kotlinx.datetime.Instant) : kotlinx.datetime.Clock {
+        override fun now(): kotlinx.datetime.Instant = current
     }
 
     private companion object {

@@ -32,6 +32,15 @@ class BeeCodeProfile private constructor(
     val drafts: DraftRepository,
     val settings: SettingsRepository,
     val activityOutbox: ActivityOutboxRepository,
+    /**
+     * The mathematics this profile schedules with.
+     *
+     * Kept private on purpose. A public accessor would let a client build a second
+     * scheduler from a different policy and run two mathematics in one session, which
+     * is exactly what reading the policy once at open (see [Companion.build]) exists
+     * to prevent.
+     */
+    private val scheduler: BeeCodeScheduler,
     private val clock: Clock,
 ) : Closeable {
 
@@ -41,13 +50,45 @@ class BeeCodeProfile private constructor(
         val zone = settings.streakZone()
         return Statistics.compute(
             reviews = allReviews(),
-            schedules = reviews.scheduledProblemIds().mapNotNull { id ->
-                reviews.schedule(id)?.let { id to it }
-            }.toMap(),
+            schedules = reviews.schedules(),
             problems = catalogue.allProblems(),
             today = now.dateIn(zone),
             now = now,
         )
+    }
+
+    /**
+     * The learner's remembering of each technique.
+     *
+     * The topic-level answer to "how am I doing", and the counterpart to the
+     * topic-level queue: what falls due is a technique, so what is reported is a
+     * technique.
+     */
+    fun topicMastery(): TopicMasteryProjection = TopicMastery.compute(
+        reviews = allReviews(),
+        topicSchedules = reviews.topicSchedules(),
+        problems = catalogue.allProblems(),
+        now = clock.now(),
+        // The scheduler's own retention target, used as the shrinkage prior when the
+        // learner has no history at all. A stated number rather than an invented one.
+        desiredRetention = scheduler.desiredRetention,
+    )
+
+    /**
+     * Recompute every topic schedule from the review log and the pack's current tags.
+     *
+     * Needed after a restore or a sync merge, and after a pack update that retags
+     * Problems. Cheap to run and safe to repeat: it is a fold over the log, so it has
+     * no state of its own to get out of step.
+     *
+     * @return how many topics have a schedule afterwards.
+     */
+    fun rebuildTopicSchedules(): Int {
+        val rebuilt = reviews.rebuildTopicSchedulesFromHistory { id ->
+            catalogue.problem(id)?.topics ?: emptyList()
+        }
+        reviews.replaceTopicSchedules(rebuilt)
+        return rebuilt.size
     }
 
     /**
@@ -105,6 +146,34 @@ class BeeCodeProfile private constructor(
         }.keys.toList()
     }
 
+    /**
+     * Verify that replaying the log through current tags reproduces the stored topic
+     * schedules.
+     *
+     * The topic counterpart of [verifyScheduleIntegrity], and the check that keeps the
+     * topic projection trustworthy: if incremental fan-out and a full replay ever
+     * disagree, a learner's due dates are being computed by two different rules.
+     *
+     * A topic whose Problems have been retagged since will legitimately differ — a
+     * projection over mutable metadata cannot claim otherwise — so this is a
+     * diagnostic to read alongside [rebuildTopicSchedules] rather than an alarm.
+     *
+     * @return the topics whose stored state does not match a fresh replay.
+     */
+    fun verifyTopicScheduleIntegrity(): List<String> {
+        val rebuilt = reviews.rebuildTopicSchedulesFromHistory { id ->
+            catalogue.problem(id)?.topics ?: emptyList()
+        }
+        val stored = reviews.topicSchedules()
+        return rebuilt.filter { (topic, expected) ->
+            val actual = stored[topic]
+            actual == null ||
+                actual.stability != expected.stability ||
+                actual.difficulty != expected.difficulty ||
+                actual.dueAt != expected.dueAt
+        }.keys.toList().sorted()
+    }
+
     override fun close() = database.close()
 
     companion object {
@@ -152,7 +221,7 @@ class BeeCodeProfile private constructor(
             val reviews = ReviewRepository(database, scheduler)
             val drafts = DraftRepository(database)
             val activityOutbox = ActivityOutboxRepository(database)
-            return BeeCodeProfile(
+            val profile = BeeCodeProfile(
                 database = database,
                 catalogue = catalogue,
                 study = StudyService(
@@ -168,8 +237,18 @@ class BeeCodeProfile private constructor(
                 drafts = drafts,
                 settings = settings,
                 activityOutbox = activityOutbox,
+                scheduler = scheduler,
                 clock = clock,
             )
+
+            // Version 4 adds topic_schedule as an empty projection. Existing
+            // profiles already have review history, so leaving it empty would make
+            // every due review disappear from the topic-first queue after upgrade.
+            // Restore performs the same replay after a sync merge.
+            if (reviews.reviewCount() > 0 && reviews.topicSchedules().isEmpty()) {
+                profile.rebuildTopicSchedules()
+            }
+            return profile
         }
     }
 }

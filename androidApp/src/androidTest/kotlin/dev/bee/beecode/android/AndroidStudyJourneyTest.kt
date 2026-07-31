@@ -100,15 +100,9 @@ class AndroidStudyJourneyTest {
     @Test
     fun theFailThenFixThenFinalizeThenRestartJourneyWorksOnAndroid() = runBlocking {
         val problemId = ProblemId("two-sum")
-        val correct = """
-            def two_sum(nums, target):
-                seen = {}
-                for index, value in enumerate(nums):
-                    if target - value in seen:
-                        return [seen[target - value], index]
-                    seen[value] = index
-                return []
-        """.trimIndent()
+        // Named locally because this test's subject is that *this exact source* comes
+        // back after a restart, which reads better than a constant at the assertion.
+        val correct = TWO_SUM_SOLUTION
 
         val dueAt: kotlinx.datetime.Instant
         openProfile().use { profile ->
@@ -289,9 +283,89 @@ class AndroidStudyJourneyTest {
         }
     }
 
+    @Test
+    fun oneReviewSchedulesEveryTechniqueItRehearsesOnAndroid() = runBlocking {
+        // The topic card is the SRS unit (ADR 0005), and it lives in a table added at
+        // schema v4 and written inside the review's own transaction. Both of those are
+        // claims about SQLite, so they belong here rather than only in a JVM test: this
+        // is the one place the migration runs on real Android storage.
+        //
+        // Instrumented UI tests are skipped on emulators that refuse injected touch
+        // input, so nothing that drives the screen can be relied on in CI. This test
+        // takes the headless path deliberately, which is why it runs at all.
+        val problemId = ProblemId("two-sum")
+        val topics = requireNotNull(catalogue.problem(problemId)).topics
+        assertTrue("two-sum must be tagged to rehearse anything", topics.isNotEmpty())
+
+        openProfile().use { profile ->
+            // `run` needs an open session — without it the outcome is `NoSession` and no
+            // review is ever recorded, so the fan-out assertions below would be testing
+            // an empty log.
+            requireNotNull(profile.study.open(problemId))
+            val passed = profile.study.run(problemId, TWO_SUM_SOLUTION) as RunOutcome.Completed
+            assertEquals(
+                "expected a pass, output was: ${passed.run.output}",
+                ExecutionOutcome.PASSED,
+                passed.run.outcome,
+            )
+            // Asserted rather than discarded: a rejected finalize records no review, and
+            // "no topic schedules" would then be correct behaviour for the wrong reason.
+            assertTrue(
+                "the review was not finalized",
+                profile.study.finalize(
+                    problemId, passed.run.id, ReviewRating.GOOD,
+                ) is FinalizeResult.Finalized,
+            )
+
+            // Every tagged technique, not just the first: fanning out to one of them
+            // would be the silent half-failure this design is most exposed to.
+            for (topic in topics) {
+                val schedule = profile.reviews.topicSchedule(topic)
+                assertNotNull("no schedule for '$topic' after reviewing $problemId", schedule)
+                assertEquals("$topic must have one review", 1, schedule!!.reviewCount)
+                assertTrue("$topic must have a real interval", schedule.intervalDays > 0.0)
+            }
+        }
+
+        // And it survives a relaunch, which is the part a projection held only in memory
+        // would pass everything else and still fail.
+        openProfile().use { profile ->
+            for (topic in topics) {
+                assertNotNull(
+                    "the schedule for '$topic' did not survive a restart",
+                    profile.reviews.topicSchedule(topic),
+                )
+            }
+            // Rebuilding from the log must agree with what the review wrote incrementally.
+            // If it does not, the topic card is not the projection ADR 0005 says it is,
+            // and a synced device would restore a profile that studies differently.
+            // Compared through the profile's own check rather than by map equality,
+            // because `version` and `updatedAt` are storage bookkeeping and a rebuild is
+            // entitled to differ on them — the memory state is what must match.
+            assertEquals(
+                "rebuilding from history must reproduce the incremental state",
+                emptyList<String>(),
+                profile.verifyTopicScheduleIntegrity(),
+            )
+        }
+    }
+
     private fun openProfile(): BeeCodeProfile = BeeCodeProfile.open(
         databasePath = databaseFile.absolutePath,
         catalogue = catalogue,
         runner = runner,
     )
+
+    private companion object {
+        /** A passing Two Sum, for tests whose subject is what happens after the pass. */
+        val TWO_SUM_SOLUTION = """
+            def two_sum(nums, target):
+                seen = {}
+                for index, value in enumerate(nums):
+                    if target - value in seen:
+                        return [seen[target - value], index]
+                    seen[value] = index
+                return []
+        """.trimIndent()
+    }
 }

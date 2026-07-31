@@ -84,7 +84,9 @@ import dev.bee.beecode.app.ActivityBucket
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.IntervalRange
 import dev.bee.beecode.app.LeaderboardService
-import dev.bee.beecode.app.DueProblem
+import dev.bee.beecode.app.DueTopic
+import dev.bee.beecode.app.TopicAbility
+import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.app.FinalizeResult
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.RunnerStatus
@@ -332,10 +334,12 @@ private fun QueuePane(
             }
         }
 
-        if (queue.due.isNotEmpty()) {
-            item { SectionHeader("Due now", queue.due.size) }
-            items(queue.due, key = { it.problem.id.value }) { due ->
-                DueProblemRow(due, now) { onOpen(due.problem.id) }
+        if (queue.dueTopics.isNotEmpty()) {
+            // "Techniques", not "Problems": what fell due is dynamic programming, and
+            // the Problem underneath is the exercise that rehearses it.
+            item { SectionHeader("Techniques to review", queue.dueTopics.size) }
+            items(queue.dueTopics, key = { it.topic }) { due ->
+                DueTopicRow(due, now) { onOpen(due.problem.id) }
             }
         }
         if (queue.new.isNotEmpty()) {
@@ -387,22 +391,62 @@ private fun SectionHeader(title: String, count: Int) {
     }
 }
 
+/**
+ * A technique that has come round, and the Problem chosen to rehearse it.
+ *
+ * The technique is the headline and the Problem the subtitle, which is the point of the
+ * change: the learner is told "practise dynamic programming" and then given something
+ * to practise it with, rather than handed a Problem and left to infer why. Mirrors
+ * Android's `DueTopicCard` — the same words in both clients, because a learner using
+ * both should not have to learn two vocabularies.
+ *
+ * The difficulty badge sits on the *Problem's* line rather than beside the technique
+ * name, where it first went. A technique has no difficulty, and a badge next to
+ * "Arrays" reads as though it did — a screenshot caught that, not a review.
+ *
+ * The due badge, interval, and review count are carried over from the per-Problem row
+ * this replaced. Every one of those numbers was computed on every review and rendered
+ * nowhere, which made FSRS look absent from outside; putting the card on the technique
+ * must not undo that. They now describe the *technique's* schedule.
+ */
 @Composable
-private fun DueProblemRow(due: DueProblem, now: Instant, onClick: () -> Unit) {
-    ProblemRow(
-        problem = due.problem,
-        subtitle = buildString {
-            append("Reviewed ${due.schedule.reviewCount}×")
-            append(" · ${formatIntervalDays(due.schedule.intervalDays)} interval")
-            if (due.schedule.lapseCount > 0) append(" · ${due.schedule.lapseCount} lapses")
-        },
-        // The scheduler's actual decision about *this* Problem, on the row where the
-        // learner chooses what to work on. Without it every due Problem looked
-        // identical, so the ordering the queue had already computed — soonest due
-        // first — was information the UI threw away.
-        due = describeDue(due.schedule.dueAt, now),
-        onClick = onClick,
-    )
+private fun DueTopicRow(due: DueTopic, now: Instant, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    due.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                DueBadge(describeDue(due.schedule.dueAt, now))
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                buildString {
+                    append("Memory lasts about ${formatIntervalDays(due.schedule.intervalDays)}")
+                    append(" · reviewed ${due.schedule.reviewCount}×")
+                    if (due.schedule.lapseCount > 0) {
+                        append(" · ${due.schedule.lapseCount} forgotten")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Practise with ${due.problem.title} · " +
+                        "${due.attemptedMemberProblems} of ${due.memberProblems} practised",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                DifficultyBadge(due.problem.difficulty)
+            }
+        }
+    }
 }
 
 @Composable
@@ -1007,6 +1051,7 @@ private fun ProgressPane(
 ) {
     val stats = remember(refreshToken) { profile.statistics() }
     val achievements = remember(refreshToken) { profile.achievements() }
+    val topicMastery = remember(refreshToken) { profile.topicMastery() }
     var selectedTab by remember { mutableStateOf(ProgressTab.OVERVIEW) }
     var selectedPeriod by remember { mutableStateOf(StatisticsPeriod.THIRTY_DAYS) }
     val tabs = if (showMotivation) ProgressTab.entries else ProgressTab.entries.dropLast(1)
@@ -1045,7 +1090,7 @@ private fun ProgressPane(
                 onPeriodSelected = { selectedPeriod = it },
                 showMotivation = showMotivation,
             )
-            ProgressTab.COVERAGE -> DesktopCoverage(stats)
+            ProgressTab.COVERAGE -> DesktopCoverage(stats, topicMastery)
             ProgressTab.ACHIEVEMENTS -> achievements.states.forEach { AchievementRow(it) }
         }
     }
@@ -1079,6 +1124,48 @@ private fun DesktopOverview(
         DesktopCatalogueProgress(stats, showMotivation)
         DesktopScheduleCard(profile, stats)
         DesktopIntervalDistribution(stats)
+    }
+}
+
+/**
+ * One technique's figures. Mirrors Android's `TopicAbilityRow`.
+ *
+ * Two numbers side by side and never blended: how long the memory lasts, and how much
+ * of the technique has been practised. A null recall rate reads "not enough practice
+ * yet" rather than 0% — the difference between "weak at this" and "has barely done
+ * this" is the one the learner most needs, and a fake zero destroys it.
+ */
+@Composable
+private fun TopicAbilityRow(ability: TopicAbility) {
+    Card {
+        Column(Modifier.padding(14.dp).fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    ability.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    ability.recallRate?.let { "${(it * 100).roundToInt()}% recall" }
+                        ?: "Not enough practice yet",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                buildString {
+                    ability.intervalDays?.let {
+                        append("Memory lasts about ${formatIntervalDays(it)} · ")
+                    }
+                    append("${ability.solvedMemberProblems} of ${ability.memberProblems} solved")
+                    append(" · ${ability.reviews} ${if (ability.reviews == 1) "review" else "reviews"}")
+                    if (ability.lapses > 0) append(", ${ability.lapses} forgotten")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -1317,7 +1404,7 @@ private fun DesktopIntervalDistribution(stats: StudyStatistics) {
 }
 
 @Composable
-private fun DesktopCoverage(stats: StudyStatistics) {
+private fun DesktopCoverage(stats: StudyStatistics, topicMastery: TopicMasteryProjection) {
     var axis by remember { mutableStateOf(TopicAxis.DATA_STRUCTURES) }
     val topics = when (axis) {
         TopicAxis.DATA_STRUCTURES -> stats.dataStructureProgress
@@ -1326,6 +1413,27 @@ private fun DesktopCoverage(stats: StudyStatistics) {
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         DifficultyBreakdown(stats)
+        // Beside coverage rather than in Overview, and for the same reason as on Android:
+        // Overview answers "what did I do lately", while recall and interval are standing
+        // facts, and coverage has to be read next to recall — no single number separates
+        // "weak at DP" from "hasn't done DP".
+        topicMastery.practised.takeIf { it.isNotEmpty() }?.let { practised ->
+            Text(
+                "Techniques you have practised",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            // The evidence base, stated above the numbers rather than in a footnote.
+            // What is measured is recall of Problems already solved; a learner who
+            // reads these as raw problem-solving ability will trust them for a
+            // decision they cannot support.
+            Text(
+                "How well you recall Problems you have already solved in each technique.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            practised.forEach { TopicAbilityRow(it) }
+        }
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             TopicAxis.entries.forEachIndexed { index, candidate ->
                 SegmentedButton(

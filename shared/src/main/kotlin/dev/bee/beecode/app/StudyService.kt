@@ -12,6 +12,7 @@ import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.ReviewRatingPolicy
 import dev.bee.beecode.domain.ReviewSession
 import dev.bee.beecode.domain.SolutionDraft
+import dev.bee.beecode.domain.TopicSchedule
 import dev.bee.beecode.persistence.DraftRepository
 import dev.bee.beecode.persistence.FinalizeOutcome
 import dev.bee.beecode.persistence.ReviewRepository
@@ -53,28 +54,87 @@ class StudyService(
     /**
      * The queue of what to study next.
      *
-     * Due Problems come first, soonest first, then Problems never attempted. They
-     * are separate lists rather than one merged queue so a large backlog does not
+     * Reviews are keyed by *topic*, not by Problem. A learner does not forget
+     * two-sum; they forget dynamic programming, so what falls due is the technique
+     * and the Problem is the exercise that rehearses it. Due order is FSRS's own
+     * order, which is the whole reason the card sits on the topic: a topic the
+     * learner keeps forgetting has low stability, so it gets a short interval and
+     * arrives more often without any weakness score in front of it.
+     *
+     * New Problems stay a separate list, as they were: a large backlog must not
      * block starting something new, and a learner who wants only reviews is not
-     * forced into new material.
+     * forced into fresh material.
+     *
+     * Two indexed reads plus two whole-table reads of tables that hold one row per
+     * reviewed Problem or topic. This is on the study path, so it must stay cheap —
+     * it is deliberately not as expensive as [BeeCodeProfile.statistics].
      */
     fun queue(limit: Int = DEFAULT_QUEUE_LIMIT): StudyQueue {
         val now = clock.now()
         val dailyLimit = settings.dailyReviewLimit()
         val effectiveLimit = dailyLimit?.coerceAtMost(limit) ?: limit
 
-        val dueSchedules = reviews.dueSchedules(now, effectiveLimit)
-        val due = dueSchedules.mapNotNull { schedule ->
-            catalogue.problem(schedule.problemId)?.let { DueProblem(it, schedule) }
+        val schedules = reviews.schedules()
+        // Inverted from Problems to topics rather than read from a topic index,
+        // because tags live on the Problem and the pack is the authority on current
+        // membership — a topic row whose members have all been retagged away must
+        // find no candidates rather than a stale one.
+        val membersByTopic = buildMap<String, MutableList<ProblemDefinition>> {
+            for (problem in catalogue.allProblems()) {
+                for (topic in problem.topics.distinct()) {
+                    getOrPut(topic) { mutableListOf() } += problem
+                }
+            }
         }
 
-        val attempted = reviews.scheduledProblemIds()
+        val dueTopics = reviews.dueTopicSchedules(now, effectiveLimit).mapNotNull { schedule ->
+            val members = membersByTopic[schedule.topic].orEmpty()
+            val attemptedMembers = members.filter { it.id in schedules }
+            // A topic with nothing attempted is not schedulable: there is no Problem
+            // the learner has solved before, so there is nothing to *review*. Its
+            // members are offered as new work instead.
+            val problem = chooseMember(attemptedMembers, schedules) ?: return@mapNotNull null
+            DueTopic(
+                topic = schedule.topic,
+                displayName = TopicMastery.displayName(schedule.topic),
+                schedule = schedule,
+                problem = problem,
+                memberProblems = members.size,
+                attemptedMemberProblems = attemptedMembers.size,
+            )
+        }
+
         val fresh = catalogue.allProblems()
-            .filter { it.id !in attempted }
+            .filter { it.id !in schedules }
             .sortedWith(compareBy({ it.difficulty.ordinal }, { it.id.value }))
 
-        return StudyQueue(due = due, new = fresh, dailyLimit = dailyLimit)
+        return StudyQueue(dueTopics = dueTopics, new = fresh, dailyLimit = dailyLimit)
     }
+
+    /**
+     * Which member Problem to practise for a due topic.
+     *
+     * This is what delivers "a DP problem, not specifically one problem", and it is
+     * where the retained per-Problem schedules earn their keep. Least recently
+     * practised first, so the choice rotates on its own: practising a member updates
+     * its `lastReviewedAt`, which puts it last next time.
+     *
+     * Then most-often-forgotten, then least stable, then by id. The tail of that
+     * comparator is about determinism as much as pedagogy — two members with
+     * identical history must not depend on map iteration order, or the same learner
+     * would see a different Problem on each refresh with nothing having changed.
+     */
+    private fun chooseMember(
+        attempted: List<ProblemDefinition>,
+        schedules: Map<ProblemId, ProblemSchedule>,
+    ): ProblemDefinition? = attempted.minWithOrNull(
+        compareBy(
+            { schedules.getValue(it.id).lastReviewedAt },
+            { -schedules.getValue(it.id).lapseCount },
+            { schedules.getValue(it.id).stability },
+            { it.id.value },
+        ),
+    )
 
     /** Everything the UI needs to show a Problem, including the learner's draft. */
     fun open(problemId: ProblemId): OpenProblem? {
@@ -222,6 +282,10 @@ class StudyService(
             deviceId = deviceId,
             finalizedAtInstant = now,
             streakZone = settings.streakZone(),
+            // The Problem's *current* tags. Read here rather than from the session,
+            // because a session opened before a pack update would rehearse the topics
+            // the Problem used to have.
+            topics = catalogue.problem(problemId)?.topics ?: emptyList(),
         )
 
         // The session is done either way, including when it was already finalized:
@@ -313,18 +377,33 @@ class StudyService(
 
 /** What to study next. */
 data class StudyQueue(
-    val due: List<DueProblem>,
+    /** Techniques due for review, in FSRS due order. */
+    val dueTopics: List<DueTopic>,
     val new: List<ProblemDefinition>,
     val dailyLimit: Int?,
 ) {
-    val isEmpty: Boolean get() = due.isEmpty() && new.isEmpty()
+    val isEmpty: Boolean get() = dueTopics.isEmpty() && new.isEmpty()
 
-    val totalAvailable: Int get() = due.size + new.size
+    val totalAvailable: Int get() = dueTopics.size + new.size
 }
 
-data class DueProblem(
+/**
+ * A technique that is due, and the Problem to rehearse it with.
+ *
+ * [problem] rotates between the topic's members across reviews rather than being
+ * fixed, which is the difference between "review DP" and "review this one DP
+ * Problem again". [memberProblems] and [attemptedMemberProblems] are carried so a
+ * client can say "3 of 10 practised" without a second query — and so a thin topic
+ * reads as thin instead of quietly repeating its single member.
+ */
+data class DueTopic(
+    val topic: String,
+    /** Humanised from the slug, e.g. `dynamic-programming` → "Dynamic programming". */
+    val displayName: String,
+    val schedule: TopicSchedule,
     val problem: ProblemDefinition,
-    val schedule: ProblemSchedule,
+    val memberProblems: Int,
+    val attemptedMemberProblems: Int,
 )
 
 /** Everything needed to render a Problem. */

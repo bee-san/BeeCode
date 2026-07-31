@@ -33,7 +33,17 @@ data class ProblemSchedule(
      */
     val intervalDays: Double,
     val reviewCount: Int,
-    /** Consecutive non-lapse reviews; reset to zero by an AGAIN. */
+    /**
+     * How many times this Problem has been forgotten, over its whole history.
+     *
+     * Monotonically increasing: an AGAIN adds one and nothing ever subtracts. This
+     * doc used to say the opposite — "consecutive non-lapse reviews; reset to zero
+     * by an AGAIN" — while the scheduler that writes it only ever incremented, and
+     * `Statistics.leeches` read it as a total. Nothing broke, because both readers
+     * agreed with the code rather than the comment; the hazard was for the next
+     * person to implement a selection rule from the doc and get the exact inverse
+     * of what they intended.
+     */
     val lapseCount: Int,
     val version: Long,
     /**
@@ -63,6 +73,68 @@ data class ProblemSchedule(
         const val MIN_DIFFICULTY: Double = 1.0
         const val MAX_DIFFICULTY: Double = 10.0
     }
+}
+
+/**
+ * The materialized scheduling state for one topic — a data structure or algorithm.
+ *
+ * This is the card the learner actually studies. A learner does not forget
+ * *two-sum*; they forget dynamic programming, and the Problem is the exercise that
+ * rehearses the technique. Putting FSRS's memory state on the topic means
+ * "frequently forgets DP" needs no weakness heuristic: repeated lapses drive DP's
+ * stability down, FSRS shortens DP's interval, and DP comes back sooner. That is
+ * the algorithm doing its job on the right unit.
+ *
+ * Structurally identical to [ProblemSchedule] and deliberately a separate type
+ * rather than a generalisation of it. Sharing one type would mean widening
+ * [ProblemSchedule.problemId] to a string key, which would let a topic slug be
+ * passed where a [ProblemId] is expected — and topic slugs happen to satisfy
+ * [ProblemId]'s validation, so nothing would catch it. The two types cost a few
+ * duplicated invariants and buy a compiler error.
+ *
+ * A projection, not truth. It is folded from the append-only review log crossed
+ * with the pack's current topic tags, so it can always be rebuilt and never needs
+ * to be merged (ADR 0002 treats schedules the same way).
+ */
+data class TopicSchedule(
+    /** The topic slug, e.g. `dynamic-programming`. Free-form; see ADR 0005. */
+    val topic: String,
+    val stability: Double,
+    val difficulty: Double,
+    /** When this topic next becomes due. */
+    val dueAt: Instant,
+    val lastReviewedAt: Instant,
+    /**
+     * The interval FSRS chose for this topic, and the honest answer to "how long
+     * does my memory of DP last". Fractional, for the reason
+     * [ProblemSchedule.intervalDays] is.
+     */
+    val intervalDays: Double,
+    val reviewCount: Int,
+    /** How many times this topic has been forgotten. Monotonic, as [ProblemSchedule.lapseCount] is. */
+    val lapseCount: Int,
+    val version: Long,
+    val updatedAt: Instant,
+) {
+    init {
+        require(topic.isNotBlank()) { "topic must not be blank" }
+        require(stability.isFinite() && stability > 0.0) { "stability must be finite and positive" }
+        require(
+            difficulty.isFinite() &&
+                difficulty in ProblemSchedule.MIN_DIFFICULTY..ProblemSchedule.MAX_DIFFICULTY,
+        ) {
+            "difficulty must be finite and in " +
+                "[${ProblemSchedule.MIN_DIFFICULTY}, ${ProblemSchedule.MAX_DIFFICULTY}]"
+        }
+        require(intervalDays.isFinite() && intervalDays > 0.0) {
+            "intervalDays must be finite and positive"
+        }
+        require(reviewCount >= 0) { "reviewCount must not be negative" }
+        require(lapseCount >= 0) { "lapseCount must not be negative" }
+        require(version >= 0) { "version must not be negative" }
+    }
+
+    fun isDueAt(now: Instant): Boolean = dueAt <= now
 }
 
 /**

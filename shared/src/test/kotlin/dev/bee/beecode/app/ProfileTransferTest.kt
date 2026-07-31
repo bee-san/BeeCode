@@ -17,6 +17,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 
 /**
  * Export and restore, the plan's Test 2 recovery gate.
@@ -439,6 +440,80 @@ class ProfileTransferTest {
             // And the rebuilt schedules agree with a fresh replay.
             assertTrue(profile.verifyScheduleIntegrity().isEmpty())
         }
+    }
+
+    /**
+     * The claim that lets topic SRS ship without touching the sync format.
+     *
+     * Topic cards are a projection of the review log crossed with the pack's current
+     * tags, so they are absent from the payload by design and rebuilt on arrival. If
+     * that claim were wrong the format would have to carry them, and per
+     * `SnapshotMerge` a version bump breaks sync in *both* directions between an
+     * updated and a non-updated device — so this is the test standing between a
+     * bumped constant and a broken sync.
+     */
+    @Test
+    fun topicCardsAreRebuiltOnRestoreDespiteBeingAbsentFromThePayload() = runBlocking {
+        val problemId = ProblemId("two-sum")
+        val expectedTopics = assertNotNull(catalogue.problem(problemId)).topics
+        assertTrue(expectedTopics.size >= 2, "this test needs a multi-tagged Problem")
+
+        val expectedDueAt = mutableMapOf<String, Instant>()
+        openOriginal().use { profile ->
+            profile.study.open(problemId)
+            val run = assertIs<RunOutcome.Completed>(profile.study.run(problemId, workingTwoSum()))
+            profile.study.finalize(problemId, run.run.id, ReviewRating.GOOD)
+            expectedTopics.forEach { topic ->
+                expectedDueAt[topic] = assertNotNull(profile.reviews.topicSchedule(topic)).dueAt
+            }
+        }
+
+        val payload = openOriginal().use { ProfileTransfer.export(it, exportedAt) }
+        // Nothing topic-shaped travels. Asserted on the text rather than on a wire
+        // type, because a field added to the payload would compile fine.
+        assertFalse(
+            payload.contains("topicSchedule", ignoreCase = true),
+            "topic state is a projection and must not be serialised",
+        )
+
+        openRestored().use { profile ->
+            val result = assertIs<RestoreResult.Restored>(
+                ProfileTransfer.restore(profile, payload, Clock.System.now()),
+            )
+            assertEquals(expectedTopics.size, result.topicSchedulesRebuilt)
+            assertTrue(result.describe().contains("topics rebuilt"), result.describe())
+
+            // Each technique came back on the same day the original had it, which is
+            // the property that makes carrying them pointless.
+            expectedTopics.forEach { topic ->
+                assertEquals(
+                    expectedDueAt.getValue(topic),
+                    assertNotNull(profile.reviews.topicSchedule(topic), "no card for $topic").dueAt,
+                    "restored due date for $topic",
+                )
+            }
+            assertTrue(
+                profile.verifyTopicScheduleIntegrity().isEmpty(),
+                "a fresh replay must agree with what restore wrote",
+            )
+
+            // And the rebuilt cards are genuinely schedulable: past their due dates,
+            // every one of them comes round.
+            val afterAllAreDue = expectedDueAt.values.max().plus(1.hours)
+            assertEquals(
+                expectedTopics.toSet(),
+                profile.reviews.dueTopicSchedules(afterAllAreDue, limit = 50).map { it.topic }.toSet(),
+            )
+        }
+    }
+
+    @Test
+    fun theFormatVersionDoesNotMoveForTopicScheduling() {
+        // Deliberately pinned. `SnapshotMerge` compares format versions with `!=`, not
+        // `>`, so bumping this refuses sync between an updated and a non-updated device
+        // in both directions — and topic state needs no payload change to survive a
+        // merge, so there is nothing here to bump *for*.
+        assertEquals(2, ProfileTransfer.FORMAT_VERSION, "bump this only for a payload change")
     }
 
     // ---- Helpers --------------------------------------------------------

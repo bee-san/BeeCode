@@ -185,7 +185,8 @@ by versioned ID and cannot introduce arbitrary executable judge logic.
 | `ExecutionRun` | Bounded local attempt and finite typed result. |
 | `ReviewSession` | Explicit started/working/passed/revealed/finalized lifecycle. |
 | `ProblemReviewFinalized` | Every finalized outcome, selected run/source, rating, and schedule audit. |
-| `ProblemSchedule` | Materialized FSRS state and next due decision. |
+| `ProblemSchedule` | Materialized FSRS state and next due decision, per Problem. Answers *which* member Problem rehearses a due technique. |
+| `TopicSchedule` | Materialized FSRS state and next due decision, per DS&A topic. The SRS unit the queue is ordered by — see [ADR 0005](adr/0005-the-topic-is-the-srs-unit.md). Projected from the review log crossed with the pack's current tags, never merged. |
 | `ProblemSolved` | Derived once only from an eligible unaided passing session. |
 | `AchievementAward` | Immutable, idempotent local accomplishment. |
 | `SocialOutboxEvent` | Minimal eventually delivered activity metadata. |
@@ -248,7 +249,8 @@ BeeCode owns:
 
 - which ratings are allowed from pass/fail/reveal evidence;
 - review-session idempotency;
-- due-queue ordering and daily limits;
+- due-queue ordering (by topic due date, and which member Problem rehearses it) and
+  daily limits;
 - parameter/version migration;
 - persistence, clocks, explanation, and history.
 
