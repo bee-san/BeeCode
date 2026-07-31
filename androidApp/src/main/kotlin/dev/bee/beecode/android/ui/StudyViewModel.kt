@@ -15,7 +15,9 @@ import dev.bee.beecode.app.SyncService
 import dev.bee.beecode.app.SyncStore
 import dev.bee.beecode.app.RestoreResult
 import dev.bee.beecode.app.RunnerStatus
+import dev.bee.beecode.app.ProblemRecommendation
 import dev.bee.beecode.app.StudyQueue
+import dev.bee.beecode.app.StudyRecommendations
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.design.ThemeChoice
@@ -59,6 +61,9 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     private val _statistics = MutableStateFlow<StudyStatistics?>(null)
     val statistics: StateFlow<StudyStatistics?> = _statistics.asStateFlow()
 
+    private val _recommendations = MutableStateFlow<List<ProblemRecommendation>>(emptyList())
+    val recommendations: StateFlow<List<ProblemRecommendation>> = _recommendations.asStateFlow()
+
     private val _achievements = MutableStateFlow<AchievementProjection?>(null)
     val achievements: StateFlow<AchievementProjection?> = _achievements.asStateFlow()
 
@@ -77,6 +82,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _showStreaksAndAchievements.asStateFlow()
 
     private var runJob: Job? = null
+    private var reviewSessionActive: Boolean = false
 
     init {
         refresh()
@@ -84,14 +90,18 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun refresh() {
-        _queue.value = profile.study.queue()
+        val queue = profile.study.queue()
+        val mastery = profile.topicMastery()
+        _queue.value = queue
         _statistics.value = profile.statistics()
         _achievements.value = profile.achievements()
-        _topicMastery.value = profile.topicMastery()
+        _topicMastery.value = mastery
+        _recommendations.value = StudyRecommendations.rank(queue.new, mastery)
         refreshVisibility()
     }
 
     fun showQueue() {
+        reviewSessionActive = false
         _screen.value = Screen.Queue
         refresh()
     }
@@ -106,7 +116,34 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _screen.value = Screen.Settings
     }
 
+    /**
+     * Start the guided path: due reviews first, then return to recommendations.
+     *
+     * When nothing is due, the same primary action opens the strongest new-Problem
+     * recommendation rather than becoming a dead button.
+     */
+    fun startStudy() {
+        refresh()
+        val due = _queue.value?.dueTopics?.firstOrNull()
+        val problemId = due?.problem?.id ?: _recommendations.value.firstOrNull()?.problem?.id
+        if (problemId == null) return
+        reviewSessionActive = due != null
+        openProblemInternal(problemId)
+    }
+
+    fun startNewProblem() {
+        refresh()
+        val problemId = _recommendations.value.firstOrNull()?.problem?.id ?: return
+        reviewSessionActive = false
+        openProblemInternal(problemId)
+    }
+
     fun openProblem(problemId: ProblemId) {
+        reviewSessionActive = false
+        openProblemInternal(problemId)
+    }
+
+    private fun openProblemInternal(problemId: ProblemId) {
         val opened = profile.study.open(problemId) ?: return
         _problem.value = ProblemUiState(
             problem = opened.problem,
@@ -236,10 +273,22 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun closeProblem() {
+        val completed = _problem.value?.finalized != null
         persistDraft()
         _problem.value?.let { profile.study.abandon(it.problem.id) }
         _problem.value = null
-        showQueue()
+        refresh()
+
+        if (reviewSessionActive && completed) {
+            val next = _queue.value?.dueTopics?.firstOrNull()
+            if (next != null) {
+                openProblemInternal(next.problem.id)
+                return
+            }
+        }
+
+        reviewSessionActive = false
+        _screen.value = Screen.Queue
     }
 
     fun setDailyLimit(limit: Int?) {

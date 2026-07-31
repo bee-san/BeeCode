@@ -85,6 +85,7 @@ object Statistics {
             byDifficulty = byDifficulty,
             solvedByTopic = topicCounts.toSortedMap(),
             reviewsPerDay = reviewsPerDay(reviews, today, DEFAULT_HISTORY_DAYS),
+            activityCalendar = reviewsPerDay(reviews, today, ACTIVITY_CALENDAR_DAYS),
             periodComparisons = periodComparisons,
             activityByPeriod = activityByPeriod,
             dataStructureProgress = topicProgress(problems, solvedProblemIds) { it.dataStructures },
@@ -233,6 +234,7 @@ object Statistics {
     const val LEECH_LAPSE_THRESHOLD: Int = 4
 
     const val DEFAULT_HISTORY_DAYS: Int = 30
+    const val ACTIVITY_CALENDAR_DAYS: Int = 371
     private const val NINETY_DAY_BUCKET_COUNT: Int = 13
     private const val DAYS_PER_ROLLING_BUCKET: Int = 7
 
@@ -280,6 +282,8 @@ data class StudyStatistics(
     val byDifficulty: Map<ProblemDifficulty, DifficultyProgress>,
     val solvedByTopic: Map<String, Int>,
     val reviewsPerDay: List<DailyActivity>,
+    /** A little over 52 weeks, so clients can align the heatmap to whole weeks. */
+    val activityCalendar: List<DailyActivity>,
     val periodComparisons: Map<StatisticsPeriod, PeriodComparison>,
     val activityByPeriod: Map<StatisticsPeriod, List<ActivityBucket>>,
     val dataStructureProgress: List<TopicProgress>,

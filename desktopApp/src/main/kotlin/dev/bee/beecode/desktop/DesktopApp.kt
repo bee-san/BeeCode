@@ -158,6 +158,7 @@ fun DesktopApp(
     var showMotivation by remember {
         mutableStateOf(profile.settings.showStreaksAndAchievements())
     }
+    var reviewSessionActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { runnerStatus = profile.study.runnerStatus() }
 
@@ -176,10 +177,20 @@ fun DesktopApp(
         ProblemPane(
             profile = profile,
             problemId = active,
-            onClose = {
+            onClose = { completed ->
                 openProblem = null
                 // Bump so the queue and statistics re-read after a review.
                 refreshToken++
+                if (reviewSessionActive && completed) {
+                    val next = profile.study.queue().dueTopics.firstOrNull()
+                    if (next != null) {
+                        openProblem = next.problem.id
+                    } else {
+                        reviewSessionActive = false
+                    }
+                } else {
+                    reviewSessionActive = false
+                }
             },
         )
         return
@@ -197,45 +208,26 @@ fun DesktopApp(
         // below stay on `-extended`, which desktop can afford: it ships as a bundle with
         // its own JVM, where those megabytes are noise, and on a phone they measured
         // +3.9 MB of APK for four icons. See androidApp/build.gradle.kts.
-        NavigationRail(
-            header = {
-                // The one place the brand mark belongs: at the top of the rail, in the
-                // primary colour, rather than as a nav item competing with the pages.
-                Icon(
-                    Icons.Outlined.Hive,
-                    // Decorative by construction: a brand mark states nothing a learner
-                    // needs, and announcing "BeeCode" at the top of the rail would be the
-                    // first thing read on every visit to the window.
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp).size(28.dp),
-                )
+        DesktopSidebar(
+            studySelected = screen is DesktopScreen.Queue,
+            progressSelected = screen is DesktopScreen.Progress,
+            settingsSelected = screen is DesktopScreen.Settings,
+            showProgress = showProgress,
+            onStudy = {
+                reviewSessionActive = false
+                screen = DesktopScreen.Queue
+                refreshToken++
             },
-        ) {
-            // All three descriptions are null on purpose: each item's own `label` names
-            // the destination, and describing the icon too makes a reader announce
-            // "Study, Study" on every item.
-            NavigationRailItem(
-                selected = screen is DesktopScreen.Queue,
-                onClick = { screen = DesktopScreen.Queue; refreshToken++ },
-                icon = { Icon(Icons.Outlined.List, contentDescription = null) },
-                label = { Text("Study") },
-            )
-            if (showProgress) {
-                NavigationRailItem(
-                    selected = screen is DesktopScreen.Progress,
-                    onClick = { screen = DesktopScreen.Progress; refreshToken++ },
-                    icon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
-                    label = { Text("Progress") },
-                )
-            }
-            NavigationRailItem(
-                selected = screen is DesktopScreen.Settings,
-                onClick = { screen = DesktopScreen.Settings },
-                icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                label = { Text("Settings") },
-            )
-        }
+            onProgress = {
+                reviewSessionActive = false
+                screen = DesktopScreen.Progress
+                refreshToken++
+            },
+            onSettings = {
+                reviewSessionActive = false
+                screen = DesktopScreen.Settings
+            },
+        )
         VerticalDivider()
         Box(Modifier.fillMaxSize()) {
             when (screen) {
@@ -244,7 +236,14 @@ fun DesktopApp(
                     refreshToken = refreshToken,
                     runnerStatus = runnerStatus,
                     showMotivation = showMotivation,
-                    onOpen = { openProblem = it },
+                    onOpen = {
+                        reviewSessionActive = false
+                        openProblem = it
+                    },
+                    onStartStudy = { problemId, continueReviews ->
+                        reviewSessionActive = continueReviews
+                        openProblem = problemId
+                    },
                 )
                 is DesktopScreen.Progress -> ProgressPane(
                     profile = profile,
@@ -291,207 +290,16 @@ private fun QueuePane(
     runnerStatus: RunnerStatus?,
     showMotivation: Boolean,
     onOpen: (ProblemId) -> Unit,
+    onStartStudy: (ProblemId, Boolean) -> Unit,
 ) {
-    // Re-read whenever the token changes, which happens after a review is
-    // finalized. Deriving from the token rather than caching means the queue can
-    // never show a Problem that is no longer due.
-    val queue: StudyQueue = remember(refreshToken) { profile.study.queue() }
-    val statistics: StudyStatistics = remember(refreshToken) { profile.statistics() }
-    // Read once per queue read, not per row: every row must describe its due time
-    // against the same instant, or two Problems due at the same moment could render
-    // with different labels.
-    val now = remember(refreshToken) { Clock.System.now() }
-
-    LazyColumn(
-        // Tagged so a test can scroll the queue to a specific Problem. Without it a
-        // test must assert against whatever happens to be above the fold, which turns
-        // adding a Problem into a UI failure — the same reason the solved count is
-        // derived from the catalogue rather than written as a literal.
-        Modifier.fillMaxSize().testTag(QUEUE_LIST_TAG),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Column {
-                Text(
-                    "BeeCode",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    buildString {
-                        append("${statistics.distinctProblemsSolved} of ")
-                        append("${statistics.totalProblems} solved")
-                        if (showMotivation && statistics.currentStreakDays > 0) {
-                            append(" · ${statistics.currentStreakDays} day streak")
-                        }
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        // Surface a missing interpreter here rather than letting the learner find
-        // out when their first review mysteriously fails.
-        runnerStatus?.takeIf { !it.available }?.let { status ->
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    ),
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Python is unavailable", fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            status.unavailableReason ?: "BeeCode could not start Python.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-        }
-
-        if (queue.dueTopics.isNotEmpty()) {
-            // "Techniques", not "Problems": what fell due is dynamic programming, and
-            // the Problem underneath is the exercise that rehearses it.
-            item { SectionHeader("Techniques to review", queue.dueTopics.size) }
-            items(queue.dueTopics, key = { it.topic }) { due ->
-                DueTopicRow(due, now) { onOpen(due.problem.id) }
-            }
-        }
-        if (queue.new.isNotEmpty()) {
-            item { SectionHeader("New Problems", queue.new.size) }
-            items(queue.new, key = { it.id.value }) { problem ->
-                ProblemRow(problem, problem.topics.joinToString(" · ")) { onOpen(problem.id) }
-            }
-        }
-        if (queue.isEmpty) {
-            item {
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 64.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text("🍯", fontSize = 44.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Text("Nothing due", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        // Name the next thing the scheduler will do, rather than
-                        // "come back when something is scheduled" — which reads as
-                        // though nothing is, when in fact everything is.
-                        if (statistics.dueTomorrow > 0) {
-                            "${statistics.dueTomorrow} " +
-                                "${if (statistics.dueTomorrow == 1) "Problem" else "Problems"} " +
-                                "come back tomorrow."
-                        } else {
-                            "Everything you have learned is scheduled further out. " +
-                                "That is the algorithm working."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String, count: Int) {
-    Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            "$count",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-/**
- * A technique that has come round, and the Problem chosen to rehearse it.
- *
- * The technique is the headline and the Problem the subtitle, which is the point of the
- * change: the learner is told "practise dynamic programming" and then given something
- * to practise it with, rather than handed a Problem and left to infer why. Mirrors
- * Android's `DueTopicCard` — the same words in both clients, because a learner using
- * both should not have to learn two vocabularies.
- *
- * The difficulty badge sits on the *Problem's* line rather than beside the technique
- * name, where it first went. A technique has no difficulty, and a badge next to
- * "Arrays" reads as though it did — a screenshot caught that, not a review.
- *
- * The due badge, interval, and review count are carried over from the per-Problem row
- * this replaced. Every one of those numbers was computed on every review and rendered
- * nowhere, which made FSRS look absent from outside; putting the card on the technique
- * must not undo that. They now describe the *technique's* schedule.
- */
-@Composable
-private fun DueTopicRow(due: DueTopic, now: Instant, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp).fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    due.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                DueBadge(describeDue(due.schedule.dueAt, now))
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                buildString {
-                    append("Memory lasts about ${formatIntervalDays(due.schedule.intervalDays)}")
-                    append(" · reviewed ${due.schedule.reviewCount}×")
-                    if (due.schedule.lapseCount > 0) {
-                        append(" · ${due.schedule.lapseCount} forgotten")
-                    }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Practise with ${due.problem.title} · " +
-                        "${due.attemptedMemberProblems} of ${due.memberProblems} practised",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                DifficultyBadge(due.problem.difficulty)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProblemRow(
-    problem: ProblemDefinition,
-    subtitle: String,
-    due: DueDescription? = null,
-    onClick: () -> Unit,
-) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(problem.title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            due?.let {
-                DueBadge(it)
-                Spacer(Modifier.width(8.dp))
-            }
-            DifficultyBadge(problem.difficulty)
-        }
-    }
+    DesktopStudyDashboard(
+        profile = profile,
+        refreshToken = refreshToken,
+        runnerStatus = runnerStatus,
+        showMotivation = showMotivation,
+        onOpen = onOpen,
+        onStartStudy = onStartStudy,
+    )
 }
 
 /** The scheduler's verdict on one Problem, coloured by how far past due it is. */
@@ -541,11 +349,11 @@ private fun DifficultyBadge(difficulty: ProblemDifficulty) {
 private fun ProblemPane(
     profile: BeeCodeProfile,
     problemId: ProblemId,
-    onClose: () -> Unit,
+    onClose: (completed: Boolean) -> Unit,
 ) {
     val opened = remember(problemId) { profile.study.open(problemId) }
     if (opened == null) {
-        LaunchedEffect(problemId) { onClose() }
+        LaunchedEffect(problemId) { onClose(false) }
         return
     }
 
@@ -576,7 +384,7 @@ private fun ProblemPane(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = { persist(); profile.study.abandon(problemId); onClose() }) {
+            TextButton(onClick = { persist(); profile.study.abandon(problemId); onClose(false) }) {
                 Text("← Back")
             }
             Spacer(Modifier.width(12.dp))
@@ -886,7 +694,15 @@ private fun ProblemPane(
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
-                            Button(onClick = { persist(); onClose() }) { Text("Back to queue") }
+                            Button(
+                                onClick = {
+                                    persist()
+                                    profile.study.abandon(problemId)
+                                    onClose(true)
+                                },
+                            ) {
+                                Text("Continue studying")
+                            }
                         }
                     }
                 }

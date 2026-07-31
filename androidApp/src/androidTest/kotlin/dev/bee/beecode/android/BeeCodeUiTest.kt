@@ -1,6 +1,7 @@
 package dev.bee.beecode.android
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.BROWSE_ALL_NEW_TAG
 import dev.bee.beecode.android.ui.CODE_EDITOR_TAG
 import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
@@ -124,6 +126,9 @@ class BeeCodeUiTest {
     }
 
     private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG)
+            .performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+        compose.onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
         compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
         compose.onAllNodesWithText(title).onFirst()
     }
@@ -270,13 +275,12 @@ class BeeCodeUiTest {
             .performScrollTo()
             .assertIsDisplayed()
 
-        compose.onNodeWithText("Back to queue").performScrollTo().performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
 
         // The queue reflects the solve.
         // Derived from the catalogue rather than hard-coded: a literal "1 of 12" turns
         // adding a Problem into a UI test failure, which teaches the wrong lesson.
-        val total = requireNotNull(profile).catalogue.allProblems().size
-        compose.onNode(hasText("1 of $total solved", substring = true)).assertIsDisplayed()
+        compose.onNodeWithContentDescription("1 solved", substring = true).assertIsDisplayed()
     }
 
     @Test

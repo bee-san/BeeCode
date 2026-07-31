@@ -8,6 +8,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -230,6 +231,8 @@ class KeyboardFocusTest {
 
     /** As [withUi], with Two Sum open — scrolled to, since the queue is a lazy list. */
     private fun withProblemOpen(body: ComposeUiTest.() -> Unit) = withUi {
+        onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+        onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
         onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
         onNodeWithText(TWO_SUM_TITLE).performClick()
         waitForIdle()

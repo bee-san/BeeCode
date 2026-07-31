@@ -226,20 +226,19 @@ data class BeeCodePalette(
             surfaceContainer = 0xFF201D16,
             surfaceContainerHigh = 0xFF2A261D,
             surfaceContainerHighest = 0xFF353024,
-            // The "fixed" roles keep one value across both schemes, for surfaces that
-            // must not flip with the theme. Unused today, set so they cannot fall back.
-            primaryFixed = 0xFFFFDF9E,
-            primaryFixedDim = 0xFFF2B32C,
-            onPrimaryFixed = 0xFF241A00,
+            // Fixed roles carry the dashboard accents unchanged across theme flips.
+            primaryFixed = 0xFFFFE2A0,
+            primaryFixedDim = 0xFFD89A00,
+            onPrimaryFixed = 0xFF24231F,
             onPrimaryFixedVariant = 0xFF553F00,
-            secondaryFixed = 0xFFF1E3C2,
-            secondaryFixedDim = 0xFFD9C9A3,
-            onSecondaryFixed = 0xFF211B0B,
-            onSecondaryFixedVariant = 0xFF524629,
-            tertiaryFixed = 0xFFFFD9C2,
-            tertiaryFixedDim = 0xFFE0A886,
-            onTertiaryFixed = 0xFF2E1607,
-            onTertiaryFixedVariant = 0xFF5D3A22,
+            secondaryFixed = 0xFFDDE9DF,
+            secondaryFixedDim = 0xFFBECDBF,
+            onSecondaryFixed = 0xFF18231B,
+            onSecondaryFixedVariant = 0xFF35483A,
+            tertiaryFixed = 0xFFD8EAD9,
+            tertiaryFixedDim = 0xFFB9CEBA,
+            onTertiaryFixed = 0xFF142515,
+            onTertiaryFixedVariant = 0xFF344B36,
             // Lifted off the old shared constants so they clear AA against a *dark* Card,
             // not merely against the page: #6BBF59 was 5.765:1 on surface but the old
             // Danger and Muted were 3.591:1 and 4.183:1 on surfaceContainerHighest.
@@ -257,58 +256,60 @@ data class BeeCodePalette(
         val HoneyLight: BeeCodePalette = BeeCodePalette(
             primary = 0xFF7A5900,
             onPrimary = 0xFFFFFFFF,
-            primaryContainer = 0xFFFFDF9E,
-            onPrimaryContainer = 0xFF261A00,
-            inversePrimary = 0xFFF2B32C,
-            secondary = 0xFF6A5D3F,
+            primaryContainer = 0xFFFFEDBA,
+            onPrimaryContainer = 0xFF24231F,
+            inversePrimary = 0xFFD89A00,
+            secondary = 0xFF536157,
             onSecondary = 0xFFFFFFFF,
-            secondaryContainer = 0xFFF3E5C5,
-            onSecondaryContainer = 0xFF241A05,
-            tertiary = 0xFF7C4E31,
+            secondaryContainer = 0xFFDDE9DF,
+            onSecondaryContainer = 0xFF18231B,
+            tertiary = 0xFF4E654F,
             onTertiary = 0xFFFFFFFF,
-            tertiaryContainer = 0xFFFFDBC7,
-            onTertiaryContainer = 0xFF2E1607,
-            background = 0xFFFFF8EC,
-            onBackground = 0xFF1E1B16,
-            surface = 0xFFFFF8EC,
-            onSurface = 0xFF1E1B16,
-            surfaceVariant = 0xFFEDE1CF,
-            onSurfaceVariant = 0xFF4C4639,
+            tertiaryContainer = 0xFFD8EAD9,
+            onTertiaryContainer = 0xFF142515,
+            background = 0xFFF7F5EF,
+            onBackground = 0xFF24231F,
+            surface = 0xFFF7F5EF,
+            onSurface = 0xFF24231F,
+            surfaceVariant = 0xFFE8E6DF,
+            onSurfaceVariant = 0xFF59564F,
             surfaceTint = 0xFF7A5900,
-            inverseSurface = 0xFF34302A,
-            inverseOnSurface = 0xFFF8F0E2,
+            inverseSurface = 0xFF32312D,
+            inverseOnSurface = 0xFFF5F3ED,
             error = 0xFFBA1A1A,
             onError = 0xFFFFFFFF,
             errorContainer = 0xFFFFDAD6,
             onErrorContainer = 0xFF410002,
-            outline = 0xFF7F7767,
-            outlineVariant = 0xFFD3C8B3,
+            outline = 0xFF77736B,
+            outlineVariant = 0xFFD4D1C9,
             scrim = 0xFF000000,
-            surfaceBright = 0xFFFFFBF2,
-            surfaceDim = 0xFFE4DAC8,
+            surfaceBright = 0xFFFFFFFF,
+            surfaceDim = 0xFFE1DFD8,
             surfaceContainerLowest = 0xFFFFFFFF,
-            surfaceContainerLow = 0xFFFDF5E7,
-            surfaceContainer = 0xFFF8F0E1,
-            surfaceContainerHigh = 0xFFF2EAD9,
-            surfaceContainerHighest = 0xFFECE3D1,
-            primaryFixed = 0xFFFFDF9E,
-            primaryFixedDim = 0xFFF2B32C,
-            onPrimaryFixed = 0xFF241A00,
+            surfaceContainerLow = 0xFFFBFAF6,
+            surfaceContainer = 0xFFF3F1EB,
+            surfaceContainerHigh = 0xFFEEEBE5,
+            surfaceContainerHighest = 0xFFE8E6DF,
+            primaryFixed = 0xFFFFE2A0,
+            primaryFixedDim = 0xFFD89A00,
+            onPrimaryFixed = 0xFF24231F,
             onPrimaryFixedVariant = 0xFF553F00,
-            secondaryFixed = 0xFFF1E3C2,
-            secondaryFixedDim = 0xFFD9C9A3,
-            onSecondaryFixed = 0xFF211B0B,
-            onSecondaryFixedVariant = 0xFF524629,
-            tertiaryFixed = 0xFFFFD9C2,
-            tertiaryFixedDim = 0xFFE0A886,
-            onTertiaryFixed = 0xFF2E1607,
-            onTertiaryFixedVariant = 0xFF5D3A22,
-            // Darkened substantially: these are drawn as text on cream, where the old
-            // dark-tuned values ran 1.78:1–2.87:1. Same hues, and now legible.
-            accentSuccess = 0xFF1C6F2A,
+            secondaryFixed = 0xFFDDE9DF,
+            secondaryFixedDim = 0xFFBECDBF,
+            onSecondaryFixed = 0xFF18231B,
+            onSecondaryFixedVariant = 0xFF35483A,
+            tertiaryFixed = 0xFFD8EAD9,
+            tertiaryFixedDim = 0xFFB9CEBA,
+            onTertiaryFixed = 0xFF142515,
+            onTertiaryFixedVariant = 0xFF344B36,
+            // Accessibility-adjusted versions of the mockup's green, amber, red, and
+            // muted roles. Its exact green and red have identical luminance and the
+            // green misses AA on an elevated card, so these preserve hue while giving
+            // every pair a distinguishable lightness and every label body-text contrast.
+            accentSuccess = 0xFF1F7138,
             accentCaution = 0xFF724903,
             accentDanger = 0xFF841A0F,
-            accentMuted = 0xFF5C564A,
+            accentMuted = 0xFF68645C,
         )
 
         /**
@@ -763,7 +764,7 @@ data class BeeCodeTypeScale(
 ) {
     companion object {
         /** Screen titles: "BeeCode", "Progress". One per screen. */
-        val Headline: BeeCodeTypeScale = BeeCodeTypeScale(28f, 34f, 700, -0.25f)
+        val Headline: BeeCodeTypeScale = BeeCodeTypeScale(28f, 34f, 700)
 
         /** A Problem's title on its own screen, and the big number on a stat tile. */
         val Title: BeeCodeTypeScale = BeeCodeTypeScale(21f, 27f, 600)
@@ -772,7 +773,7 @@ data class BeeCodeTypeScale(
         val Subtitle: BeeCodeTypeScale = BeeCodeTypeScale(16f, 22f, 600)
 
         /** A section heading inside a card. Distinct from its body, which it was not. */
-        val SectionLabel: BeeCodeTypeScale = BeeCodeTypeScale(13f, 18f, 700, 0.6f)
+        val SectionLabel: BeeCodeTypeScale = BeeCodeTypeScale(13f, 18f, 700)
 
         /** The default reading size: statements, explanations, prose. */
         val Body: BeeCodeTypeScale = BeeCodeTypeScale(15f, 22f, 400)
@@ -781,9 +782,9 @@ data class BeeCodeTypeScale(
         val BodySmall: BeeCodeTypeScale = BeeCodeTypeScale(13f, 19f, 400)
 
         /** Buttons and tabs. */
-        val Action: BeeCodeTypeScale = BeeCodeTypeScale(14f, 20f, 600, 0.1f)
+        val Action: BeeCodeTypeScale = BeeCodeTypeScale(14f, 20f, 600)
 
         /** Badges, counts, timings. The smallest text BeeCode uses. */
-        val Caption: BeeCodeTypeScale = BeeCodeTypeScale(12f, 16f, 600, 0.4f)
+        val Caption: BeeCodeTypeScale = BeeCodeTypeScale(12f, 16f, 600)
     }
 }

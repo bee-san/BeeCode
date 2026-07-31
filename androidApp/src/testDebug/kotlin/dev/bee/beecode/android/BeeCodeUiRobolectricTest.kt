@@ -5,6 +5,7 @@ package dev.bee.beecode.android
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -22,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.test.core.app.ApplicationProvider
 import android.app.Application
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.BROWSE_ALL_NEW_TAG
 import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
@@ -174,6 +176,9 @@ class BeeCodeUiRobolectricTest {
      * written as a literal. Mirrors `DesktopUiTest`, which shares the tag.
      */
     private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG)
+            .performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+        compose.onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
         compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
         compose.onAllNodesWithText(title).onFirst()
     }
@@ -439,7 +444,7 @@ class BeeCodeUiRobolectricTest {
         // ancestor.
         compose.onNodeWithText("Good").assertIsDisplayed()
         compose.onNodeWithText("Easy").assertIsDisplayed()
-        compose.onNodeWithText("Good").performClick()
+        compose.onNode(hasText("Good") and hasClickAction()).performClick()
 
         // And the outcome tells the learner when they will see it again. The finalized
         // card is appended to the scrolling column rather than replacing the screen, so
@@ -450,13 +455,12 @@ class BeeCodeUiRobolectricTest {
             .performScrollTo()
             .assertIsDisplayed()
 
-        compose.onNodeWithText("Back to queue").performScrollTo().performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
 
         // The queue reflects the solve, which means the click reached persistence.
         // Derived from the catalogue rather than hard-coded: a literal "1 of 12" turns
         // adding a Problem into a UI test failure, which teaches the wrong lesson.
-        val total = profile.catalogue.allProblems().size
-        compose.onNode(hasText("1 of $total solved", substring = true)).assertIsDisplayed()
+        compose.onNodeWithContentDescription("1 solved", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -495,6 +499,32 @@ class BeeCodeUiRobolectricTest {
                 hasText("Memory lasts about", substring = true) and
                 hasText("Two Sum · 1 of $members practised", substring = true),
         ).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun startStudyClearsDueReviewsBeforeReturningToNewProblems() {
+        val problemId = ProblemId("two-sum")
+        val topic = checkNotNull(profile.catalogue.problem(problemId)).topics.first()
+        solve(problemId)
+        arriveWhenDue(topic)
+        launch()
+
+        compose.onNodeWithText("Start Study").performClick()
+        compose.onAllNodesWithText(TWO_SUM_TITLE).onFirst().assertIsDisplayed()
+
+        // solve(...) left its passing source in the draft, so this second review can
+        // exercise the guided-session transition without duplicating editor behavior.
+        compose.onNodeWithText("Run tests").performClick()
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(hasText("Good") and hasClickAction()).performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
+
+        // Every topic carried by Two Sum was updated by the review. With nothing else
+        // due, the guided session ends on the dashboard and offers new material.
+        compose.onNodeWithText("Start a new Problem").assertIsDisplayed()
+        compose.onNodeWithText("Recommended for you").performScrollTo().assertIsDisplayed()
     }
 
     @Test
