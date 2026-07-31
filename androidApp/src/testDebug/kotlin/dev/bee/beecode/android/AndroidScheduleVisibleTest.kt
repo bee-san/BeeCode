@@ -2,6 +2,7 @@ package dev.bee.beecode.android
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import dev.bee.beecode.android.ui.BeeCodeApp
+import dev.bee.beecode.android.ui.BROWSE_ALL_NEW_TAG
 import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
@@ -155,7 +157,7 @@ class AndroidScheduleVisibleTest {
         solveTwoSum()
         compose.onNodeWithText("Again").performClick()
         clock.advanceBy(1.minutes)
-        compose.onNodeWithText("Back to queue").performScrollTo().performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
 
         // Read the interval back out of the stored topic schedule rather than naming a span,
         // so a card showing a plausible-but-different number fails. There is one card per
@@ -202,7 +204,7 @@ class AndroidScheduleVisibleTest {
         solveTwoSum()
         compose.onNodeWithText("Again").performClick()
         clock.advanceBy(1.minutes)
-        compose.onNodeWithText("Back to queue").performScrollTo().performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
 
         // `onAllNodes` rather than `onNode`: one review advances every technique the Problem
         // is tagged with, so three cards are overdue together. That is the fan-out working,
@@ -227,7 +229,7 @@ class AndroidScheduleVisibleTest {
         launch()
         solveTwoSum()
         compose.onNodeWithText("Good").performClick()
-        compose.onNodeWithText("Back to queue").performScrollTo().performClick()
+        compose.onNodeWithText("Continue studying").performScrollTo().performClick()
         compose.onNodeWithText("Progress").performClick()
 
         compose.onNodeWithText("Your schedule").performScrollTo().assertIsDisplayed()
@@ -269,6 +271,9 @@ class AndroidScheduleVisibleTest {
      * merely present in the data has no semantics to assert against.
      */
     private fun scrollQueueTo(title: String) = run {
+        compose.onNodeWithTag(QUEUE_LIST_TAG)
+            .performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+        compose.onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
         compose.onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
         compose.onAllNodesWithText(title).onFirst()
     }

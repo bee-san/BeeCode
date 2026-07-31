@@ -3,6 +3,7 @@ package dev.bee.beecode.desktop
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -72,6 +73,9 @@ class StatementRenderingTest {
                 // Scrolled to rather than assumed on screen: the queue is a lazy list
                 // and Two Sum sits below the fold in a catalogue this size, so the row
                 // has no semantics to click until it composes.
+                onNodeWithTag(QUEUE_LIST_TAG)
+                    .performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+                onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
                 onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
                 onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
                 waitForIdle()

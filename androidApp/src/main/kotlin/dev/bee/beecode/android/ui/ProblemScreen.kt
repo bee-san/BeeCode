@@ -771,7 +771,7 @@ private fun FinalizedCard(finalized: FinalizedUiState, onClose: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Button(onClick = onClose) { Text("Back to queue") }
+            Button(onClick = onClose) { Text("Continue studying") }
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -182,7 +183,7 @@ class DesktopUiTest {
         // scrolling really asserts that the cards above it stayed short enough.
         ui.onNodeWithText("Python execution").performScrollTo().assertIsDisplayed()
 
-        ui.onNodeWithText("Study").performClick()
+        ui.onNode(hasText("Study") and hasClickAction()).performClick()
         ui.onNodeWithText("New Problems").assertIsDisplayed()
     }
 
@@ -325,7 +326,7 @@ class DesktopUiTest {
             }
             clock.current = schedule.dueAt + 1.minutes
             // The pane caches its queue against the refresh token, so nudge it.
-            ui.onNodeWithText("Study").performClick()
+            ui.onNode(hasText("Study") and hasClickAction()).performClick()
 
             ui.onNodeWithText("Techniques to review").performScrollTo().assertIsDisplayed()
 
@@ -345,6 +346,28 @@ class DesktopUiTest {
                     hasText("Memory lasts about", substring = true) and
                     hasText("Two Sum · 1 of $members practised", substring = true),
             ).performScrollTo().assertIsDisplayed()
+        }
+
+    @Test
+    fun startStudyClearsDueReviewsBeforeReturningToNewProblems() =
+        withUi { ui, profile, clock ->
+            solveTwoSum(profile)
+            profile.study.abandon(TWO_SUM)
+            val topic = requireNotNull(profile.catalogue.problem(TWO_SUM)).topics.first()
+            val schedule = requireNotNull(profile.reviews.topicSchedule(topic))
+            clock.current = schedule.dueAt + 1.minutes
+            ui.onNode(hasText("Study") and hasClickAction()).performClick()
+
+            ui.onNodeWithText("Start Study").performClick()
+            ui.onNodeWithText("Run tests").performClick()
+            ui.waitUntil(timeoutMillis = 10_000) {
+                ui.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
+            }
+            ui.onNode(isRatingButton("Good")).performClick()
+            ui.onNodeWithText("Continue studying").performClick()
+
+            ui.onNodeWithText("Start a new Problem").assertIsDisplayed()
+            ui.onNodeWithText("Recommended for you").performScrollTo().assertIsDisplayed()
         }
 
     @Test
@@ -552,7 +575,7 @@ class DesktopUiTest {
 
         // The Problem pane is full-screen — the navigation rail is not on screen until it
         // is left, which is deliberate and covered elsewhere.
-        ui.onNodeWithText("Back to queue").performClick()
+        ui.onNodeWithText("Continue studying").performClick()
         ui.onNodeWithText("Progress").performClick()
         ui.onNodeWithText("Achievements").performScrollTo().performClick()
         // First Solve is now earned, so at least one marker announces it.
@@ -599,7 +622,7 @@ class DesktopUiTest {
             profile.settings.setSyncFilePath(shared.absolutePath, NOW)
             ui.onNodeWithText("Settings").performClick()
             // Recompose so the pane picks up the setting written above.
-            ui.onNodeWithText("Study").performClick()
+            ui.onNode(hasText("Study") and hasClickAction()).performClick()
             ui.onNodeWithText("Settings").performClick()
 
             ui.onNodeWithText("Sync now").performScrollTo().performClick()
@@ -727,7 +750,7 @@ class DesktopUiTest {
 
         ui.onNodeWithText("Settings").performClick()
         // Recompose so the pane reads the linked state written above.
-        ui.onNodeWithText("Study").performClick()
+        ui.onNode(hasText("Study") and hasClickAction()).performClick()
         ui.onNodeWithText("Settings").performClick()
         ui.onNodeWithText("Leave").performScrollTo().performClick()
 
@@ -793,6 +816,8 @@ class DesktopUiTest {
          * Problem being assumed visible.
          */
         fun ComposeUiTest.scrollQueueTo(title: String) = run {
+            onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+            onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
             onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(title))
             onAllNodesWithText(title).onFirst()
         }

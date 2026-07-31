@@ -6,6 +6,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -170,6 +171,9 @@ class ProblemPaneContrastTest {
                 }
                 // Two Sum has both a fenced code block in its statement and worked
                 // examples, so one Problem exercises both inset sites.
+                onNodeWithTag(QUEUE_LIST_TAG)
+                    .performScrollToNode(hasTestTag(BROWSE_ALL_NEW_TAG))
+                onNodeWithTag(BROWSE_ALL_NEW_TAG).performClick()
                 onNodeWithTag(QUEUE_LIST_TAG).performScrollToNode(hasText(TWO_SUM_TITLE))
                 onAllNodesWithText(TWO_SUM_TITLE).onFirst().performClick()
                 waitForIdle()
