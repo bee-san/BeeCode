@@ -33,12 +33,13 @@ The complete local study loop works on both platforms today.
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
 | Credential storage | Android Keystore (hardware-backed on most devices) | OS keyring, or plaintext where none exists |
-| Verified by | 40 JVM tests, 19 of them Robolectric UI, + 26 instrumented | 70 JVM tests, 18 of them UI |
+| Verified by | 42 JVM tests, 19 of them Robolectric UI, + 27 instrumented | 72 JVM tests, 18 of them UI |
 
-**580 automated tests**: 554 JVM tests across nine modules and 26 Android
-instrumented tests, including the complete answer → fail → fix → pass → finalize →
-restart journey against real CPython and real SQLite on both platforms. None of the
-554 skip on this host or in CI.
+**633 automated test cases**: 606 JVM tests across nine modules and 27 Android
+instrumented tests. All 606 JVM tests and 18 non-UI device tests run in CI; the hosted
+emulator skips 9 Compose touch tests because it refuses injected input. The passing
+device tests include the complete answer → fail → fix → pass → finalize → restart
+journey against real CPython and real SQLite.
 
 Each build also runs every Problem's reference solution against every one of its
 declared tests under real CPython, checks that each starter does *not* already pass,
