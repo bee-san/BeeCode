@@ -178,6 +178,39 @@ class StudyJourneyTest {
     }
 
     @Test
+    fun openingAnExistingProfileBackfillsTheTopicQueue() = runBlocking {
+        val problemId = ProblemId("two-sum")
+        val clock = MutableClock(Instant.parse("2026-03-01T09:00:00Z"))
+
+        val (expectedTopics, latestDueAt) = openProfile(clock).use { profile ->
+            profile.solve(problemId, TWO_SUM_SOLUTION)
+            val topicSchedules = profile.reviews.topicSchedules()
+            assertTrue(topicSchedules.isNotEmpty(), "the reviewed Problem must have topic schedules")
+
+            // This is the state immediately after a version 3 database migrates:
+            // review history exists, while the newly-created v4 projection is empty.
+            profile.reviews.replaceTopicSchedules(emptyMap())
+            assertTrue(profile.reviews.topicSchedules().isEmpty())
+
+            topicSchedules.keys to topicSchedules.values.maxOf { it.dueAt }
+        }
+
+        clock.current = latestDueAt + 1.hours
+        openProfile(clock).use { profile ->
+            assertEquals(expectedTopics, profile.reviews.topicSchedules().keys)
+            assertTrue(
+                profile.verifyTopicScheduleIntegrity().isEmpty(),
+                "startup must rebuild the same topic state as the review log",
+            )
+            assertEquals(
+                expectedTopics,
+                profile.study.queue().dueTopics.map { it.topic }.toSet(),
+                "an upgrade must not make existing due reviews disappear",
+            )
+        }
+    }
+
+    @Test
     fun revealingTheExplanationCapsTheRatingAndForfeitsTheSolve() = runBlocking {
         val problemId = ProblemId("two-sum")
         openProfile().use { profile ->

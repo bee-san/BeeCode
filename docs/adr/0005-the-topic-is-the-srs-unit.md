@@ -52,11 +52,12 @@ design.
 **Topic state is a projection, so the sync format does not move.** `topic_schedule` is
 folded from the append-only `problem_review` log crossed with the pack's current tags,
 exactly as `problem_schedule` is folded from the log alone. `ProfileTransfer.restore`
-rebuilds it; the payload never carries it; `SnapshotMerge` was not touched and
-`ProfileTransfer.FORMAT_VERSION` stays 2. That `SnapshotMergeTest` needed no change is the
-evidence the projection claim is true rather than asserted. Bumping the version would have
-been actively harmful — `SnapshotMerge.kt:66,72` fails on `!=`, not `>`, so a bump breaks
-sync between an updated and a non-updated device in both directions.
+rebuilds it; profile startup also backfills it when an existing review log meets the empty
+table introduced by schema v4. The payload never carries it; `SnapshotMerge` was not
+touched and `ProfileTransfer.FORMAT_VERSION` stays 2. That `SnapshotMergeTest` needed no
+change is the evidence the projection claim is true rather than asserted. Bumping the
+version would have been actively harmful — `SnapshotMerge.kt:66,72` fails on `!=`, not
+`>`, so a bump breaks sync between an updated and a non-updated device in both directions.
 
 **Retagging rewrites topic history.** Topics are deliberately excluded from
 `ProblemLoader.computeRevision`, so replay uses *current* tags. Moving `max-subarray` out

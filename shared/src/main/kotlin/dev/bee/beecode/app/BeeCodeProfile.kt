@@ -221,7 +221,7 @@ class BeeCodeProfile private constructor(
             val reviews = ReviewRepository(database, scheduler)
             val drafts = DraftRepository(database)
             val activityOutbox = ActivityOutboxRepository(database)
-            return BeeCodeProfile(
+            val profile = BeeCodeProfile(
                 database = database,
                 catalogue = catalogue,
                 study = StudyService(
@@ -240,6 +240,15 @@ class BeeCodeProfile private constructor(
                 scheduler = scheduler,
                 clock = clock,
             )
+
+            // Version 4 adds topic_schedule as an empty projection. Existing
+            // profiles already have review history, so leaving it empty would make
+            // every due review disappear from the topic-first queue after upgrade.
+            // Restore performs the same replay after a sync merge.
+            if (reviews.reviewCount() > 0 && reviews.topicSchedules().isEmpty()) {
+                profile.rebuildTopicSchedules()
+            }
+            return profile
         }
     }
 }
