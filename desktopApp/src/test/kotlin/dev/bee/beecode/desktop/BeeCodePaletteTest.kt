@@ -5,6 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import dev.bee.beecode.design.BeeCodePalette
+import dev.bee.beecode.design.ThemeFamily
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -37,16 +38,13 @@ import kotlin.test.assertTrue
 class BeeCodePaletteTest {
 
     @Test
-    fun everyRoleInTheDarkSchemeComesFromTheDarkPalette() {
-        assertSchemeMatchesPalette(BeeCodePalette.Dark, "Dark")
-    }
-
-    @Test
-    fun everyRoleInTheLightSchemeComesFromTheLightPalette() {
-        // Both schemes, because the two mappings are separate call sites and the original
-        // drift was exactly this: desktop set `errorContainer` and Android did not, and
-        // light `surface` was #FFFCF7 on one client and #FFF8F0 on the other.
-        assertSchemeMatchesPalette(BeeCodePalette.Light, "Light")
+    fun everyRoleInEverySchemeComesFromItsOwnPalette() {
+        // Every family and both schemes, not just the default pair. A family added with a
+        // role copied from Honey by accident is exactly the kind of thing a two-scheme
+        // version of this test would wave through, and the original drift was this shape:
+        // desktop set `errorContainer` and Android did not, and light `surface` was
+        // #FFFCF7 on one client and #FFF8F0 on the other.
+        eachScheme { name, palette -> assertSchemeMatchesPalette(palette, name) }
     }
 
     @Test
@@ -56,7 +54,7 @@ class BeeCodePaletteTest {
         // removed role appears as a palette field with nothing to map onto, which is dead
         // weight rather than a defect but is still worth being told about.
         val schemeRoles = colorRoleNames().toSet()
-        val paletteRoles = BeeCodePalette.Dark.javaClass.methods
+        val paletteRoles = BeeCodePalette.HoneyDark.javaClass.methods
             .mapNotNull { method ->
                 val name = method.name
                 if (method.parameterCount == 0 &&
@@ -68,6 +66,13 @@ class BeeCodePaletteTest {
                     null
                 }
             }
+            .toSet()
+            // The four semantic accents are palette fields with no Material role — pass,
+            // caution, failure, absent. They live in the palette so the contrast suite
+            // walks them (it did not, when they were global constants, and a 1.787:1
+            // badge shipped), but they are deliberately not roles and must not be read
+            // as ones Material has dropped.
+            .filterNot { it.startsWith("accent") }
             .toSet()
 
         assertEquals(
@@ -97,7 +102,7 @@ class BeeCodePaletteTest {
         //
         // Comparing against both baselines role by role also means a Material upgrade that
         // changes a baseline value cannot quietly make this test vacuous.
-        for ((name, palette) in listOf("Dark" to BeeCodePalette.Dark, "Light" to BeeCodePalette.Light)) {
+        eachScheme { name, palette ->
             val scheme = palette.toColorScheme()
             for (role in colorRoleNames()) {
                 val ours = roleValue(scheme, role)
@@ -125,13 +130,23 @@ class BeeCodePaletteTest {
     }
 
     @Test
-    fun theTwoSchemesAgreeOnTheFixedRolesAndDisagreeOnTheRest() {
-        // The "fixed" roles exist precisely to survive a theme flip, so they must match
-        // across the two palettes; everything else must not, or the light scheme is not
-        // actually light. Asserted together because a copy-paste that duplicated the dark
-        // palette wholesale would pass every other test in this file.
-        val dark = BeeCodePalette.Dark.toColorScheme()
-        val light = BeeCodePalette.Light.toColorScheme()
+    fun everyFamilysTwoSchemesAgreeOnTheFixedRolesAndDisagreeOnTheRest() {
+        // Per family, because "the light scheme is not actually light" is a mistake each
+        // new family can make independently.
+        for (family in ThemeFamily.entries) {
+            assertFixedRolesSurviveTheFlip(family)
+        }
+    }
+
+    /**
+     * The "fixed" roles exist precisely to survive a theme flip, so they must match across
+     * a family's two palettes; everything else must not, or the light scheme is not
+     * actually light. Asserted together because a copy-paste that duplicated the dark
+     * palette wholesale would pass every other test in this file.
+     */
+    private fun assertFixedRolesSurviveTheFlip(family: ThemeFamily) {
+        val dark = family.dark.toColorScheme()
+        val light = family.light.toColorScheme()
 
         val differing = colorRoleNames().filter { role ->
             roleValue(dark, role) != roleValue(light, role)
@@ -142,18 +157,37 @@ class BeeCodePaletteTest {
             assertEquals(
                 roleValue(dark, role),
                 roleValue(light, role),
-                "$role is a fixed role and must not change with the theme",
+                "${family.label}: $role is a fixed role and must not change with the theme",
             )
         }
         // Scrim is black in both by design — it is a dimming overlay, not a surface — so it
         // joins the fixed roles as a legitimate coincidence rather than a suspicious one.
-        val expectedSame = (fixed + "scrim").toSet()
+        //
+        // So does any role that is pure black or pure white in both schemes, and excusing
+        // it by *value* rather than by name is what makes the rule hold for a family this
+        // test did not anticipate. High contrast is the case: its two `primaryContainer`
+        // values are both light amber, and at a 7:1 floor black is the only foreground
+        // that clears it, so `onPrimaryContainer` is #000000 on both sides. That is the
+        // scheme being honest about a constraint, not a palette copied from another. A
+        // name-based exception would keep excusing the role after it stopped being black.
+        val blackOrWhiteInBoth = colorRoleNames().filter { role ->
+            roleValue(dark, role) in BLACK_AND_WHITE && roleValue(light, role) in BLACK_AND_WHITE
+        }
+        val expectedSame = (fixed + "scrim" + blackOrWhiteInBoth).toSet()
         assertEquals(
             emptySet(),
             colorRoleNames().toSet() - expectedSame - differing.toSet(),
-            "these roles are identical in both schemes without being fixed roles, which " +
-                "usually means one palette was copied from the other",
+            "${family.label}: these roles are identical in both schemes without being " +
+                "fixed roles, which usually means one palette was copied from the other",
         )
+    }
+
+    /** Run [block] against every family's dark and light palette, with a label to fail with. */
+    private fun eachScheme(block: (name: String, palette: BeeCodePalette) -> Unit) {
+        for (family in ThemeFamily.entries) {
+            block("${family.label} dark", family.dark)
+            block("${family.label} light", family.light)
+        }
     }
 
     /** Compare every one of [ColorScheme]'s roles against the palette field of the same name. */

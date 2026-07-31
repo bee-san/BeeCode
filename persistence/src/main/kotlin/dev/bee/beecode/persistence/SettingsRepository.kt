@@ -188,6 +188,24 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         if (theme.isNullOrBlank()) remove(KEY_APP_THEME) else put(KEY_APP_THEME, theme, now)
     }
 
+    /**
+     * Which family of colours to use, independent of [appTheme]'s light/dark mode.
+     *
+     * A second key rather than encoding both into one value, because the two questions
+     * are genuinely independent: "follow the system" has to keep working whichever family
+     * is chosen, and it cannot if the family and the mode share a slot. Same storage
+     * reasoning as [appTheme] — an opaque string here, meaning owned in `:shared`.
+     */
+    fun appThemeFamily(): String? = get(KEY_APP_THEME_FAMILY)?.takeIf { it.isNotBlank() }
+
+    fun setAppThemeFamily(family: String?, now: Instant) {
+        if (family.isNullOrBlank()) {
+            remove(KEY_APP_THEME_FAMILY)
+        } else {
+            put(KEY_APP_THEME_FAMILY, family, now)
+        }
+    }
+
     /** Whether the Progress destination is available. Missing or damaged values stay enabled. */
     fun showProgress(): Boolean = enabledByDefault(KEY_SHOW_PROGRESS)
 
@@ -296,6 +314,7 @@ class SettingsRepository(private val database: BeeCodeDatabase) {
         const val KEY_FSRS_PARAMETERS = "fsrs.parameters"
         const val KEY_DAILY_REVIEW_LIMIT = "review.dailyLimit"
         const val KEY_APP_THEME = "app.theme"
+        const val KEY_APP_THEME_FAMILY = "app.themeFamily"
         const val KEY_SHOW_PROGRESS = "progress.show"
         const val KEY_SHOW_STREAKS_AND_ACHIEVEMENTS = "motivation.show"
         const val KEY_PYTHON_EXECUTABLE = "python.executable"

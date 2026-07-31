@@ -5,11 +5,13 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -18,8 +20,11 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.design.BeeCodePalette
 import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
+import dev.bee.beecode.design.resolvePalette
 import dev.bee.beecode.design.resolvesToDark
 import dev.bee.beecode.design.themeChoice
+import dev.bee.beecode.design.themeFamily
 import dev.bee.beecode.persistence.SettingsRepository
 import java.io.File
 
@@ -44,9 +49,10 @@ fun main() {
 private fun BeeCodeWindow(profile: BeeCodeProfile, onExit: () -> Unit) {
     val state = rememberWindowState(width = 1180.dp, height = 820.dp)
 
-    // Read once at launch, then held here so switching it in Settings recolours the
-    // window immediately rather than at the next launch.
+    // Read once at launch, then held here so switching either one in Settings recolours
+    // the window immediately rather than at the next launch.
     var theme by remember { mutableStateOf(profile.settings.themeChoice()) }
+    var family by remember { mutableStateOf(profile.settings.themeFamily()) }
 
     Window(
         onCloseRequest = onExit,
@@ -64,9 +70,15 @@ private fun BeeCodeWindow(profile: BeeCodeProfile, onExit: () -> Unit) {
             onDispose { profile.close() }
         }
 
-        BeeCodeTheme(choice = theme) {
+        BeeCodeTheme(choice = theme, family = family) {
             Surface(color = MaterialTheme.colorScheme.background) {
-                DesktopApp(profile, theme = theme, onThemeChange = { theme = it })
+                DesktopApp(
+                    profile,
+                    theme = theme,
+                    onThemeChange = { theme = it },
+                    family = family,
+                    onFamilyChange = { family = it },
+                )
             }
         }
     }
@@ -108,6 +120,8 @@ internal val PYTHON_EXECUTABLE_KEY = SettingsRepository.KEY_PYTHON_EXECUTABLE
  * [beeCodeTypography]. This function's only job is choosing a scheme.
  *
  * @param choice the learner's preference. Defaults to following the OS.
+ * @param family which set of colours to use. Independent of [choice] on purpose: see
+ *   [ThemeFamily].
  * @param systemIsDark what the platform reports, or null when it does not know. The
  *   default deliberately does *not* use [isSystemInDarkTheme] directly: on Linux
  *   skiko's `currentSystemTheme` is `UNKNOWN`, which that function reports as "not
@@ -117,15 +131,22 @@ internal val PYTHON_EXECUTABLE_KEY = SettingsRepository.KEY_PYTHON_EXECUTABLE
 @Composable
 fun BeeCodeTheme(
     choice: ThemeChoice = ThemeChoice.SYSTEM,
+    family: ThemeFamily = ThemeFamily.Default,
     systemIsDark: Boolean? = systemDarkOrNull(),
     content: @Composable () -> Unit,
 ) {
-    val palette = if (choice.resolvesToDark(systemIsDark)) BeeCodePalette.Dark else BeeCodePalette.Light
-    MaterialTheme(
-        colorScheme = palette.toColorScheme(),
-        typography = beeCodeTypography(),
-        content = content,
-    )
+    // resolvePalette rather than an if here: the same call the Android client makes, so
+    // the two cannot disagree about what SYSTEM means on a host that will not say.
+    val palette = resolvePalette(family, choice, systemIsDark)
+    // The palette goes into a local as well as into the scheme, because four of its
+    // colours have no Material role to travel in. See [LocalBeeCodePalette].
+    CompositionLocalProvider(LocalBeeCodePalette provides palette) {
+        MaterialTheme(
+            colorScheme = palette.toColorScheme(),
+            typography = beeCodeTypography(),
+            content = content,
+        )
+    }
 }
 
 /**
@@ -202,3 +223,39 @@ internal fun BeeCodePalette.toColorScheme(): ColorScheme = ColorScheme(
     onTertiaryFixed = Color(onTertiaryFixed),
     onTertiaryFixedVariant = Color(onTertiaryFixedVariant),
 )
+
+/**
+ * The palette the current theme resolved to, for the colours Material has no role for.
+ *
+ * ## Why a composition local
+ *
+ * The semantic accents — pass, caution, failure, absent — are fields on [BeeCodePalette]
+ * now rather than four global constants, because a colour outside the palette is a colour
+ * `PaletteContrastTest` does not walk, and that is how a 1.787:1 difficulty badge shipped.
+ * But `ColorScheme` has no slot to carry them, so `MaterialTheme` alone cannot answer
+ * "which green means pass in the active theme".
+ *
+ * Threading the palette through every composable that draws a badge would work and would
+ * be noise in twenty signatures. A local keeps the call sites reading as
+ * `LocalBeeCodePalette.current.accentSuccess`, one lookup, no parameter.
+ *
+ * The default is the default family's dark palette rather than an error: a composable
+ * previewed outside [BeeCodeTheme] should render in BeeCode's colours, not throw.
+ */
+internal val LocalBeeCodePalette = staticCompositionLocalOf { BeeCodePalette.HoneyDark }
+
+/** The active accent for a pass, as a Compose colour. */
+@Composable
+internal fun accentSuccess(): Color = Color(LocalBeeCodePalette.current.accentSuccess)
+
+/** The active accent for a partial failure or timeout. */
+@Composable
+internal fun accentCaution(): Color = Color(LocalBeeCodePalette.current.accentCaution)
+
+/** The active accent for a failure. */
+@Composable
+internal fun accentDanger(): Color = Color(LocalBeeCodePalette.current.accentDanger)
+
+/** The active accent for something cancelled or absent. */
+@Composable
+internal fun accentMuted(): Color = Color(LocalBeeCodePalette.current.accentMuted)

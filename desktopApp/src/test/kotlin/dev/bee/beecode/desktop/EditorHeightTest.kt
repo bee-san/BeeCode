@@ -3,6 +3,7 @@ package dev.bee.beecode.desktop
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -102,8 +103,14 @@ class EditorHeightTest {
             onNodeWithText("Show the $tests tests").performClick()
             waitForIdle()
             onNodeWithText("Hide the $tests tests").assertExists()
+            // Matched on the rows' spoken verdict rather than on the "\u2713" character. The
+            // glyph no longer reaches the tree at all \u2014 every row replaces it with a
+            // description, because the character is the only verdict a row carries and a
+            // screen reader names it badly or skips it. Worth recording that the old
+            // assertion had already stopped testing this: the *headline* is also a "\u2713" on
+            // a passing run, so it passed whether the rows appeared or not.
             assertTrue(
-                onAllNodesWithText("\u2713").fetchSemanticsNodes().isNotEmpty(),
+                onAllNodesWithContentDescription("Passed").fetchSemanticsNodes().isNotEmpty(),
                 "expanding must reveal the per-test rows",
             )
         }

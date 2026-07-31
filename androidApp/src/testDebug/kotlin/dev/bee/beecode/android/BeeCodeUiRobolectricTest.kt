@@ -2,10 +2,13 @@ package dev.bee.beecode.android
 
 // assertDoesNotExist is a member of SemanticsNodeInteraction here rather than a
 // top-level extension, so it needs no import -- unlike assertIsDisplayed.
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -15,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.test.core.app.ApplicationProvider
 import android.app.Application
 import dev.bee.beecode.android.ui.BeeCodeApp
@@ -25,6 +29,10 @@ import dev.bee.beecode.app.ProblemCatalogue
 import dev.bee.beecode.app.RunOutcome
 import dev.bee.beecode.app.StatisticsPeriod
 import dev.bee.beecode.app.TopicMastery
+import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
+import dev.bee.beecode.design.themeChoice
+import dev.bee.beecode.design.themeFamily
 import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ReviewRating
 import kotlinx.coroutines.runBlocking
@@ -134,6 +142,28 @@ class BeeCodeUiRobolectricTest {
     }
 
     /**
+     * As [launch], but with the theme collected from the view model the way `MainActivity`
+     * collects it.
+     *
+     * [launch] leaves `BeeCodeTheme` at its defaults, which is right for every test that
+     * does not touch Appearance and wrong for the ones that do: a picker cannot be shown
+     * changing a selection that is a constant. The view model is built once here rather
+     * than inside `setContent` so its state survives recomposition — inline construction
+     * would hand every recomposition a fresh one, and the selection would appear not to
+     * change for a reason that has nothing to do with the picker.
+     */
+    private fun launchWithLiveTheme() {
+        val viewModel = StudyViewModel(profile)
+        compose.setContent {
+            val choice by viewModel.themeChoice.collectAsStateWithLifecycle()
+            val family by viewModel.themeFamily.collectAsStateWithLifecycle()
+            BeeCodeTheme(choice, family) {
+                BeeCodeApp(viewModel)
+            }
+        }
+    }
+
+    /**
      * Scroll the queue until [title] is composed, and return it.
      *
      * The catalogue grows, so a Problem that was once the first row ends up below the
@@ -161,6 +191,67 @@ class BeeCodeUiRobolectricTest {
     }
 
     @Test
+    fun theAppearancePaneOffersEveryThemeWithItsDescription() {
+        launchWithLiveTheme()
+        compose.onNodeWithText("Settings").performClick()
+        for (family in ThemeFamily.entries) {
+            compose.onNodeWithText(family.label).performScrollTo().assertIsDisplayed()
+            // The description too: "Maximum legibility. Text meets WCAG AAA." is the
+            // entire reason a learner would choose High contrast, and a row that renders
+            // its label without it offers a choice with no basis.
+            compose.onNodeWithText(family.description).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun pickingAThemeStoresItAndMarksItSelected() {
+        launchWithLiveTheme()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText(ThemeFamily.SLATE.label).performScrollTo().performClick()
+
+        assertEquals(
+            "the tap must reach storage, not only the view model — the next launch reads " +
+                "this back",
+            ThemeFamily.SLATE,
+            profile.settings.themeFamily(),
+        )
+        // And the control announces it. Without the selected state, TalkBack reads three
+        // identical rows and the state lives only in which circle looks filled.
+        compose.onNode(hasText(ThemeFamily.SLATE.label) and isSelected())
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun theModeSurvivesPickingATheme() {
+        // The property the two-settings design exists for, and the one a single flat list
+        // of six schemes would have removed: with one list, choosing a theme *is*
+        // choosing a mode, so this test could not be written.
+        launchWithLiveTheme()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Light").performScrollTo().performClick()
+        compose.onNodeWithText(ThemeFamily.HIGH_CONTRAST.label).performScrollTo().performClick()
+
+        assertEquals(ThemeChoice.LIGHT, profile.settings.themeChoice())
+        assertEquals(ThemeFamily.HIGH_CONTRAST, profile.settings.themeFamily())
+    }
+
+    @Test
+    fun everyThemeRowIsOneSelectableControlRatherThanALabelBesideACircle() {
+        // What `selectable` on the row plus `onClick = null` on the button buys: the whole
+        // row is the target, which is both the 48dp touch minimum and what TalkBack
+        // traverses. Handing the RadioButton its own handler instead would leave the label
+        // inert while something clickable still existed, so this matches on the label.
+        launchWithLiveTheme()
+        compose.onNodeWithText("Settings").performClick()
+        for (family in ThemeFamily.entries) {
+            compose.onNode(hasText(family.label) and hasClickAction())
+                .performScrollTo()
+                .assertIsDisplayed()
+        }
+    }
+
+    @Test
     fun theNavigationBarReachesEveryDestination() {
         launch()
         compose.onNodeWithText("Progress").performClick()
@@ -169,8 +260,11 @@ class BeeCodeUiRobolectricTest {
 
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Daily review limit").assertIsDisplayed()
-        compose.onNodeWithText("Python execution").assertIsDisplayed()
-        compose.onNodeWithText("Backup").assertIsDisplayed()
+        // Scrolled to. Settings is a scrolling Column, and asserting a card below the
+        // first one visible without scrolling really asserts that the cards above it
+        // stayed short enough — which stops being true the moment one grows.
+        compose.onNodeWithText("Python execution").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Backup").performScrollTo().assertIsDisplayed()
 
         compose.onNodeWithText("Study").performClick()
         compose.onNodeWithText("New Problems").assertIsDisplayed()
@@ -455,6 +549,102 @@ class BeeCodeUiRobolectricTest {
                 substring = true,
             ).onFirst().performScrollTo().assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun eachTestRowAnnouncesItsVerdictRatherThanItsGlyph() {
+        // The desktop counterpart is `DesktopUiTest.eachTestRowAnnouncesItsVerdict...`, and
+        // the labels come from :shared so the two clients cannot announce a pass with two
+        // different words. The ✓/✗ is the only thing separating a passing row from a
+        // failing one — the rest of the row is the test's name, identical either way — so
+        // left bare, TalkBack names the character ("multiplication x") or skips it and a
+        // learner hears a list of test names with no verdict attached to any of them.
+        launch()
+        openTwoSum()
+        compose.onNodeWithContentDescription("Python solution editor")
+            .performTextReplacement("def two_sum(nums, target):\n    return [9, 9]\n")
+        compose.onNodeWithText("Run tests").performClick()
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodesWithText("Again").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onAllNodesWithContentDescription("Failed")
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTrue(
+            "a failing run must not announce any test as passed",
+            compose.onAllNodesWithContentDescription("Passed").fetchSemanticsNodes().isEmpty(),
+        )
+        // And the character is gone from the tree rather than announced alongside its
+        // description — which is what `clearAndSetSemantics` buys over `semantics`.
+        assertTrue(
+            "the glyph must be replaced in the tree, not merely described",
+            compose.onAllNodesWithText("✗").fetchSemanticsNodes().isEmpty(),
+        )
+    }
+
+    @Test
+    fun aPassingTestRowAnnouncesPassed() {
+        // The other branch, because a label hard-coded to "Failed" would satisfy the test
+        // above. Android shows every row without a toggle, unlike desktop.
+        launch()
+        openTwoSum()
+        compose.onNodeWithContentDescription("Python solution editor")
+            .performTextReplacement("${ScriptedPythonRunner.PASS_MARKER}\ndef two_sum(n, t):\n    pass\n")
+        compose.onNodeWithText("Run tests").performClick()
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodesWithText("All tests passed").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onAllNodesWithContentDescription("Passed")
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTrue(
+            "a passing run must not announce any test as failed",
+            compose.onAllNodesWithContentDescription("Failed").fetchSemanticsNodes().isEmpty(),
+        )
+    }
+
+    @Test
+    fun anAchievementAnnouncesWhetherItIsEarned() {
+        // Earned state here is carried by a filled amber star against a muted outlined
+        // lock: shape and colour, no words. This marker used to be unlabelled on the
+        // grounds that `state.detail` beside it gave the state, and it does not — the
+        // detail is a count ("0 of 1"), which is progress, and at "7 of 7 days" it does
+        // not separate earned from about to be.
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+        // Achievements are a tab on the Progress screen, not the screen itself.
+        compose.onNodeWithText("Achievements").performScrollTo().performClick()
+
+        // A fresh profile has solved nothing, so every achievement is unearned.
+        compose.onAllNodesWithContentDescription("Not yet earned")
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTrue(
+            "a profile that has solved nothing must not announce an earned achievement",
+            compose.onAllNodesWithContentDescription("Earned").fetchSemanticsNodes().isEmpty(),
+        )
+    }
+
+    @Test
+    fun anEarnedAchievementSaysSo() {
+        // The opposite branch. Solved through the service rather than the UI: what is under
+        // test is the marker's label, and driving a full run/rate journey to reach it would
+        // make this fail for reasons that have nothing to do with the announcement.
+        solve(ProblemId("two-sum"))
+        launch()
+        compose.onNodeWithText("Progress").performClick()
+        compose.onNodeWithText("Achievements").performScrollTo().performClick()
+
+        compose.onNodeWithText("First Solve").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Earned")
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

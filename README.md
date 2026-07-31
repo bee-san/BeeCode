@@ -33,10 +33,11 @@ The complete local study loop works on both platforms today.
 | Sync between devices | ✅ file or WebDAV | ✅ file or WebDAV |
 | Leaderboard queue | ✅ Settings → Leaderboard | ✅ Settings → Leaderboard |
 | Credential storage | Android Keystore (hardware-backed on most devices) | OS keyring, or plaintext where none exists |
-| Verified by | 42 JVM tests, 19 of them Robolectric UI, + 27 instrumented | 72 JVM tests, 18 of them UI |
+| Themes | 3 families x follow-OS/dark/light | 3 families x follow-OS/dark/light |
+| Verified by | 49 JVM tests, 29 of them Robolectric UI, + 27 instrumented | 83 JVM tests, 39 of them UI |
 
-**633 automated test cases**: 606 JVM tests across nine modules and 27 Android
-instrumented tests. All 606 JVM tests and 18 non-UI device tests run in CI; the hosted
+**667 automated test cases**: 640 JVM tests across nine modules and 27 Android
+instrumented tests. All 640 JVM tests and 18 non-UI device tests run in CI; the hosted
 emulator skips 9 Compose touch tests because it refuses injected input. The passing
 device tests include the complete answer → fail → fix → pass → finalize → restart
 journey against real CPython and real SQLite.
@@ -194,6 +195,51 @@ See [the year-one plan](goals/YEAR-ONE.md).
   in CI, so agreement with the real ones is an assumption, not a test result.
   It also does not hide the secret from *your own account*: `secret-tool lookup` returns
   it, by design. What it stops is the credential travelling inside a file.
+
+## Themes and accessibility
+
+Appearance is **two independent settings**, not one list. A **family** picks the colours;
+a **mode** picks dark, light, or follow-the-OS. They are separate so that "follow the
+system" keeps working inside whichever family you chose — a single flat list has no entry
+meaning "high contrast, tracking the OS", so that combination would either be missing or
+would silently drop you back to the default colours.
+
+| Family | What it is for |
+|---|---|
+| **Honey** | Warm amber. BeeCode's original colours. |
+| **High contrast** | Maximum legibility. Body text meets WCAG **AAA** (7:1). |
+| **Slate** | Cool blue-grey, easier on the eyes over a long session. |
+
+Every family in both modes is checked against WCAG **AA** (4.5:1 body, 3:1 large) by a
+test that walks the palettes, and High contrast is held to **AAA** because it advertises
+it — a family whose whole promise is legibility should fail the build, not the learner, if
+it stops keeping that promise. All 48 Material colour roles are assigned explicitly rather
+than inherited, so a role added by a Material upgrade cannot quietly reintroduce the
+purple baseline.
+
+The accessibility work behind those numbers:
+
+- **Nothing is signalled by colour alone** (WCAG 1.4.1). Every pass, failure, timeout, and
+  cancellation carries a glyph — `✓`, `✗`, `!`, `–` — chosen to differ in *shape*, so the
+  four states are distinguishable in greyscale and to anyone who cannot separate the reds
+  from the greens.
+- **Icons that carry information are labelled, and the rest deliberately are not.** A
+  per-test row's `✓`/`✗` and an achievement's star/lock are the only two icons in either
+  client that say something the surrounding text does not, so those get spoken labels
+  ("Passed"/"Failed", "Earned"/"Not yet earned"). Everything else sits beside its own text
+  label, and describing those would make a screen reader announce every destination twice
+  — so they stay unlabelled, with the reason recorded at the call site rather than left
+  for the next audit to re-litigate.
+- **The desktop client is drivable from the keyboard alone.** Verified by walking the UI
+  one keystroke at a time rather than by inspecting modifiers, which is what found the
+  defect: the code editor claims Tab for Python indentation — it has to, indentation is
+  syntax — and *Run tests* sits after the editor in traversal order, so forward tabbing
+  dead-ended in the editor and the pane's primary action was reachable only by tabbing
+  backwards from the top. **Escape** now advances out of the editor to the next control
+  instead of merely releasing focus.
+
+The spoken labels and the glyphs live in `shared/`, so the two clients cannot word the
+same state differently — a divergence fails a test rather than shipping.
 
 ## Running it
 

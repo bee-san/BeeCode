@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,11 +48,13 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -73,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -94,10 +99,14 @@ import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.app.StatisticsPeriod
 import dev.bee.beecode.app.TopicProgress
-import dev.bee.beecode.design.BeeCodeAccents
+import dev.bee.beecode.design.RunOutcomePresentation
+import dev.bee.beecode.design.ScreenReaderLabels
+import dev.bee.beecode.design.tint
 import dev.bee.beecode.design.Markdown
 import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
 import dev.bee.beecode.design.setThemeChoice
+import dev.bee.beecode.design.setThemeFamily
 import dev.bee.beecode.domain.DueDescription
 import dev.bee.beecode.domain.DueUrgency
 import dev.bee.beecode.domain.ExecutionOutcome
@@ -138,6 +147,8 @@ fun DesktopApp(
     profile: BeeCodeProfile,
     theme: ThemeChoice = ThemeChoice.SYSTEM,
     onThemeChange: (ThemeChoice) -> Unit = {},
+    family: ThemeFamily = ThemeFamily.Default,
+    onFamilyChange: (ThemeFamily) -> Unit = {},
 ) {
     var screen by remember { mutableStateOf<DesktopScreen>(DesktopScreen.Queue) }
     var openProblem by remember { mutableStateOf<ProblemId?>(null) }
@@ -192,12 +203,18 @@ fun DesktopApp(
                 // primary colour, rather than as a nav item competing with the pages.
                 Icon(
                     Icons.Outlined.Hive,
+                    // Decorative by construction: a brand mark states nothing a learner
+                    // needs, and announcing "BeeCode" at the top of the rail would be the
+                    // first thing read on every visit to the window.
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 12.dp, bottom = 4.dp).size(28.dp),
                 )
             },
         ) {
+            // All three descriptions are null on purpose: each item's own `label` names
+            // the destination, and describing the icon too makes a reader announce
+            // "Study, Study" on every item.
             NavigationRailItem(
                 selected = screen is DesktopScreen.Queue,
                 onClick = { screen = DesktopScreen.Queue; refreshToken++ },
@@ -239,6 +256,8 @@ fun DesktopApp(
                     runnerStatus = runnerStatus,
                     theme = theme,
                     onThemeChange = onThemeChange,
+                    family = family,
+                    onFamilyChange = onFamilyChange,
                     onVisibilityChanged = refreshVisibility,
                 )
             }
@@ -479,11 +498,13 @@ private fun ProblemRow(
 @Composable
 private fun DueBadge(due: DueDescription) {
     val (color, icon) = when (due.urgency) {
-        DueUrgency.OVERDUE -> Color(BeeCodeAccents.Danger) to Icons.Outlined.LocalFireDepartment
+        DueUrgency.OVERDUE -> accentDanger() to Icons.Outlined.LocalFireDepartment
         DueUrgency.DUE -> MaterialTheme.colorScheme.primary to Icons.Outlined.Bolt
         DueUrgency.UPCOMING -> MaterialTheme.colorScheme.onSurfaceVariant to Icons.Outlined.Schedule
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
+        // Null on purpose: `due.label` beside it already reads "Overdue by 3 days", so
+        // the icon restates it and a description would have it read twice.
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text(due.label, style = MaterialTheme.typography.labelSmall, color = color)
@@ -493,9 +514,9 @@ private fun DueBadge(due: DueDescription) {
 @Composable
 private fun DifficultyBadge(difficulty: ProblemDifficulty) {
     val (label, color) = when (difficulty) {
-        ProblemDifficulty.EASY -> "Easy" to Color(BeeCodeAccents.Success)
-        ProblemDifficulty.MEDIUM -> "Medium" to Color(BeeCodeAccents.Caution)
-        ProblemDifficulty.HARD -> "Hard" to Color(BeeCodeAccents.Danger)
+        ProblemDifficulty.EASY -> "Easy" to accentSuccess()
+        ProblemDifficulty.MEDIUM -> "Medium" to accentCaution()
+        ProblemDifficulty.HARD -> "Hard" to accentDanger()
     }
     Surface(color = color.copy(alpha = 0.18f), shape = RoundedCornerShape(6.dp)) {
         Text(
@@ -915,18 +936,9 @@ private fun ProblemPane(
 
 @Composable
 private fun ResultBlock(run: ExecutionRun) {
-    val (headline, tint) = when (run.outcome) {
-        ExecutionOutcome.PASSED -> "All tests passed" to Color(BeeCodeAccents.Success)
-        ExecutionOutcome.FAILED ->
-            "${run.passedTestCount} of ${run.totalTestCount} tests passed" to
-                Color(BeeCodeAccents.Caution)
-        ExecutionOutcome.SYNTAX_ERROR -> "Your code has a syntax error" to Color(BeeCodeAccents.Danger)
-        ExecutionOutcome.RUNTIME_ERROR -> "Your code raised an error" to Color(BeeCodeAccents.Danger)
-        ExecutionOutcome.TIMEOUT -> "Your code ran out of time" to Color(BeeCodeAccents.Caution)
-        ExecutionOutcome.CANCELLED -> "Run stopped" to Color(BeeCodeAccents.Muted)
-        ExecutionOutcome.WORKER_FAILURE ->
-            "BeeCode could not run your code" to Color(BeeCodeAccents.Danger)
-    }
+    // The mapping is in :shared so Android cannot word the same outcome differently.
+    val outcome = RunOutcomePresentation.of(run.outcome, run.passedTestCount, run.totalTestCount)
+    val tint = Color(outcome.tint(LocalBeeCodePalette.current))
 
     // A passing run starts collapsed. Its per-test rows are a column of identical
     // ticks that say nothing the headline has not already said, and they cost the
@@ -939,10 +951,26 @@ private fun ResultBlock(run: ExecutionRun) {
     Card {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(8.dp).background(tint, RoundedCornerShape(4.dp)))
+                // A glyph rather than the coloured dot this replaced. The dot's only
+                // content was its tint, so a learner who cannot separate the green from
+                // the amber — or who reads the screen in greyscale — got nothing from it
+                // that the headline did not already say, and it failed WCAG 1.4.1 for
+                // exactly that reason. The glyph says pass, warn, or fail in its shape.
+                Text(
+                    outcome.glyph,
+                    color = tint,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelMedium,
+                    // Cleared rather than described: `outcome.headline` is the very next
+                    // node and already reads "All tests passed". Unlike the per-test rows,
+                    // where the glyph is the only verdict, here it is a second copy of one
+                    // — so a reader should announce the sentence, not the character before
+                    // it. The glyph earns its place visually (WCAG 1.4.1) and nowhere else.
+                    modifier = Modifier.clearAndSetSemantics {},
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    headline,
+                    outcome.headline,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
@@ -1011,12 +1039,16 @@ private fun TestRow(result: TestCaseResult) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (result.passed) "✓" else "✗",
-                color = if (result.passed) {
-                    Color(BeeCodeAccents.Success)
-                } else {
-                    Color(BeeCodeAccents.Danger)
-                },
+                color = if (result.passed) accentSuccess() else accentDanger(),
                 fontWeight = FontWeight.Bold,
+                // The glyph is the only thing separating a pass from a failure here — the
+                // rest of the row is the test's name, identical either way. Left bare, a
+                // reader announces the character ("check mark", "multiplication x") or
+                // skips it, so a learner heard a list of test names with no verdicts.
+                // `clearAndSetSemantics` replaces the glyph rather than adding to it.
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = ScreenReaderLabels.testCase(result.passed)
+                },
             )
             Spacer(Modifier.width(8.dp))
             Text(
@@ -1334,6 +1366,7 @@ private fun DesktopScheduleCard(profile: BeeCodeProfile, stats: StudyStatistics)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Outlined.Schedule,
+                    // Null on purpose: "Your schedule" is the next node in the row.
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
@@ -1363,8 +1396,10 @@ private fun DesktopScheduleCard(profile: BeeCodeProfile, stats: StudyStatistics)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Outlined.LocalFireDepartment,
+                        // Null on purpose: "3 leeches" follows it, and the flame's only
+                        // job is to make the count findable while scanning.
                         contentDescription = null,
-                        tint = Color(BeeCodeAccents.Danger),
+                        tint = accentDanger(),
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
@@ -1372,7 +1407,7 @@ private fun DesktopScheduleCard(profile: BeeCodeProfile, stats: StudyStatistics)
                         "${stats.leeches.size} " +
                             if (stats.leeches.size == 1) "leech" else "leeches",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(BeeCodeAccents.Danger),
+                        color = accentDanger(),
                     )
                 }
                 Spacer(Modifier.height(4.dp))
@@ -1616,7 +1651,11 @@ private fun AchievementRow(state: AchievementState) {
             ) {
                 Icon(
                     if (state.earned) Icons.Filled.Star else Icons.Outlined.Lock,
-                    contentDescription = null,
+                    // Labelled, unlike the icons that sit beside their own text: earned
+                    // state is carried by shape and tint alone here. `state.detail` gives
+                    // a count — "3 of 7 days" — which is progress, not status, and at
+                    // "7 of 7 days" does not separate earned from about to be.
+                    contentDescription = ScreenReaderLabels.achievement(state.earned),
                     modifier = Modifier.size(20.dp),
                     tint = if (state.earned) {
                         MaterialTheme.colorScheme.primary
@@ -1665,6 +1704,8 @@ private fun SettingsPane(
     runnerStatus: RunnerStatus?,
     theme: ThemeChoice,
     onThemeChange: (ThemeChoice) -> Unit,
+    family: ThemeFamily,
+    onFamilyChange: (ThemeFamily) -> Unit,
     onVisibilityChanged: () -> Unit,
 ) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
@@ -1735,9 +1776,41 @@ private fun SettingsPane(
                                         ThemeChoice.DARK -> Icons.Outlined.Bedtime
                                         ThemeChoice.LIGHT -> Icons.Outlined.LightMode
                                     },
+                                    // Null on purpose: the chip's own label says System,
+                                    // Dark, or Light, and the reader announces that.
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
+                            },
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    // Two settings rather than six entries in one list: dark and light are
+                    // a *mode*, and folding them in would mean picking a theme gave up
+                    // following the desktop's own setting.
+                    "Which colours to use. Independent of the setting above — every theme " +
+                        "has a dark and a light scheme.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    // One tab stop for the group, arrow keys within it.
+                    Modifier.selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ThemeFamily.entries.forEach { candidate ->
+                        ThemeFamilyRow(
+                            candidate = candidate,
+                            selected = family == candidate,
+                            onSelect = {
+                                profile.settings.setThemeFamily(candidate, Clock.System.now())
+                                onFamilyChange(candidate)
                             },
                         )
                     }
@@ -2146,6 +2219,56 @@ private fun SettingsPane(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/**
+ * One theme family, as a radio row.
+ *
+ * ## Why a radio row rather than another chip strip
+ *
+ * The mode above it is three one-word options and fits on a line. A family needs its
+ * description shown — "Maximum legibility. Text meets WCAG AAA." is the whole reason a
+ * learner would choose it, and a chip has room for a word. So the two controls look
+ * different because they are answering differently-sized questions.
+ *
+ * ## Accessibility
+ *
+ * `selectable` on the row, and `Modifier.selectableGroup()` on the column that holds
+ * them, is what makes this one tab stop with arrow keys inside rather than three
+ * unrelated stops — the desktop keyboard behaviour a radio group is expected to have.
+ * `onClick = null` on the button itself is deliberate: the row already handles the
+ * click, and giving the button its own handler makes the label a dead zone next to a
+ * live 20dp circle. The role tells a screen reader to announce "radio button, selected",
+ * so the state does not depend on seeing which circle is filled.
+ */
+@Composable
+private fun ThemeFamilyRow(
+    candidate: ThemeFamily,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.weight(1f)) {
+            Text(
+                candidate.label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            Text(
+                candidate.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

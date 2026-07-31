@@ -8,7 +8,9 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,6 +20,8 @@ import dev.bee.beecode.android.ui.BeeCodeApp
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.design.BeeCodePalette
 import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
+import dev.bee.beecode.design.resolvePalette
 import dev.bee.beecode.design.resolvesToDark
 
 /**
@@ -47,7 +51,8 @@ class MainActivity : ComponentActivity() {
             // a plain read would store the learner's choice and go on rendering the old
             // palette until the next launch — a setting that looks broken while working.
             val choice by viewModel.themeChoice.collectAsStateWithLifecycle()
-            BeeCodeTheme(choice) {
+            val family by viewModel.themeFamily.collectAsStateWithLifecycle()
+            BeeCodeTheme(choice, family) {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     BeeCodeApp(viewModel)
                 }
@@ -74,6 +79,10 @@ class MainActivity : ComponentActivity() {
  * composable — `BeeCodePaletteTest` on desktop and `AndroidThemeTest` here now assert
  * both mappings against the one palette, so a divergence fails a build.
  *
+ * @param family which set of colours to use — see [ThemeFamily]. Deliberately a second
+ *   axis rather than more [ThemeChoice] entries: "follow the system" has to keep working
+ *   whichever family the learner picks, which it cannot if dark and light are entries in
+ *   the same list as the families.
  * @param systemIsDark what the platform reports. Android always knows, unlike desktop
  *   Linux where skiko returns UNKNOWN — so this takes the OS signal directly rather than
  *   going through [ThemeChoice.resolvesToDark]'s null case.
@@ -81,16 +90,55 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BeeCodeTheme(
     choice: ThemeChoice = ThemeChoice.SYSTEM,
+    family: ThemeFamily = ThemeFamily.Default,
     systemIsDark: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val palette = if (choice.resolvesToDark(systemIsDark)) BeeCodePalette.Dark else BeeCodePalette.Light
-    MaterialTheme(
-        colorScheme = palette.toColorScheme(),
-        typography = beeCodeTypography(),
-        content = content,
-    )
+    // Through resolvePalette, which desktop also calls, so the two clients cannot come
+    // to disagree about what a family and a mode resolve to together.
+    val palette = resolvePalette(family, choice, systemIsDark)
+    // The palette goes into a local as well as into the scheme: four of its colours have
+    // no Material role to travel in. See [LocalBeeCodePalette].
+    CompositionLocalProvider(LocalBeeCodePalette provides palette) {
+        MaterialTheme(
+            colorScheme = palette.toColorScheme(),
+            typography = beeCodeTypography(),
+            content = content,
+        )
+    }
 }
+
+/**
+ * The palette the current theme resolved to, for the colours Material has no role for.
+ *
+ * The semantic accents — pass, caution, failure, absent — are fields on [BeeCodePalette]
+ * rather than four global constants, because a colour outside the palette is a colour
+ * `PaletteContrastTest` does not walk, and that is how a difficulty badge at 1.787:1
+ * against a light `Card` shipped. `ColorScheme` has no slot to carry them, so
+ * `MaterialTheme` alone cannot answer "which green means pass in the active theme".
+ *
+ * A local rather than a parameter on every composable that draws a badge: the call sites
+ * read `accentSuccess()`, one lookup, no signature noise. The default is the default
+ * family's dark palette rather than an error, so a preview outside [BeeCodeTheme]
+ * renders in BeeCode's colours instead of throwing.
+ */
+internal val LocalBeeCodePalette = staticCompositionLocalOf { BeeCodePalette.HoneyDark }
+
+/** The active accent for a pass. */
+@Composable
+internal fun accentSuccess(): Color = Color(LocalBeeCodePalette.current.accentSuccess)
+
+/** The active accent for a partial failure or a timeout. */
+@Composable
+internal fun accentCaution(): Color = Color(LocalBeeCodePalette.current.accentCaution)
+
+/** The active accent for a failure. */
+@Composable
+internal fun accentDanger(): Color = Color(LocalBeeCodePalette.current.accentDanger)
+
+/** The active accent for something cancelled or absent. */
+@Composable
+internal fun accentMuted(): Color = Color(LocalBeeCodePalette.current.accentMuted)
 
 /**
  * Map the shared palette onto Material's scheme.

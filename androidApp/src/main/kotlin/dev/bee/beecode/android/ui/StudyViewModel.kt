@@ -19,8 +19,11 @@ import dev.bee.beecode.app.StudyQueue
 import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.design.ThemeChoice
+import dev.bee.beecode.design.ThemeFamily
 import dev.bee.beecode.design.setThemeChoice
+import dev.bee.beecode.design.setThemeFamily
 import dev.bee.beecode.design.themeChoice
+import dev.bee.beecode.design.themeFamily
 import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ProblemDefinition
 import dev.bee.beecode.domain.ProblemId
@@ -259,6 +262,21 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     fun setThemeChoice(choice: ThemeChoice) {
         profile.settings.setThemeChoice(choice, kotlinx.datetime.Clock.System.now())
         _themeChoice.value = choice
+    }
+
+    /**
+     * Which set of colours to use, independent of [themeChoice].
+     *
+     * Two settings rather than one flat list of six: "follow the system" has to keep
+     * working whichever family the learner picks, and it cannot if dark and light are
+     * entries in the same list as the families.
+     */
+    private val _themeFamily = MutableStateFlow(profile.settings.themeFamily())
+    val themeFamily: StateFlow<ThemeFamily> = _themeFamily.asStateFlow()
+
+    fun setThemeFamily(family: ThemeFamily) {
+        profile.settings.setThemeFamily(family, kotlinx.datetime.Clock.System.now())
+        _themeFamily.value = family
     }
 
     fun setShowProgress(show: Boolean) {
