@@ -48,6 +48,7 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -68,6 +69,9 @@ import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.TestCaseResult
 import dev.bee.beecode.domain.formatIntervalDays
+
+internal const val CODE_EDITOR_TAG = "code-editor"
+internal const val SYMBOL_ROW_TAG = "symbol-row"
 
 /**
  * The Problem view: statement, editor, results, and finalize.
@@ -352,6 +356,7 @@ private fun CodeEditor(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 200.dp)
+                    .testTag(CODE_EDITOR_TAG)
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp)),
             ) {
                 BasicTextField(
@@ -478,7 +483,10 @@ private fun SymbolRow(onInsert: (String) -> Unit) {
         "#" to "#",
     )
     Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .testTag(SYMBOL_ROW_TAG),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         symbols.forEach { (text, label) ->
