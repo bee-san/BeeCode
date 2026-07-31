@@ -44,24 +44,21 @@ which is the same command that produces the DMG above.
 
 Download the `.tar.gz`, extract it, and run `BeeCode/bin/BeeCode`. Needs `python3`.
 
-## What's new in v0.3.0
+## What's new in v0.4.0
 
-- **Techniques are now the unit of spaced repetition.** The queue schedules concepts
-  such as dynamic programming or sliding windows, then rotates through Problems that
-  practise that technique. Existing review history is rebuilt into the new topic
-  schedule on first launch.
-- **Progress has useful time windows and topic detail.** Compare the last 7, 30, or
-  90 days with the previous period, inspect activity, see curriculum coverage by data
-  structure or technique, and check each practised technique's recall rate and FSRS
-  interval.
-- **The core pack grew from 16 to 200 Problems**, with 1,850 declared tests and a
-  closed two-axis taxonomy. Every reference solution and starter is checked during
-  the build.
-- **Android and desktop share a clearer study UI.** Problem statements render as
-  prose, schedules are visible, navigation and contrast are more consistent, and
-  editing no longer moves the caret or loses typed source.
-- **Release metadata is now checked.** This build reports version `0.3.0` and Android
-  version code `3`; the two earlier release files accidentally reported `0.1.0`/`1`.
+- **Choose a colour family independently from light or dark mode.** Honey keeps
+  BeeCode's original amber palette, High contrast targets maximum legibility, and
+  Slate provides a cooler alternative. Each family can be light, dark, or follow the
+  operating system.
+- **Every palette is checked for readable contrast.** All six family/mode
+  combinations meet WCAG AA for body and large text; High contrast is held to WCAG
+  AAA because that is the promise it makes.
+- **Status no longer depends on colour alone.** Pass, failure, timeout, and
+  cancellation use distinct glyphs, while meaningful test and achievement icons now
+  have screen-reader labels shared by Android and desktop.
+- **The desktop study flow is keyboard accessible.** Escape moves focus out of the
+  code editor, so its Tab-to-indent behavior no longer traps keyboard users before
+  the Run tests action.
 
 ## What works
 
@@ -122,8 +119,8 @@ builds. See the
 
 ## Verification
 
-633 automated test cases: 606 JVM tests across nine modules and 27 Android
-instrumented tests. All 606 JVM tests and 18 non-UI device tests run in CI; the hosted
+667 automated test cases: 640 JVM tests across nine modules and 27 Android
+instrumented tests. All 640 JVM tests and 18 non-UI device tests run in CI; the hosted
 emulator skips 9 Compose touch tests because it refuses injected input. The passing
 device tests include the full answer → fail → fix → pass → finalize → restart journey
 against real CPython and real SQLite.
@@ -134,7 +131,7 @@ instead of failing a learner. The same gate proves each starter does *not* alrea
 pass, and that no reference solution is readable before you choose to reveal it.
 
 Both clients' UI is tested headlessly on every push. Android's UI behavior is covered
-by 19 Robolectric tests on the JVM; desktop Compose UI tests run headlessly as well.
+by 29 Robolectric tests on the JVM; desktop Compose UI tests run headlessly as well.
 
 FSRS-7 (35 parameters) is checked against 384 reference vectors generated from
 upstream's own `models/fsrs_v7.py`, at 1e-9 relative tolerance.
