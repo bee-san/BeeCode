@@ -181,6 +181,16 @@ See [the year-one plan](goals/YEAR-ONE.md).
   every launch so older installs are fixed too). It was created 0755 — world-readable —
   which was invisible and wrong on any shared machine. The sync file gets the same
   treatment (0600, set before the rename so it is never briefly world-readable).
+- **An empty sync file now seeds itself instead of wedging sync.** Naming the shared file
+  before BeeCode writes it leaves zero bytes — Android's document picker does exactly this,
+  and so do WebDAV clients and folder-sync tools. The file backend read those zero bytes as
+  a *snapshot*, the merge could not parse them, and every sync from then on reported "the
+  remote snapshot is not readable" while never pushing, so nothing healed it; turning sync
+  off and on again did not help, because the empty file stayed. WebDAV had the same wedge by
+  a different route: a blank-but-existing file was pushed with `If-None-Match: *`, which the
+  server refuses forever. Both now treat blank as "nothing synced yet" and seed it, and the
+  WebDAV retry re-guards on the blank file's own ETag — so a device that finds a *real*
+  snapshot instead still loses the race rather than overwriting it.
 - **The desktop WebDAV password goes to your OS keyring, where there is one.**
   `secret-tool` on Linux, `security` on macOS — both are already installed with the
   desktop, so this adds no dependency. The profile then holds a marker, not the password,

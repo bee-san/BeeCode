@@ -142,6 +142,18 @@ Verified by 11 loop tests over two real profiles and a real file, including a ge
 lost race (a second device's full sync interposed before the push). Both dangerous
 mutations are caught: pushing local instead of merged, and skipping the local restore.
 
+**An empty remote is "nothing synced yet", in every backend.** This was not true at first,
+and the disagreement was the one bug in sync that a learner could not recover from. A file
+named ahead of time — by Android's `CreateDocument` picker, a WebDAV client, or a
+folder-sync tool — exists with zero bytes. `FileSyncStore` returned those bytes as a
+snapshot, the merge refused to parse them, and every sync failed while never pushing, so
+nothing seeded the file. `WebDavSyncStore` read blank correctly but then sent
+`If-None-Match: *`, which a server refuses because the resource exists. Only
+`DocumentSyncStore` had it right on both sides. All three now agree, `pull` and `push`
+alike — the two must agree per backend, or the seeding push mismatches its own token and
+conflicts forever instead. The WebDAV seed re-guards on the blank resource's ETag, so it
+stays a compare-and-swap rather than becoming a force.
+
 **Known limitation.** `FileSyncStore`'s compare-and-swap is a read-verify-write, not an
 atomic one. It closes the realistic window — two devices minutes apart — but not a truly
 simultaneous write, and it cannot without file locking that behaves differently on every

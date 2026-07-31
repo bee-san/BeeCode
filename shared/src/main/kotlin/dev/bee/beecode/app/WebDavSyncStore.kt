@@ -82,7 +82,47 @@ class WebDavSyncStore private constructor(
         }
     }
 
-    override suspend fun push(payloadText: String, expectedToken: String?): SyncOutcome<String> =
+    override suspend fun push(payloadText: String, expectedToken: String?): SyncOutcome<String> {
+        val result = pushGuarded(payloadText, expectedToken)
+        // A blank-but-existing resource is the one case where the seeding push is refused
+        // forever rather than transiently. [pull] correctly reports a blank body as "nothing
+        // synced yet", so the loop pushes with expectedToken = null, which sends
+        // `If-None-Match: *` — and the server refuses that, because the resource *does*
+        // exist. Nothing ever writes the first snapshot, so every sync reports a conflict.
+        //
+        // This is reachable in the ordinary way: WebDAV clients and folder-sync tools create
+        // a zero-byte file when a learner names one ahead of time, exactly as Android's
+        // document picker does.
+        //
+        // Re-guarding on the blank resource's own ETag keeps the compare-and-swap honest —
+        // if another device writes a real snapshot in between, the If-Match fails and this
+        // is a genuine conflict again. Only attempted once, and only when seeding.
+        if (result is SyncOutcome.Conflict && expectedToken == null) {
+            blankResourceToken()?.let { blankToken ->
+                return pushGuarded(payloadText, expectedToken = blankToken)
+            }
+        }
+        return result
+    }
+
+    /**
+     * The ETag of the remote *if* it exists but holds no snapshot, else null.
+     *
+     * Separate from [pull] because pull deliberately discards the token for a blank body —
+     * it is reporting "there is nothing to merge", which is true. Seeding needs the token
+     * anyway, to guard the write that fills it in.
+     */
+    private fun blankResourceToken(): String? = request("GET") { connection ->
+        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+            SyncOutcome.Success(null)
+        } else {
+            val body = connection.inputStream.use { it.readBytes().decodeToString() }
+            val etag = connection.getHeaderField("ETag")
+            SyncOutcome.Success(if (body.isBlank()) etag else null)
+        }
+    }.let { outcome -> (outcome as? SyncOutcome.Success)?.value }
+
+    private suspend fun pushGuarded(payloadText: String, expectedToken: String?): SyncOutcome<String> =
         request("PUT", configure = { connection ->
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")

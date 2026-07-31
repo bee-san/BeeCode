@@ -65,6 +65,43 @@ class WebDavSyncStoreTest {
     }
 
     @Test
+    fun aBlankButExistingRemoteIsSeededRatherThanConflictingForever() {
+        // A zero-byte file already on the server — what a WebDAV client or folder-sync tool
+        // leaves when a learner creates the sync file ahead of time.
+        //
+        // pull() rightly reports "nothing synced yet" for a blank body, so the loop pushes
+        // with expectedToken = null, which sends `If-None-Match: *`. The server refuses that
+        // because the resource exists, so before the fix *every* sync reported a conflict and
+        // no snapshot was ever written. Re-guarding on the blank resource's ETag seeds it.
+        stored = ""
+        etag = "\"rev-0\""
+
+        val pulled = assertIs<SyncOutcome.Success<SyncSnapshot?>>(runBlocking { store().pull() })
+        assertEquals(null, pulled.value, "a blank body holds no snapshot")
+
+        val pushed = assertIs<SyncOutcome.Success<String>>(
+            runBlocking { store().push("""{"formatVersion":2}""", expectedToken = null) },
+        )
+        assertEquals("""{"formatVersion":2}""", stored)
+        assertEquals(etag, pushed.value)
+    }
+
+    @Test
+    fun seedingDoesNotOverwriteARealSnapshotThatAppearedFirst() {
+        // The retry above must not become an unguarded write. A device that pulled "nothing
+        // there" and then finds a *real* snapshot has genuinely lost the race, and forcing
+        // would discard the other device's work — the one failure mode sync must not have.
+        stored = """{"formatVersion":2,"reviews":[]}"""
+        etag = "\"rev-9\""
+
+        val result = assertIs<SyncOutcome.Conflict>(
+            runBlocking { store().push("""{"mine":true}""", expectedToken = null) },
+        )
+        assertTrue(result.reason.contains("changed"), result.reason)
+        assertEquals("""{"formatVersion":2,"reviews":[]}""", stored, "the remote must be untouched")
+    }
+
+    @Test
     fun aStoredSnapshotReadsBackWithItsServerEtag() {
         stored = """{"formatVersion":1}"""
         etag = "\"rev-1\""

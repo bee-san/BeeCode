@@ -243,6 +243,60 @@ class SyncServiceTest {
     }
 
     @Test
+    fun anEmptySyncFileIsSeededRatherThanTreatedAsCorrupt() {
+        // The state Android's document picker leaves behind. `CreateDocument` makes a
+        // zero-byte file the moment the learner names it, and that file replicates to the
+        // desktop through the very folder sync BeeCode tells them to use — so the desktop's
+        // *first* sync sees an empty remote, not an absent one.
+        //
+        // Treating it as a real snapshot wedged sync permanently: the merge cannot parse "",
+        // so every sync reported "the remote snapshot is not readable", and no sync ever
+        // pushed, so nothing healed it. Turning sync off and on again did not help either,
+        // because the empty file stayed.
+        val phone = device()
+        solve(phone, "two-sum", ReviewRating.GOOD)
+        remote.writeText("")
+
+        val report = assertIs<SyncReport.Completed>(sync(phone))
+        assertTrue(report.pushed, "an empty remote must be seeded, not refused")
+        assertTrue(remote.readText().contains("formatVersion"))
+
+        // And the seeded file is a real remote for the other device, which is the point.
+        val laptop = device()
+        assertTrue(assertIs<SyncReport.Completed>(sync(laptop)).receivedChanges)
+        assertEquals(1, laptop.allReviews().size)
+    }
+
+    @Test
+    fun aWhitespaceOnlySyncFileIsAlsoSeeded() {
+        // A newline is what several replicating clients leave when they touch a file, and it
+        // is just as unparseable as zero bytes. Asserted separately from the empty case
+        // because a fix that only checked `isEmpty()` would pass that test and fail here.
+        val phone = device()
+        solve(phone, "two-sum", ReviewRating.GOOD)
+        remote.writeText("\n  \n")
+
+        assertTrue(assertIs<SyncReport.Completed>(sync(phone)).pushed)
+        assertTrue(remote.readText().contains("formatVersion"))
+    }
+
+    @Test
+    fun theFileStorePushAgreesWithPullAboutAnEmptyRemote() {
+        // pull() and push() must classify a blank file the same way. If pull says "nothing
+        // there" (token null) but push still hashes the zero bytes, the seeding push
+        // mismatches its expected token and reports a conflict on every attempt — sync
+        // wedged again, just with a different message.
+        remote.writeText("")
+        runBlocking {
+            val pulled = assertIs<SyncOutcome.Success<SyncSnapshot?>>(FileSyncStore(remote).pull())
+            assertEquals(null, pulled.value, "a blank file holds no snapshot")
+            assertIs<SyncOutcome.Success<String>>(
+                FileSyncStore(remote).push("{\"a\":1}", expectedToken = null),
+            )
+        }
+    }
+
+    @Test
     fun theFileStoreTokenIsAContentHashSoIdenticalContentGivesTheSameToken() {
         // Determinism the merge relies on: two devices that computed the same merged
         // snapshot must agree on its token, or each would see the other's push as a

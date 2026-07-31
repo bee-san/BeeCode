@@ -42,11 +42,18 @@ class FileSyncStore(private val file: File) : SyncStore {
     override val storeId: String = "file"
 
     override suspend fun pull(): SyncOutcome<SyncSnapshot?> = try {
-        if (!file.isFile) {
-            // Absent is a normal first-run state, not a failure: nothing has synced yet.
+        val text = if (file.isFile) file.readText() else null
+        // Absent *and* empty are both normal first-run states, not failures: nothing has
+        // synced yet. Empty matters as much as absent because Android's document picker
+        // creates a zero-byte file before BeeCode ever writes to it, and that file
+        // replicates to the desktop like any other. Returning it as a real snapshot made
+        // every subsequent sync fail with "the remote snapshot is not readable" — the merge
+        // cannot parse "" — and nothing healed it, because the push that would have seeded
+        // the file never ran. [DocumentSyncStore] and [WebDavSyncStore] already read blank
+        // as "nothing there"; this store was the only one that did not.
+        if (text.isNullOrBlank()) {
             SyncOutcome.Success(null)
         } else {
-            val text = file.readText()
             SyncOutcome.Success(SyncSnapshot(payloadText = text, token = tokenFor(text)))
         }
     } catch (e: IOException) {
@@ -57,7 +64,12 @@ class FileSyncStore(private val file: File) : SyncStore {
 
     override suspend fun push(payloadText: String, expectedToken: String?): SyncOutcome<String> {
         return try {
-            val currentToken = if (file.isFile) tokenFor(file.readText()) else null
+            // Blank counts as "nothing there", exactly as in [pull]. The two must agree: if
+            // pull reported null for an empty file and push still hashed its zero bytes,
+            // the seeding push would carry expectedToken = null, mismatch, and report a
+            // conflict on every attempt — leaving sync wedged in a different way.
+            val current = if (file.isFile) file.readText() else null
+            val currentToken = if (current.isNullOrBlank()) null else tokenFor(current)
             if (currentToken != expectedToken) {
                 return SyncOutcome.Conflict(
                     if (expectedToken == null) {
