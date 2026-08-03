@@ -25,11 +25,174 @@ object EditorEdits {
     /** A text buffer and caret position. */
     data class Edit(val text: String, val caret: Int)
 
+    /** A text buffer and a selection, used by pairing and line-oriented commands. */
+    data class SelectionEdit(val text: String, val selectionStart: Int, val selectionEnd: Int)
+
     /** Replace `[start, end)` with [insertion], leaving the caret after it. */
     fun insert(text: String, start: Int, end: Int, insertion: String): Edit {
         val from = start.coerceIn(0, text.length)
         val to = end.coerceIn(from, text.length)
         return Edit(text.replaceRange(from, to, insertion), from + insertion.length)
+    }
+
+    /**
+     * Insert a delimiter pair, wrapping a selection or leaving the caret inside it.
+     */
+    fun surround(text: String, start: Int, end: Int, opening: String, closing: String): SelectionEdit {
+        val from = start.coerceIn(0, text.length)
+        val to = end.coerceIn(from, text.length)
+        val selected = text.substring(from, to)
+        val replacement = opening + selected + closing
+        return SelectionEdit(
+            text = text.replaceRange(from, to, replacement),
+            selectionStart = from + opening.length,
+            selectionEnd = if (selected.isEmpty()) from + opening.length else to + opening.length,
+        )
+    }
+
+    /** Move a collapsed caret without changing text. */
+    fun moveCaret(text: String, caret: Int, delta: Int): SelectionEdit {
+        val next = (caret + delta).coerceIn(0, text.length)
+        return SelectionEdit(text, next, next)
+    }
+
+    /**
+     * Add or remove `# ` on every selected line.
+     *
+     * A block is uncommented only when every non-blank line is already commented.
+     */
+    fun toggleComment(text: String, start: Int, end: Int): SelectionEdit {
+        val from = start.coerceIn(0, text.length)
+        val to = end.coerceIn(from, text.length)
+        val blockStart = lineStartAt(text, from)
+        val blockEnd = lineEndAt(text, to)
+        val lines = text.substring(blockStart, blockEnd).split("\n")
+        val uncomment = lines.filter { it.isNotBlank() }.all { line ->
+            val indent = line.indexOfFirst { it != ' ' }.let { if (it < 0) line.length else it }
+            line.startsWith("#", indent)
+        }
+        val rewritten = lines.joinToString("\n") { line ->
+            if (line.isBlank()) {
+                line
+            } else {
+                val indent = line.indexOfFirst { it != ' ' }.let { if (it < 0) line.length else it }
+                if (uncomment) {
+                    val afterMarker = indent + 1
+                    line.removeRange(
+                        indent,
+                        if (line.getOrNull(afterMarker) == ' ') afterMarker + 1 else afterMarker,
+                    )
+                } else {
+                    line.substring(0, indent) + "# " + line.substring(indent)
+                }
+            }
+        }
+        return SelectionEdit(
+            text = text.replaceRange(blockStart, blockEnd, rewritten),
+            selectionStart = blockStart,
+            selectionEnd = blockStart + rewritten.length,
+        )
+    }
+
+    data class SearchMatch(val start: Int, val end: Int)
+
+    /**
+     * Choose the next search result from the current selection.
+     *
+     * When no result is selected yet, forward navigation starts at [currentIndex]
+     * and backward navigation starts at the final result.
+     */
+    fun searchNavigationIndex(
+        matches: List<SearchMatch>,
+        selectionStart: Int,
+        selectionEnd: Int,
+        currentIndex: Int,
+        delta: Int,
+    ): Int? {
+        if (matches.isEmpty()) return null
+        val selectedIndex = matches.indexOfFirst {
+            it.start == selectionStart && it.end == selectionEnd
+        }
+        return when {
+            selectedIndex >= 0 -> Math.floorMod(selectedIndex + delta, matches.size)
+            delta < 0 -> matches.lastIndex
+            else -> currentIndex.coerceIn(0, matches.lastIndex)
+        }
+    }
+
+    /** Find literal matches, optionally respecting case and word boundaries. */
+    fun findAll(
+        text: String,
+        query: String,
+        matchCase: Boolean = false,
+        wholeWord: Boolean = false,
+    ): List<SearchMatch> {
+        if (query.isEmpty()) return emptyList()
+        val result = mutableListOf<SearchMatch>()
+        var from = 0
+        while (from <= text.length - query.length) {
+            val index = text.indexOf(query, from, ignoreCase = !matchCase)
+            if (index < 0) break
+            val end = index + query.length
+            val boundaryMatches = !wholeWord ||
+                (!text.getOrNull(index - 1).isIdentifierPart() && !text.getOrNull(end).isIdentifierPart())
+            if (boundaryMatches) result += SearchMatch(index, end)
+            from = (index + query.length.coerceAtLeast(1))
+        }
+        return result
+    }
+
+    fun replaceAll(
+        text: String,
+        query: String,
+        replacement: String,
+        matchCase: Boolean = false,
+        wholeWord: Boolean = false,
+    ): SelectionEdit {
+        val matches = findAll(text, query, matchCase, wholeWord)
+        if (matches.isEmpty()) return SelectionEdit(text, 0, 0)
+        val rewritten = buildString {
+            var cursor = 0
+            matches.forEach { match ->
+                append(text, cursor, match.start)
+                append(replacement)
+                cursor = match.end
+            }
+            append(text, cursor, text.length)
+        }
+        return SelectionEdit(rewritten, rewritten.length, rewritten.length)
+    }
+
+    /** Return the caret offset for a one-based line number. */
+    fun goToLine(text: String, line: Int): Int {
+        if (line <= 1) return 0
+        var offset = 0
+        repeat(line - 1) {
+            val newline = text.indexOf('\n', offset)
+            if (newline < 0) return text.length
+            offset = newline + 1
+        }
+        return offset
+    }
+
+    /**
+     * Build a line-number gutter, leaving wrapped continuation lines blank.
+     *
+     * [visualLineStarts] comes from the platform text layout when wrapping is enabled.
+     * Without it, every logical source line receives a number.
+     */
+    fun lineNumberGutter(text: String, visualLineStarts: List<Int>? = null): String {
+        val logicalLineStarts = buildList {
+            add(0)
+            text.forEachIndexed { index, char ->
+                if (char == '\n') add(index + 1)
+            }
+        }
+        val displayedLineStarts = visualLineStarts ?: logicalLineStarts
+        return displayedLineStarts.joinToString("\n") { offset ->
+            val logicalIndex = logicalLineStarts.binarySearch(offset.coerceIn(0, text.length))
+            if (logicalIndex >= 0) (logicalIndex + 1).toString() else ""
+        }
     }
 
     /**
@@ -154,4 +317,7 @@ object EditorEdits {
         val newline = text.indexOf('\n', position)
         return if (newline < 0) text.length else newline
     }
+
+    private fun Char?.isIdentifierPart(): Boolean =
+        this != null && (this == '_' || isLetterOrDigit())
 }

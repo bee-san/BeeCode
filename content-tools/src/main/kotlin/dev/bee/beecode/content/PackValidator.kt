@@ -85,7 +85,9 @@ class PackValidator(
                 append("reference.py does not pass the declared tests (")
                 append(referenceResult.outcome)
                 append(')')
-                referenceResult.diagnostic?.let { append(": ").append(it.lineSequence().first()) }
+                referenceResult.diagnostic?.let {
+                    append(": ").append(it.message.lineSequence().first())
+                }
                 val failing = referenceResult.testResults.filter { !it.passed }
                 if (failing.isNotEmpty()) {
                     append("; failing: ")

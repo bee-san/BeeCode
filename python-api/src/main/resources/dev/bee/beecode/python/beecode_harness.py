@@ -37,7 +37,7 @@ import sys
 import traceback
 
 RESULT_SENTINEL = "__BEECODE_RESULT__"
-HARNESS_VERSION = 1
+HARNESS_VERSION = 2
 
 # Outcome kinds. These must match dev.bee.beecode.domain.ExecutionOutcome; a typo
 # here would surface as a mystery state in the UI.
@@ -196,12 +196,39 @@ def format_user_traceback(exc_info):
     frames = traceback.extract_tb(exc_tb)
     user_frames = [f for f in frames if f.filename == "<solution>"]
     parts = ["Traceback (most recent call last):"]
-    for frame in user_frames or frames:
+    for frame in user_frames:
         parts.append('  File "%s", line %d, in %s' % (frame.filename, frame.lineno, frame.name))
         if frame.line:
             parts.append("    %s" % frame.line.strip())
     parts.extend(traceback.format_exception_only(exc_type, exc_value))
     return "".join(p if p.endswith("\n") else p + "\n" for p in parts).rstrip()
+
+
+def diagnostic(message, start=None, end=None):
+    """Build the v2 typed diagnostic value."""
+    value = {"message": message}
+    if start is not None:
+        source_range = {"start": start}
+        if end is not None:
+            source_range["end"] = end
+        value["sourceRange"] = source_range
+    return value
+
+
+def position(line, column=None):
+    value = {"line": max(1, int(line))}
+    if column is not None:
+        value["column"] = max(1, int(column))
+    return value
+
+
+def traceback_diagnostic(exc_info):
+    """Format an exception and locate its innermost learner frame."""
+    frames = traceback.extract_tb(exc_info[2])
+    user_frames = [frame for frame in frames if frame.filename == "<solution>"]
+    frame = user_frames[-1] if user_frames else None
+    start = position(frame.lineno) if frame is not None else None
+    return diagnostic(format_user_traceback(exc_info), start=start)
 
 
 def run(request):
@@ -215,10 +242,20 @@ def run(request):
     try:
         code = compile(source, "<solution>", "exec")
     except SyntaxError as exc:
+        start = position(exc.lineno or 1, exc.offset)
+        # end_lineno/end_offset arrived after Python 3.9. Desktop uses the
+        # learner's installed Python, so the protocol cannot assume they exist.
+        end_line = getattr(exc, "end_lineno", None)
+        end_offset = getattr(exc, "end_offset", None)
+        end = position(end_line, end_offset) if end_line is not None else None
         return {
             "outcome": SYNTAX_ERROR,
             "testResults": [],
-            "diagnostic": "%s (line %s)" % (exc.msg, exc.lineno),
+            "diagnostic": diagnostic(
+                "%s (line %s)" % (exc.msg, exc.lineno),
+                start=start,
+                end=end,
+            ),
         }
 
     namespace = {"__name__": "__solution__"}
@@ -226,10 +263,11 @@ def run(request):
         exec(code, namespace)
     except BaseException:
         # Module-level code raised: a bad import, a typo at top level.
+        exc_info = sys.exc_info()
         return {
             "outcome": RUNTIME_ERROR,
             "testResults": [],
-            "diagnostic": format_user_traceback(sys.exc_info()),
+            "diagnostic": traceback_diagnostic(exc_info),
         }
 
     function = namespace.get(entry_point)
@@ -239,7 +277,7 @@ def run(request):
         return {
             "outcome": RUNTIME_ERROR,
             "testResults": [],
-            "diagnostic": (
+            "diagnostic": diagnostic(
                 "No function named '%s' was defined. BeeCode calls '%s' to test "
                 "your solution, so it must exist with that exact name." % (entry_point, entry_point)
             ),
@@ -248,11 +286,12 @@ def run(request):
         return {
             "outcome": RUNTIME_ERROR,
             "testResults": [],
-            "diagnostic": "'%s' is defined but is not a function." % entry_point,
+            "diagnostic": diagnostic("'%s' is defined but is not a function." % entry_point),
         }
 
     results = []
     fatal = None
+    fatal_diagnostic = None
     for test in tests:
         args = json.loads(test["argumentsJson"])
         expected = json.loads(test["expectedJson"])
@@ -266,10 +305,12 @@ def run(request):
             # One test raising does not stop the rest: the learner learns more
             # from "3 of 5 passed" than from the first exception alone.
             passed = False
-            message = format_user_traceback(sys.exc_info())
+            exc_info = sys.exc_info()
+            message = format_user_traceback(exc_info)
             rendered_actual = None
             if fatal is None:
                 fatal = message
+                fatal_diagnostic = traceback_diagnostic(exc_info)
         duration = _now_ms() - started
 
         if not passed and message is None:
@@ -302,7 +343,7 @@ def run(request):
     return {
         "outcome": outcome,
         "testResults": results,
-        "diagnostic": fatal if outcome == RUNTIME_ERROR else None,
+        "diagnostic": fatal_diagnostic if outcome == RUNTIME_ERROR else None,
     }
 
 
@@ -328,8 +369,10 @@ def main():
             response = {
                 "outcome": RUNTIME_ERROR,
                 "testResults": [],
-                "diagnostic": "Harness version mismatch: BeeCode sent %r, this harness is %d."
-                % (request.get("harnessVersion"), HARNESS_VERSION),
+                "diagnostic": diagnostic(
+                    "Harness version mismatch: BeeCode sent %r, this harness is %d."
+                    % (request.get("harnessVersion"), HARNESS_VERSION)
+                ),
             }
         else:
             sys.stdout = captured
@@ -351,7 +394,7 @@ def main():
         response = {
             "outcome": "HARNESS_ERROR",
             "testResults": [],
-            "diagnostic": traceback.format_exc(),
+            "diagnostic": diagnostic(traceback.format_exc()),
             "output": captured.getvalue(),
             "pythonVersion": "%d.%d.%d" % sys.version_info[:3],
         }

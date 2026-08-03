@@ -85,7 +85,7 @@ data class RunRequest(
     }
 
     companion object {
-        const val HARNESS_VERSION: Int = 1
+        const val HARNESS_VERSION: Int = 2
 
         /**
          * Build a request from a Problem and a source snapshot.
@@ -143,17 +143,51 @@ data class RunResult(
     val durationMillis: Long,
     val runnerId: String,
     val pythonVersion: String,
-    /**
-     * Human-readable detail for outcomes with no per-test story: a syntax error's
-     * message, a timeout's limit, a worker failure's cause.
-     */
-    val diagnostic: String?,
+    /** Human-readable detail and, when known, the learner-source location. */
+    val diagnostic: RunDiagnostic?,
 ) {
     init {
         require(durationMillis >= 0) { "durationMillis must not be negative" }
     }
 
     val isPass: Boolean get() = outcome == ExecutionOutcome.PASSED
+}
+
+/**
+ * A one-based position in learner source.
+ *
+ * [column] is counted in Unicode code points, matching Python's diagnostics. It
+ * is null when Python can identify a line but not a precise character.
+ */
+data class SourcePosition(
+    val line: Int,
+    val column: Int? = null,
+) {
+    init {
+        require(line >= 1) { "line must be one-based" }
+        require(column == null || column >= 1) { "column must be one-based" }
+    }
+}
+
+/**
+ * A source range whose end is exclusive when a column is available.
+ *
+ * Runtime tracebacks usually provide only [start]; syntax errors can provide
+ * both ends.
+ */
+data class SourceRange(
+    val start: SourcePosition,
+    val end: SourcePosition? = null,
+)
+
+/** Learner-facing run detail with an optional location in the submitted source. */
+data class RunDiagnostic(
+    val message: String,
+    val sourceRange: SourceRange? = null,
+) {
+    init {
+        require(message.isNotBlank()) { "A diagnostic must explain the problem" }
+    }
 }
 
 /**

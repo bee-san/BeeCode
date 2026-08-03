@@ -52,6 +52,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.ui.semantics.Role
@@ -101,6 +102,12 @@ import dev.bee.beecode.app.StatisticsPeriod
 import dev.bee.beecode.app.TopicProgress
 import dev.bee.beecode.design.RunOutcomePresentation
 import dev.bee.beecode.design.ScreenReaderLabels
+import dev.bee.beecode.design.EditorKeymap
+import dev.bee.beecode.design.EditorPlatform
+import dev.bee.beecode.design.editorPreferences
+import dev.bee.beecode.design.setEditorFontSize
+import dev.bee.beecode.design.setEditorKeymap
+import dev.bee.beecode.design.setEditorWrap
 import dev.bee.beecode.design.tint
 import dev.bee.beecode.design.Markdown
 import dev.bee.beecode.design.ThemeChoice
@@ -120,6 +127,7 @@ import dev.bee.beecode.domain.TestCaseResult
 import dev.bee.beecode.domain.describeDue
 import dev.bee.beecode.domain.formatIntervalDays
 import dev.bee.beecode.python.RunnerCapability
+import dev.bee.beecode.python.RunDiagnostic
 import kotlinx.datetime.Instant
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -267,13 +275,11 @@ fun DesktopApp(
 /**
  * The ceiling on the run-results block, past which it scrolls.
  *
- * Chosen by measuring, not by taste. `EditorHeightTest` reports the editor keeping
- * 331px of 519px on a pass and 331px on a fail at this value; at 190dp the failing
- * case dropped to 237px, and at 220dp to 207px, which is barely better than the
- * `weight(1f)` collapse this replaced. Above roughly 150dp the block simply takes
- * whatever it is given, so a larger ceiling buys nothing but a smaller editor.
+ * The editor now carries its own command row, so the result ceiling is lower than
+ * the original plain-text editor's. `EditorHeightTest` keeps this tied to the actual
+ * layout contract: even a failing run leaves the editor the larger share.
  */
-private val RESULT_BLOCK_MAX_HEIGHT = 150.dp
+private val RESULT_BLOCK_MAX_HEIGHT = 120.dp
 
 private sealed interface DesktopScreen {
     data object Queue : DesktopScreen
@@ -360,12 +366,17 @@ private fun ProblemPane(
     val scope = rememberCoroutineScope()
     var source by remember(problemId) { mutableStateOf(opened.draft.source) }
     var latestRun by remember(problemId) { mutableStateOf<ExecutionRun?>(null) }
+    var latestDiagnostic by remember(problemId) { mutableStateOf<RunDiagnostic?>(null) }
     var isRunning by remember(problemId) { mutableStateOf(false) }
     var aided by remember(problemId) { mutableStateOf(opened.session.aided) }
     var explanation by remember(problemId) { mutableStateOf<String?>(null) }
     var message by remember(problemId) { mutableStateOf<String?>(null) }
     var finalized by remember(problemId) { mutableStateOf<FinalizeResult.Finalized?>(null) }
     var runJob by remember(problemId) { mutableStateOf<Job?>(null) }
+    var editorFocusMode by remember(problemId) { mutableStateOf(false) }
+    val editorPreferences = remember(problemId) {
+        profile.settings.editorPreferences(EditorPlatform.DESKTOP)
+    }
 
     val permitted = latestRun?.let { ReviewRatingPolicy.permittedRatings(it, aided) } ?: emptySet()
     val suggested = latestRun?.let { ReviewRatingPolicy.defaultRating(it, aided) }
@@ -376,6 +387,31 @@ private fun ProblemPane(
         // meant a Problem opened and typed into but never run had no row yet, so this
         // silently did nothing and the source was lost on Back.
         profile.study.saveSource(problemId, source)
+    }
+
+    fun startRun() {
+        if (isRunning || finalized != null) return
+        val submittedSource = source
+        message = null
+        isRunning = true
+        runJob = scope.launch {
+            try {
+                when (val outcome = profile.study.run(problemId, submittedSource)) {
+                    is RunOutcome.Completed -> {
+                        latestRun = outcome.run
+                        latestDiagnostic = outcome.diagnostic.takeIf {
+                            source == outcome.run.source
+                        }
+                    }
+                    is RunOutcome.AlreadyFinalized -> message =
+                        "This review is already finished."
+                    else -> message =
+                        "BeeCode lost track of this attempt. Go back and open the Problem again."
+                }
+            } finally {
+                isRunning = false
+            }
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -434,14 +470,15 @@ private fun ProblemPane(
 
         Row(Modifier.fillMaxSize()) {
             // Left: the statement, and the explanation once revealed.
-            Column(
-                Modifier
-                    .weight(0.42f)
-                    .fillMaxHeight()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            if (!editorFocusMode) {
+                Column(
+                    Modifier
+                        .weight(0.42f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                 // In a Card, like every sibling in this column — and like the Android
                 // client, which has always wrapped the statement in one.
                 //
@@ -548,20 +585,32 @@ private fun ProblemPane(
                         }
                     }
                 }
+                }
+
+                VerticalDivider()
             }
 
-            VerticalDivider()
-
             // Right: the editor, results, and the finalize controls.
-            Column(Modifier.weight(0.58f).fillMaxHeight().padding(20.dp)) {
+            Column(
+                Modifier
+                    .weight(if (editorFocusMode) 1f else 0.58f)
+                    .fillMaxHeight()
+                    .padding(20.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "Your solution",
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(onClick = { editorFocusMode = !editorFocusMode }) {
+                        Text(if (editorFocusMode) "Show problem" else "Focus editor")
+                    }
                     TextButton(onClick = {
-                        profile.study.resetToStarter(problemId)?.let { source = it.source }
+                        profile.study.resetToStarter(problemId)?.let {
+                            source = it.source
+                            latestDiagnostic = null
+                        }
                     }) { Text("Reset") }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -582,8 +631,16 @@ private fun ProblemPane(
                 // costs the editor two test rows.
                 CodeEditor(
                     source = source,
-                    onSourceChange = { source = it; message = null },
+                    onSourceChange = {
+                        source = it
+                        message = null
+                        if (latestRun?.source != it) latestDiagnostic = null
+                    },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
+                    preferences = editorPreferences,
+                    diagnostic = latestDiagnostic,
+                    onRun = ::startRun,
+                    sessionKey = problemId,
                 )
 
                 Spacer(Modifier.height(10.dp))
@@ -617,24 +674,7 @@ private fun ProblemPane(
                         }) { Text("Stop") }
                     } else {
                         Button(
-                            onClick = {
-                                message = null
-                                isRunning = true
-                                runJob = scope.launch {
-                                    try {
-                                        when (val outcome = profile.study.run(problemId, source)) {
-                                            is RunOutcome.Completed -> latestRun = outcome.run
-                                            is RunOutcome.AlreadyFinalized -> message =
-                                                "This review is already finished."
-                                            else -> message =
-                                                "BeeCode lost track of this attempt. Go back and " +
-                                                    "open the Problem again."
-                                        }
-                                    } finally {
-                                        isRunning = false
-                                    }
-                                }
-                            },
+                            onClick = ::startRun,
                             enabled = finalized == null,
                         ) { Text(if (latestRun == null) "Run tests" else "Run again") }
                         Spacer(Modifier.weight(1f))
@@ -651,7 +691,7 @@ private fun ProblemPane(
                             .heightIn(max = RESULT_BLOCK_MAX_HEIGHT)
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        ResultBlock(run)
+                        ResultBlock(run, latestDiagnostic)
                     }
                 }
 
@@ -751,7 +791,7 @@ private fun ProblemPane(
 }
 
 @Composable
-private fun ResultBlock(run: ExecutionRun) {
+private fun ResultBlock(run: ExecutionRun, diagnostic: RunDiagnostic?) {
     // The mapping is in :shared so Android cannot word the same outcome differently.
     val outcome = RunOutcomePresentation.of(run.outcome, run.passedTestCount, run.totalTestCount)
     val tint = Color(outcome.tint(LocalBeeCodePalette.current))
@@ -819,6 +859,23 @@ private fun ResultBlock(run: ExecutionRun) {
                         )
                     }
                 }
+            }
+
+            diagnostic?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (
+                        run.outcome == ExecutionOutcome.SYNTAX_ERROR ||
+                        run.outcome == ExecutionOutcome.RUNTIME_ERROR
+                    ) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontFamily = FontFamily.Monospace,
+                )
             }
 
             if (run.testResults.isNotEmpty() && showTests) {
@@ -1525,6 +1582,9 @@ private fun SettingsPane(
     onVisibilityChanged: () -> Unit,
 ) {
     var limit by remember { mutableStateOf(profile.settings.dailyReviewLimit()) }
+    var editorPreferences by remember {
+        mutableStateOf(profile.settings.editorPreferences(EditorPlatform.DESKTOP))
+    }
     var showProgress by remember { mutableStateOf(profile.settings.showProgress()) }
     var showMotivation by remember {
         mutableStateOf(profile.settings.showStreaksAndAchievements())
@@ -1631,6 +1691,79 @@ private fun SettingsPane(
                         )
                     }
                 }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Code editor", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Wrap long lines", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Keep off to preserve Python indentation at a glance.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = editorPreferences.wrapLines,
+                        onCheckedChange = { wrap ->
+                            profile.settings.setEditorWrap(
+                                EditorPlatform.DESKTOP,
+                                wrap,
+                                Clock.System.now(),
+                            )
+                            editorPreferences = editorPreferences.copy(wrapLines = wrap)
+                        },
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Vim keybindings",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = editorPreferences.keymap == EditorKeymap.VIM,
+                        onCheckedChange = { enabled ->
+                            val keymap = if (enabled) EditorKeymap.VIM else EditorKeymap.STANDARD
+                            profile.settings.setEditorKeymap(
+                                EditorPlatform.DESKTOP,
+                                keymap,
+                                Clock.System.now(),
+                            )
+                            editorPreferences = editorPreferences.copy(keymap = keymap)
+                        },
+                    )
+                }
+                Text(
+                    "Font size: ${editorPreferences.fontSizeSp} sp",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = editorPreferences.fontSizeSp.toFloat(),
+                    onValueChange = { size ->
+                        editorPreferences = editorPreferences.copy(fontSizeSp = size.roundToInt())
+                    },
+                    onValueChangeFinished = {
+                        profile.settings.setEditorFontSize(
+                            EditorPlatform.DESKTOP,
+                            editorPreferences.fontSizeSp,
+                            Clock.System.now(),
+                        )
+                    },
+                    valueRange = dev.bee.beecode.design.EditorPreferences.MIN_FONT_SIZE_SP.toFloat()..
+                        dev.bee.beecode.design.EditorPreferences.MAX_FONT_SIZE_SP.toFloat(),
+                    steps = dev.bee.beecode.design.EditorPreferences.MAX_FONT_SIZE_SP -
+                        dev.bee.beecode.design.EditorPreferences.MIN_FONT_SIZE_SP - 1,
+                )
             }
         }
 

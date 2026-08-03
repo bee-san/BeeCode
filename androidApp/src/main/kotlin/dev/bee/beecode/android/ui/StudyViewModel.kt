@@ -22,6 +22,13 @@ import dev.bee.beecode.app.StudyStatistics
 import dev.bee.beecode.app.TopicMasteryProjection
 import dev.bee.beecode.design.ThemeChoice
 import dev.bee.beecode.design.ThemeFamily
+import dev.bee.beecode.design.EditorPlatform
+import dev.bee.beecode.design.EditorPreferences
+import dev.bee.beecode.design.MobileEditorAction
+import dev.bee.beecode.design.editorPreferences
+import dev.bee.beecode.design.setEditorFontSize
+import dev.bee.beecode.design.setEditorWrap
+import dev.bee.beecode.design.setMobileEditorActions
 import dev.bee.beecode.design.setThemeChoice
 import dev.bee.beecode.design.setThemeFamily
 import dev.bee.beecode.design.themeChoice
@@ -32,6 +39,7 @@ import dev.bee.beecode.domain.ProblemId
 import dev.bee.beecode.domain.ProblemReviewFinalized
 import dev.bee.beecode.domain.ProblemSchedule
 import dev.bee.beecode.domain.ReviewRating
+import dev.bee.beecode.python.RunDiagnostic
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,7 +89,13 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     val showStreaksAndAchievements: StateFlow<Boolean> =
         _showStreaksAndAchievements.asStateFlow()
 
+    private val _editorPreferences = MutableStateFlow(
+        profile.settings.editorPreferences(EditorPlatform.ANDROID),
+    )
+    val editorPreferences: StateFlow<EditorPreferences> = _editorPreferences.asStateFlow()
+
     private var runJob: Job? = null
+    private var runGeneration: Long = 0
     private var reviewSessionActive: Boolean = false
 
     init {
@@ -97,6 +111,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         _achievements.value = profile.achievements()
         _topicMastery.value = mastery
         _recommendations.value = StudyRecommendations.rank(queue.new, mastery)
+        _editorPreferences.value = profile.settings.editorPreferences(EditorPlatform.ANDROID)
         refreshVisibility()
     }
 
@@ -145,12 +160,14 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
 
     private fun openProblemInternal(problemId: ProblemId) {
         val opened = profile.study.open(problemId) ?: return
+        invalidateRun()
         _problem.value = ProblemUiState(
             problem = opened.problem,
             source = opened.draft.source,
             schedule = opened.schedule,
             history = opened.history,
             latestRun = null,
+            latestDiagnostic = null,
             isRunning = false,
             revealedExplanation = null,
             aided = opened.session.aided,
@@ -168,7 +185,15 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
      * FULL` is deliberate for reviews but the wrong trade for typing.
      */
     fun editSource(source: String) {
-        _problem.value = _problem.value?.copy(source = source, message = null)
+        _problem.value = _problem.value?.let { state ->
+            state.copy(
+                source = source,
+                message = null,
+                latestDiagnostic = state.latestDiagnostic.takeIf {
+                    state.latestRun?.source == source
+                },
+            )
+        }
     }
 
     /**
@@ -187,29 +212,71 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
         val state = _problem.value ?: return
         if (state.isRunning) return
 
+        val generation = ++runGeneration
         _problem.value = state.copy(isRunning = true, message = null)
         runJob = viewModelScope.launch {
-            when (val outcome = profile.study.run(state.problem.id, state.source)) {
-                is RunOutcome.Completed -> {
-                    val run = outcome.run
-                    _problem.value = _problem.value?.copy(
-                        isRunning = false,
-                        latestRun = run,
-                        permittedRatings = profile.study.permittedRatings(state.problem.id, run.id),
-                        suggestedRating = profile.study.defaultRating(state.problem.id, run.id),
-                    )
+            try {
+                when (val outcome = profile.study.run(state.problem.id, state.source)) {
+                    is RunOutcome.Completed -> {
+                        val run = outcome.run
+                        updateCurrentRun(generation, state.problem.id) { current ->
+                            current.copy(
+                                latestRun = run,
+                                latestDiagnostic = outcome.diagnostic.takeIf {
+                                    current.source == run.source
+                                },
+                                permittedRatings = profile.study.permittedRatings(
+                                    state.problem.id,
+                                    run.id,
+                                ),
+                                suggestedRating = profile.study.defaultRating(
+                                    state.problem.id,
+                                    run.id,
+                                ),
+                            )
+                        }
+                    }
+                    is RunOutcome.AlreadyFinalized ->
+                        updateCurrentRun(generation, state.problem.id) {
+                            it.copy(
+                                message = "This review is already finished. Go back and " +
+                                    "open it again to practise more.",
+                            )
+                        }
+                    is RunOutcome.NoSession, is RunOutcome.UnknownProblem ->
+                        updateCurrentRun(generation, state.problem.id) {
+                            it.copy(
+                                message = "BeeCode lost track of this attempt. Go back and " +
+                                    "open the Problem again.",
+                            )
+                        }
                 }
-                is RunOutcome.AlreadyFinalized -> _problem.value = _problem.value?.copy(
-                    isRunning = false,
-                    message = "This review is already finished. Go back and open it again to practise more.",
-                )
-                is RunOutcome.NoSession, is RunOutcome.UnknownProblem -> _problem.value =
-                    _problem.value?.copy(
-                        isRunning = false,
-                        message = "BeeCode lost track of this attempt. Go back and open the Problem again.",
-                    )
+            } finally {
+                updateCurrentRun(generation, state.problem.id) {
+                    it.copy(isRunning = false)
+                }
+                if (generation == runGeneration) {
+                    runJob = null
+                }
             }
         }
+    }
+
+    private inline fun updateCurrentRun(
+        generation: Long,
+        problemId: ProblemId,
+        update: (ProblemUiState) -> ProblemUiState,
+    ) {
+        if (generation != runGeneration) return
+        _problem.value = _problem.value
+            ?.takeIf { it.problem.id == problemId }
+            ?.let(update)
+    }
+
+    private fun invalidateRun() {
+        runGeneration++
+        runJob?.cancel()
+        runJob = null
     }
 
     /**
@@ -220,8 +287,7 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
      * the learner keeps their code; the abandoned thread is the acknowledged cost.
      */
     fun cancelRun() {
-        runJob?.cancel()
-        runJob = null
+        invalidateRun()
         _problem.value = _problem.value?.copy(
             isRunning = false,
             message = "Stopped waiting for your code. On Android BeeCode cannot force Python to " +
@@ -269,11 +335,16 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     fun resetToStarter() {
         val state = _problem.value ?: return
         val reset = profile.study.resetToStarter(state.problem.id) ?: return
-        _problem.value = state.copy(source = reset.source, message = null)
+        _problem.value = state.copy(
+            source = reset.source,
+            message = null,
+            latestDiagnostic = null,
+        )
     }
 
     fun closeProblem() {
         val completed = _problem.value?.finalized != null
+        invalidateRun()
         persistDraft()
         _problem.value?.let { profile.study.abandon(it.problem.id) }
         _problem.value = null
@@ -297,6 +368,29 @@ class StudyViewModel(private val profile: BeeCodeProfile) : ViewModel() {
     }
 
     fun dailyLimit(): Int? = profile.settings.dailyReviewLimit()
+
+    fun setEditorWrap(wrap: Boolean) {
+        profile.settings.setEditorWrap(
+            EditorPlatform.ANDROID,
+            wrap,
+            kotlinx.datetime.Clock.System.now(),
+        )
+        _editorPreferences.value = _editorPreferences.value.copy(wrapLines = wrap)
+    }
+
+    fun setEditorFontSize(fontSizeSp: Int) {
+        profile.settings.setEditorFontSize(
+            EditorPlatform.ANDROID,
+            fontSizeSp,
+            kotlinx.datetime.Clock.System.now(),
+        )
+        _editorPreferences.value = profile.settings.editorPreferences(EditorPlatform.ANDROID)
+    }
+
+    fun setMobileEditorActions(actions: List<MobileEditorAction>) {
+        profile.settings.setMobileEditorActions(actions, kotlinx.datetime.Clock.System.now())
+        _editorPreferences.value = profile.settings.editorPreferences(EditorPlatform.ANDROID)
+    }
 
     /**
      * The learner's theme preference, as state so the whole tree recomposes on a change.
@@ -504,6 +598,7 @@ data class ProblemUiState(
     val schedule: ProblemSchedule?,
     val history: List<ProblemReviewFinalized>,
     val latestRun: ExecutionRun?,
+    val latestDiagnostic: RunDiagnostic?,
     val isRunning: Boolean,
     val revealedExplanation: String?,
     val aided: Boolean,

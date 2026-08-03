@@ -18,6 +18,7 @@ import dev.bee.beecode.persistence.FinalizeOutcome
 import dev.bee.beecode.persistence.ReviewRepository
 import dev.bee.beecode.persistence.SettingsRepository
 import dev.bee.beecode.python.PythonRunner
+import dev.bee.beecode.python.RunDiagnostic
 import dev.bee.beecode.python.RunRequest
 import dev.bee.beecode.python.RunResult
 import kotlinx.datetime.Clock
@@ -212,11 +213,17 @@ class StudyService(
         val startedAt = clock.now()
         val result = runner.execute(RunRequest.from(runId, problem, source))
 
+        // The UI can abandon and replace a session while a runner is still winding down.
+        // Never let that late completion overwrite the replacement session.
+        if (sessions[problemId]?.id != session.id) {
+            return RunOutcome.NoSession(problemId)
+        }
+
         val run = result.toExecutionRun(problem, source, startedAt)
         val updated = session.recordRun(run)
         sessions[problemId] = updated
 
-        return RunOutcome.Completed(run, updated)
+        return RunOutcome.Completed(run, updated, result.diagnostic)
     }
 
     /**
@@ -418,7 +425,11 @@ data class OpenProblem(
 }
 
 sealed interface RunOutcome {
-    data class Completed(val run: ExecutionRun, val session: ReviewSession) : RunOutcome
+    data class Completed(
+        val run: ExecutionRun,
+        val session: ReviewSession,
+        val diagnostic: RunDiagnostic?,
+    ) : RunOutcome
 
     data class UnknownProblem(val problemId: ProblemId) : RunOutcome
 
