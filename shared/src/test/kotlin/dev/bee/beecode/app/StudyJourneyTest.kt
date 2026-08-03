@@ -266,6 +266,7 @@ class StudyJourneyTest {
             val infinite = "def two_sum(nums, target):\n    while True:\n        pass\n"
             val timedOut = assertIs<RunOutcome.Completed>(profile.study.run(problemId, infinite))
             assertEquals(ExecutionOutcome.TIMEOUT, timedOut.run.outcome)
+            assertNotNull(timedOut.diagnostic)
 
             // A timeout is evidence about recall, so it can be finalized — as Again.
             assertEquals(

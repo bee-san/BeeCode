@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -65,7 +66,7 @@ class ProcessPythonRunnerTest {
     @Test
     fun aCorrectSolutionPasses() {
         val result = runBlocking { runner.execute(twoSum(WORKING_SOLUTION)) }
-        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic)
+        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic?.message)
         assertEquals(2, result.testResults.size)
         assertTrue(result.testResults.all { it.passed })
         assertTrue(result.pythonVersion.startsWith("3."))
@@ -90,7 +91,9 @@ class ProcessPythonRunnerTest {
         val result = runBlocking { runner.execute(twoSum("def two_sum(nums, target)\n    return []\n")) }
         assertEquals(ExecutionOutcome.SYNTAX_ERROR, result.outcome)
         assertTrue(result.testResults.isEmpty(), "no test can have run")
-        assertNotNull(result.diagnostic)
+        val diagnostic = assertNotNull(result.diagnostic)
+        assertEquals(1, diagnostic.sourceRange?.start?.line)
+        assertNotNull(diagnostic.sourceRange?.start?.column)
     }
 
     @Test
@@ -100,9 +103,27 @@ class ProcessPythonRunnerTest {
         }
         assertEquals(ExecutionOutcome.RUNTIME_ERROR, result.outcome)
         val diagnostic = assertNotNull(result.diagnostic)
-        assertTrue(diagnostic.contains("IndexError"), diagnostic)
+        assertTrue(diagnostic.message.contains("IndexError"), diagnostic.message)
+        assertEquals(2, diagnostic.sourceRange?.start?.line)
         // Harness internals would bury the one line that matters.
-        assertFalse(diagnostic.contains("beecode_harness"), "harness frames must be hidden: $diagnostic")
+        assertFalse(
+            diagnostic.message.contains("beecode_harness"),
+            "harness frames must be hidden: ${diagnostic.message}",
+        )
+    }
+
+    @Test
+    fun aRuntimeErrorOutsideLearnerCodeHasNoSourceRangeOrHarnessFrame() {
+        val result = runBlocking {
+            runner.execute(twoSum("def two_sum():\n    return []\n"))
+        }
+        assertEquals(ExecutionOutcome.RUNTIME_ERROR, result.outcome)
+        val diagnostic = assertNotNull(result.diagnostic)
+        assertNull(diagnostic.sourceRange)
+        assertFalse(
+            diagnostic.message.contains("beecode_harness"),
+            "harness frames must be hidden: ${diagnostic.message}",
+        )
     }
 
     @Test
@@ -110,7 +131,7 @@ class ProcessPythonRunnerTest {
         // The most common real failure: the learner renamed the function.
         val result = runBlocking { runner.execute(twoSum("def solve(nums, target):\n    return [0, 1]\n")) }
         assertEquals(ExecutionOutcome.RUNTIME_ERROR, result.outcome)
-        assertTrue(result.diagnostic!!.contains("two_sum"), result.diagnostic!!)
+        assertTrue(result.diagnostic!!.message.contains("two_sum"), result.diagnostic!!.message)
     }
 
     @Test
@@ -169,7 +190,7 @@ class ProcessPythonRunnerTest {
         val result = runBlocking { withTimeoutOrNull(60_000) { runner.execute(request) } }
         assertNotNull(result, "a chatty program must not hang the runner")
         // The framed result still had to survive the flood of learner output.
-        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic)
+        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic?.message)
         assertTrue(result.outputTruncated, "output should be marked truncated")
         assertTrue(
             result.output.encodeToByteArray().size <= 4_096,
@@ -185,7 +206,7 @@ class ProcessPythonRunnerTest {
                 return [0, 1]
         """.trimIndent()
         val result = runBlocking { runner.execute(twoSum(source)) }
-        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic)
+        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic?.message)
         assertTrue(result.output.contains("debugging:"), "captured output was: ${result.output}")
     }
 
@@ -278,7 +299,7 @@ class ProcessPythonRunnerTest {
         runBlocking {
             assertEquals(ExecutionOutcome.PASSED, runner.execute(twoSum(writer)).outcome)
             val second = runner.execute(twoSum(reader))
-            assertEquals(ExecutionOutcome.PASSED, second.outcome, second.diagnostic)
+            assertEquals(ExecutionOutcome.PASSED, second.outcome, second.diagnostic?.message)
         }
     }
 
@@ -295,7 +316,7 @@ class ProcessPythonRunnerTest {
                 return [0, 1]
         """.trimIndent()
         val result = runBlocking { runner.execute(twoSum(source)) }
-        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic)
+        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic?.message)
     }
 
     @Test
@@ -312,7 +333,7 @@ class ProcessPythonRunnerTest {
             limits = ExecutionLimits.DEFAULT,
         )
         val result = runBlocking { runner.execute(request) }
-        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic)
+        assertEquals(ExecutionOutcome.PASSED, result.outcome, result.diagnostic?.message)
     }
 
     @Test
@@ -390,7 +411,7 @@ private object HarnessDirect {
             val script = java.io.File(workspace, "harness.py")
             script.writeText(dev.bee.beecode.python.HarnessProtocol.harnessSource())
             val request = buildString {
-                append("""{"harnessVersion":1,"source":""")
+                append("""{"harnessVersion":2,"source":""")
                 append(quote(source))
                 append(""","entryPoint":""")
                 append(quote(entryPoint))

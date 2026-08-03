@@ -24,14 +24,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.NavigationBar
@@ -47,6 +51,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -57,6 +62,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,6 +89,8 @@ import dev.bee.beecode.app.AchievementState
 import dev.bee.beecode.app.ActivityBucket
 import dev.bee.beecode.android.DocumentSyncStore
 import dev.bee.beecode.design.ScreenReaderLabels
+import dev.bee.beecode.design.EditorPreferences
+import dev.bee.beecode.design.MobileEditorAction
 import dev.bee.beecode.design.ThemeFamily
 import kotlinx.coroutines.launch
 import dev.bee.beecode.app.RestoreResult
@@ -130,6 +138,7 @@ fun BeeCodeApp(viewModel: StudyViewModel) {
     val screen by viewModel.screen.collectAsStateWithLifecycle()
     val problem by viewModel.problem.collectAsStateWithLifecycle()
     val showProgress by viewModel.showProgress.collectAsStateWithLifecycle()
+    val editorPreferences by viewModel.editorPreferences.collectAsStateWithLifecycle()
 
     // The Problem view takes the whole screen, navigation bar included. While
     // solving, the learner needs every pixel for code, and an accidental tab tap
@@ -138,6 +147,7 @@ fun BeeCodeApp(viewModel: StudyViewModel) {
     if (screen is Screen.Problem && active != null) {
         ProblemScreen(
             state = active,
+            editorPreferences = editorPreferences,
             onSourceChange = viewModel::editSource,
             onRun = viewModel::run,
             onCancelRun = viewModel::cancelRun,
@@ -889,6 +899,10 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
     val family by viewModel.themeFamily.collectAsStateWithLifecycle()
     val showProgress by viewModel.showProgress.collectAsStateWithLifecycle()
     val showMotivation by viewModel.showStreaksAndAchievements.collectAsStateWithLifecycle()
+    val editorPreferences by viewModel.editorPreferences.collectAsStateWithLifecycle()
+    var editorFontSize by remember(editorPreferences.fontSizeSp) {
+        mutableIntStateOf(editorPreferences.fontSizeSp)
+    }
     var transferMessage by remember { mutableStateOf<String?>(null) }
     var syncTarget by remember { mutableStateOf(viewModel.syncTarget()) }
     var webDavUrl by remember { mutableStateOf(viewModel.webDavUrl() ?: "") }
@@ -1069,6 +1083,99 @@ private fun SettingsScreen(viewModel: StudyViewModel) {
                             OutlinedButton(onClick = { viewModel.setDailyLimit(limit) }) {
                                 Text(limit?.toString() ?: "None")
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Code editor", style = MaterialTheme.typography.titleSmall)
+                VisibilitySettingRow(
+                    label = "Wrap long lines",
+                    checked = editorPreferences.wrapLines,
+                    onCheckedChange = viewModel::setEditorWrap,
+                )
+                Text(
+                    "Font size: $editorFontSize sp",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    value = editorFontSize.toFloat(),
+                    onValueChange = { editorFontSize = it.roundToInt() },
+                    onValueChangeFinished = {
+                        viewModel.setEditorFontSize(editorFontSize)
+                    },
+                    valueRange = EditorPreferences.MIN_FONT_SIZE_SP.toFloat()..
+                        EditorPreferences.MAX_FONT_SIZE_SP.toFloat(),
+                    steps = EditorPreferences.MAX_FONT_SIZE_SP -
+                        EditorPreferences.MIN_FONT_SIZE_SP - 1,
+                )
+                HorizontalDivider()
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Editing bar",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = {
+                            viewModel.setMobileEditorActions(MobileEditorAction.DEFAULTS)
+                        },
+                    ) { Text("Reset") }
+                }
+                MobileEditorAction.entries.forEach { action ->
+                    val selected = action in editorPreferences.mobileActions
+                    val index = editorPreferences.mobileActions.indexOf(action)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = selected,
+                            onCheckedChange = { checked ->
+                                val next = editorPreferences.mobileActions.toMutableList()
+                                if (checked) next += action else next -= action
+                                viewModel.setMobileEditorActions(next)
+                            },
+                        )
+                        Text(
+                            action.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = {
+                                val next = editorPreferences.mobileActions.toMutableList()
+                                val item = next.removeAt(index)
+                                next.add(index - 1, item)
+                                viewModel.setMobileEditorActions(next)
+                            },
+                            enabled = selected && index > 0,
+                        ) {
+                            Icon(
+                                Icons.Outlined.KeyboardArrowUp,
+                                contentDescription = "Move ${action.label} up",
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val next = editorPreferences.mobileActions.toMutableList()
+                                val item = next.removeAt(index)
+                                next.add(index + 1, item)
+                                viewModel.setMobileEditorActions(next)
+                            },
+                            enabled = selected &&
+                                index < editorPreferences.mobileActions.lastIndex,
+                        ) {
+                            Icon(
+                                Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = "Move ${action.label} down",
+                            )
                         }
                     }
                 }

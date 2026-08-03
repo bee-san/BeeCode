@@ -1,8 +1,7 @@
 package dev.bee.beecode.android.ui
 
-import androidx.compose.foundation.BorderStroke
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,15 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,32 +37,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bee.beecode.android.LocalBeeCodePalette
 import dev.bee.beecode.android.accentCaution
 import dev.bee.beecode.android.accentDanger
 import dev.bee.beecode.android.accentSuccess
-import dev.bee.beecode.design.EditorEdits
+import dev.bee.beecode.design.EditorPreferences
 import dev.bee.beecode.design.Markdown
 import dev.bee.beecode.design.RunOutcomePresentation
 import dev.bee.beecode.design.ScreenReaderLabels
@@ -76,6 +58,7 @@ import dev.bee.beecode.domain.ExecutionRun
 import dev.bee.beecode.domain.ReviewRating
 import dev.bee.beecode.domain.TestCaseResult
 import dev.bee.beecode.domain.formatIntervalDays
+import dev.bee.beecode.python.RunDiagnostic
 
 internal const val CODE_EDITOR_TAG = "code-editor"
 internal const val SYMBOL_ROW_TAG = "symbol-row"
@@ -90,6 +73,7 @@ internal const val SYMBOL_ROW_TAG = "symbol-row"
 @Composable
 fun ProblemScreen(
     state: ProblemUiState,
+    editorPreferences: EditorPreferences,
     onSourceChange: (String) -> Unit,
     onRun: () -> Unit,
     onCancelRun: () -> Unit,
@@ -98,6 +82,29 @@ fun ProblemScreen(
     onResetToStarter: () -> Unit,
     onClose: () -> Unit,
 ) {
+    var editorFullScreen by remember(state.problem.id) { mutableStateOf(false) }
+    val editorSession = remember(state.problem.id) { AndroidEditorSession(state.source) }
+    BackHandler(enabled = editorFullScreen) { editorFullScreen = false }
+    if (editorFullScreen) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            AndroidCodeEditor(
+                session = editorSession,
+                source = state.source,
+                onSourceChange = onSourceChange,
+                onResetToStarter = onResetToStarter,
+                onRun = onRun,
+                onCancelRun = onCancelRun,
+                isRunning = state.isRunning,
+                preferences = editorPreferences,
+                diagnostic = state.latestDiagnostic,
+                fullScreen = true,
+                onFullScreenChange = { editorFullScreen = it },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        return
+    }
+
     Scaffold(
         bottomBar = {
             ActionBar(
@@ -137,13 +144,25 @@ fun ProblemScreen(
             }
 
             StatementCard(state)
-            CodeEditor(state.source, onSourceChange, onResetToStarter)
+            AndroidCodeEditor(
+                session = editorSession,
+                source = state.source,
+                onSourceChange = onSourceChange,
+                onResetToStarter = onResetToStarter,
+                onRun = onRun,
+                onCancelRun = onCancelRun,
+                isRunning = state.isRunning,
+                preferences = editorPreferences,
+                diagnostic = state.latestDiagnostic,
+                fullScreen = false,
+                onFullScreenChange = { editorFullScreen = it },
+            )
 
             if (state.isRunning) {
                 RunningIndicator(onCancelRun)
             }
 
-            state.latestRun?.let { run -> ResultCard(run) }
+            state.latestRun?.let { run -> ResultCard(run, state.latestDiagnostic) }
 
             state.finalized?.let { finalized -> FinalizedCard(finalized, onClose) }
 
@@ -260,264 +279,6 @@ private fun StatementCard(state: ProblemUiState) {
     }
 }
 
-/**
- * The code editor.
- *
- * A `BasicTextField` with monospace text, autocorrect and capitalisation disabled, and a
- * symbol row. Those three settings matter more than they look: an IME that capitalises
- * `Def` or autocorrects `nums` produces syntax errors the learner did not write, and a
- * phone keyboard with no colon or bracket makes Python unwritable.
- *
- * ## Indentation
- *
- * Enter carries the current line's indentation and adds a level after a `:`, and
- * Backspace inside leading whitespace removes a whole level. Both come from
- * [EditorEdits], which the desktop editor also uses — this client had neither, so the
- * harder of the two keyboards to type Python on had the less help. Re-indenting by hand
- * after every `if` is tedious on a desktop and genuinely discouraging on a phone.
- *
- * Enter is detected in `onValueChange` rather than as a key event, because a soft
- * keyboard's Enter arrives as an already-committed text change and never reaches
- * `onPreviewKeyEvent`. Tab and Shift+Tab are the reverse — no soft keyboard sends them,
- * so they are handled only on the key path, for a hardware keyboard.
- */
-@Composable
-private fun CodeEditor(
-    source: String,
-    onSourceChange: (String) -> Unit,
-    onResetToStarter: () -> Unit,
-) {
-    // Own the selection locally so inserting a symbol can place the caret after it.
-    var value by remember { mutableStateOf(TextFieldValue(source, TextRange(source.length))) }
-
-    // Adopt [source] only when it genuinely disagrees with the buffer — a reset to
-    // starter, or a different Problem. Keying `remember` on `source` re-ran the
-    // initialiser after every keystroke, because the caller echoes `source` back from
-    // this editor's own `onSourceChange`, and rebuilding the selection as
-    // `TextRange(source.length)` sent the caret to the end of the buffer after each
-    // edit. Every symbol-row insertion after the first therefore appended instead of
-    // landing at the caret. The desktop editor had the identical defect.
-    if (value.text != source) {
-        value = TextFieldValue(source, TextRange(source.length))
-    }
-
-    fun update(next: TextFieldValue) {
-        value = next
-        onSourceChange(next.text)
-    }
-
-    /**
-     * Insert text at the caret, replacing any selection.
-     *
-     * The caret then sits after the inserted text, which is what makes the symbol
-     * row usable for typing rather than a novelty.
-     */
-    fun insert(text: String) {
-        val start = value.selection.min
-        val end = value.selection.max
-        val updated = value.text.replaceRange(start, end, text)
-        update(TextFieldValue(updated, TextRange(start + text.length)))
-    }
-
-    /**
-     * Auto-indent a newline the soft keyboard just inserted.
-     *
-     * Detected from the resulting text rather than from a key event, and that is not a
-     * shortcut: a soft keyboard's Enter arrives through `onValueChange` as an already-
-     * committed edit, and `onPreviewKeyEvent` — which is how the desktop editor does
-     * this — never fires for it. Writing this the desktop way would have produced code
-     * that looked right, compiled, and did nothing on a phone.
-     *
-     * Recognised as *exactly one* "\n" inserted at the caret. A paste containing
-     * newlines already carries its own indentation and must not be re-indented, and a
-     * newline typed into the middle of a line is still an Enter, so the test is on the
-     * shape of the edit and not on the caret's position in the line.
-     */
-    fun indentedNewlineOrNull(next: TextFieldValue): TextFieldValue? {
-        val before = value.text
-        val caretBefore = value.selection.min
-        if (!value.selection.collapsed) return null
-        if (next.text.length != before.length + 1) return null
-        if (next.selection.min != caretBefore + 1) return null
-        if (next.text.getOrNull(caretBefore) != '\n') return null
-        if (next.text.removeRange(caretBefore, caretBefore + 1) != before) return null
-
-        val edit = EditorEdits.newlineWithIndent(before, caretBefore)
-        return TextFieldValue(edit.text, TextRange(edit.caret))
-    }
-
-    Card {
-        Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Your solution",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onResetToStarter) { Text("Reset") }
-            }
-
-            Spacer(Modifier.height(6.dp))
-
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 200.dp)
-                    .testTag(CODE_EDITOR_TAG)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp)),
-            ) {
-                BasicTextField(
-                    value = value,
-                    onValueChange = { next -> update(indentedNewlineOrNull(next) ?: next) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp)
-                        // Horizontal scroll so a long line is reachable rather than
-                        // wrapped into misleading indentation.
-                        .horizontalScroll(rememberScrollState())
-                        // Tab and Backspace from a *hardware* keyboard, which a phone in a
-                        // dock or a tablet with a case has. The soft keyboard has no Tab at
-                        // all — the symbol row's first key is what serves that purpose there
-                        // — so this path is additive rather than the main one, and Enter is
-                        // deliberately absent from it: a soft Enter never reaches here, so
-                        // handling it in both places would double-indent on hardware.
-                        .onPreviewKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                            when (event.key) {
-                                Key.Tab -> {
-                                    val start = value.selection.min
-                                    val end = value.selection.max
-                                    val spansLines = !value.selection.collapsed &&
-                                        value.text.substring(start, end).contains('\n')
-                                    when {
-                                        event.isShiftPressed -> EditorEdits
-                                            .dedentBlock(value.text, start, end)
-                                            .let {
-                                                update(
-                                                    TextFieldValue(
-                                                        it.text,
-                                                        TextRange(it.selectionStart, it.selectionEnd),
-                                                    ),
-                                                )
-                                            }
-                                        spansLines -> EditorEdits
-                                            .indentBlock(value.text, start, end)
-                                            .let {
-                                                update(
-                                                    TextFieldValue(
-                                                        it.text,
-                                                        TextRange(it.selectionStart, it.selectionEnd),
-                                                    ),
-                                                )
-                                            }
-                                        else -> insert(EditorEdits.INDENT)
-                                    }
-                                    true
-                                }
-                                // Only when it would remove a whole indent level; otherwise
-                                // fall through so ordinary character deletion still works.
-                                Key.Backspace -> {
-                                    val edit = if (value.selection.collapsed) {
-                                        EditorEdits.dedent(value.text, value.selection.min)
-                                    } else {
-                                        null
-                                    }
-                                    if (edit == null) {
-                                        false
-                                    } else {
-                                        update(TextFieldValue(edit.text, TextRange(edit.caret)))
-                                        true
-                                    }
-                                }
-                                else -> false
-                            }
-                        }
-                        .semantics { contentDescription = "Python solution editor" },
-                    textStyle = TextStyle(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(
-                        // All three matter: autocorrect and capitalisation turn
-                        // valid Python into syntax errors the learner never typed.
-                        capitalization = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false,
-                        keyboardType = KeyboardType.Ascii,
-                        imeAction = ImeAction.Default,
-                    ),
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            SymbolRow(onInsert = ::insert)
-        }
-    }
-}
-
-/**
- * The symbol row.
- *
- * Python needs `:`, `_`, brackets, and indentation, and a phone keyboard buries or
- * omits them. The first entry inserts four spaces, because indentation is
- * syntactically significant in Python and a tab character is not equivalent.
- */
-@Composable
-private fun SymbolRow(onInsert: (String) -> Unit) {
-    val symbols = listOf(
-        "    " to "⇥",
-        ":" to ":",
-        "_" to "_",
-        "(" to "(",
-        ")" to ")",
-        "[" to "[",
-        "]" to "]",
-        "{" to "{",
-        "}" to "}",
-        "\"" to "\"",
-        "=" to "=",
-        "<" to "<",
-        ">" to ">",
-        "+" to "+",
-        "-" to "-",
-        "*" to "*",
-        "/" to "/",
-        "%" to "%",
-        "." to ".",
-        "," to ",",
-        "#" to "#",
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .testTag(SYMBOL_ROW_TAG),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        symbols.forEach { (text, label) ->
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(6.dp),
-                onClick = { onInsert(text) },
-            ) {
-                Text(
-                    label,
-                    Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .semantics {
-                            contentDescription = if (text == "    ") "Insert indent" else "Insert $text"
-                        },
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 15.sp,
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun RunningIndicator(onCancel: () -> Unit) {
     Card {
@@ -542,7 +303,7 @@ private fun RunningIndicator(onCancel: () -> Unit) {
  * failure is BeeCode's fault rather than theirs.
  */
 @Composable
-private fun ResultCard(run: ExecutionRun) {
+private fun ResultCard(run: ExecutionRun, diagnostic: RunDiagnostic?) {
     // The mapping is in :shared so desktop cannot word the same outcome differently.
     val outcome = RunOutcomePresentation.of(run.outcome, run.passedTestCount, run.totalTestCount)
     val tint = Color(outcome.tint(LocalBeeCodePalette.current))
@@ -576,6 +337,23 @@ private fun ResultCard(run: ExecutionRun) {
                     "${run.durationMillis} ms",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            diagnostic?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (
+                        run.outcome == ExecutionOutcome.SYNTAX_ERROR ||
+                        run.outcome == ExecutionOutcome.RUNTIME_ERROR
+                    ) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontFamily = FontFamily.Monospace,
                 )
             }
 

@@ -123,10 +123,62 @@ class HarnessProtocolTest {
     @Test
     fun aHarnessErrorIsAWorkerFailureNotALearnerMistake() {
         val result = HarnessProtocol.decodeResult(
-            """{"outcome":"HARNESS_ERROR","diagnostic":"boom"}""", request(), 10, "test", 65_536,
+            """{"outcome":"HARNESS_ERROR","diagnostic":{"message":"boom"}}""",
+            request(),
+            10,
+            "test",
+            65_536,
         )
         assertEquals(ExecutionOutcome.WORKER_FAILURE, result.outcome)
-        assertEquals("boom", result.diagnostic)
+        assertEquals("boom", result.diagnostic?.message)
+    }
+
+    @Test
+    fun aTypedSourceRangeDecodes() {
+        val result = HarnessProtocol.decodeResult(
+            """
+                {
+                  "outcome":"SYNTAX_ERROR",
+                  "diagnostic":{
+                    "message":"expected ':'",
+                    "sourceRange":{
+                      "start":{"line":1,"column":24},
+                      "end":{"line":1,"column":24}
+                    }
+                  }
+                }
+            """.trimIndent(),
+            request(),
+            10,
+            "test",
+            65_536,
+        )
+
+        assertEquals("expected ':'", result.diagnostic?.message)
+        assertEquals(SourcePosition(1, 24), result.diagnostic?.sourceRange?.start)
+        assertEquals(SourcePosition(1, 24), result.diagnostic?.sourceRange?.end)
+    }
+
+    @Test
+    fun anInvalidSourceRangeBecomesAWorkerFailure() {
+        val result = HarnessProtocol.decodeResult(
+            """
+                {
+                  "outcome":"SYNTAX_ERROR",
+                  "diagnostic":{
+                    "message":"bad range",
+                    "sourceRange":{"start":{"line":0,"column":-1}}
+                  }
+                }
+            """.trimIndent(),
+            request(),
+            10,
+            "test",
+            65_536,
+        )
+
+        assertEquals(ExecutionOutcome.WORKER_FAILURE, result.outcome)
+        assertTrue(result.diagnostic?.message.orEmpty().contains("invalid diagnostic"))
     }
 
     @Test

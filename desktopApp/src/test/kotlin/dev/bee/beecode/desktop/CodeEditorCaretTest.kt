@@ -1,6 +1,8 @@
 package dev.bee.beecode.desktop
 
 import dev.bee.beecode.design.EditorEdits
+import dev.bee.beecode.design.EditorKeymap
+import dev.bee.beecode.design.EditorPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,6 +12,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
@@ -41,6 +45,150 @@ import kotlin.test.assertEquals
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorCaretTest {
+
+    @Test
+    fun vimNormalAndInsertModesShareTheLiveUndoableBuffer() = runComposeUiTest {
+        var observed = "abc"
+        setContent {
+            var source by remember { mutableStateOf(observed) }
+            observed = source
+            CodeEditor(
+                source = source,
+                onSourceChange = { source = it },
+                preferences = EditorPreferences.DesktopDefault.copy(
+                    keymap = EditorKeymap.VIM,
+                ),
+            )
+        }
+        val field = onNodeWithContentDescription("Python solution editor")
+        field.requestFocus()
+
+        // Normal mode starts at the end. h, x removes the final character.
+        field.performKeyInput {
+            pressKey(Key.H)
+            pressKey(Key.X)
+        }
+        waitForIdle()
+        assertEquals("ab", observed)
+
+        field.performKeyInput { pressKey(Key.I) }
+        field.performTextInput("z")
+        field.performKeyInput { pressKey(Key.Escape) }
+        waitForIdle()
+        assertEquals("abz", observed)
+        field.assertIsFocused()
+
+        field.performKeyInput {
+            pressKey(Key.D)
+            pressKey(Key.D)
+        }
+        waitForIdle()
+        assertEquals("", observed)
+    }
+
+    @Test
+    fun vimNormalModeRejectsTextInputAndASecondEscapeLeavesTheEditor() = runComposeUiTest {
+        var observed = "pass"
+        setContent {
+            CodeEditor(
+                source = observed,
+                onSourceChange = { observed = it },
+                preferences = EditorPreferences.DesktopDefault.copy(
+                    keymap = EditorKeymap.VIM,
+                ),
+            )
+        }
+        val field = onNodeWithContentDescription("Python solution editor")
+        field.requestFocus()
+        field.performTextInput("ignored")
+        waitForIdle()
+        assertEquals("pass", observed)
+
+        field.performKeyInput {
+            pressKey(Key.I)
+            pressKey(Key.Escape)
+        }
+        field.assertIsFocused()
+        field.performKeyInput { pressKey(Key.Escape) }
+        field.assertIsNotFocused()
+    }
+
+    @Test
+    fun anOpeningDelimiterAddsItsPairAndKeepsTypingInside() = runComposeUiTest {
+        var observed = ""
+        setContent {
+            var source by remember { mutableStateOf("") }
+            observed = source
+            CodeEditor(source = source, onSourceChange = { source = it })
+        }
+        val field = onNodeWithContentDescription("Python solution editor")
+        field.requestFocus()
+        field.performTextInput("(")
+        waitForIdle()
+        assertEquals("()", observed)
+
+        field.performTextInput("value")
+        waitForIdle()
+        assertEquals("(value)", observed)
+    }
+
+    @Test
+    fun editorToolbarUndoRestoresThePreviousBuffer() = runComposeUiTest {
+        var observed = ""
+        setContent {
+            var source by remember { mutableStateOf("") }
+            observed = source
+            CodeEditor(source = source, onSourceChange = { source = it })
+        }
+        val field = onNodeWithContentDescription("Python solution editor")
+        field.requestFocus()
+        field.performTextInput("value")
+        waitForIdle()
+
+        onNodeWithContentDescription("Undo").performClick()
+        waitForIdle()
+        assertEquals("", observed)
+    }
+
+    @Test
+    fun replaceAllIsWiredToTheLiveBuffer() = runComposeUiTest {
+        var observed = "value + value"
+        setContent {
+            var source by remember { mutableStateOf(observed) }
+            observed = source
+            CodeEditor(source = source, onSourceChange = { source = it })
+        }
+
+        onNodeWithText("Replace").performClick()
+        onNodeWithContentDescription("Find query").performTextInput("value")
+        onNodeWithContentDescription("Replacement").performTextInput("item")
+        onNodeWithText("Replace all").performClick()
+        waitForIdle()
+
+        assertEquals("item + item", observed)
+    }
+
+    @Test
+    fun commandEnterRunsWithoutAddingANewline() = runComposeUiTest {
+        var source = "pass"
+        var runs = 0
+        setContent {
+            CodeEditor(
+                source = source,
+                onSourceChange = { source = it },
+                onRun = { runs++ },
+            )
+        }
+        val field = onNodeWithContentDescription("Python solution editor")
+        field.requestFocus()
+        field.performKeyInput {
+            withKeyDown(Key.CtrlLeft) { pressKey(Key.Enter) }
+        }
+        waitForIdle()
+
+        assertEquals(1, runs)
+        assertEquals("pass", source)
+    }
 
     @Test
     fun typingRepeatedlyMidDocumentKeepsTheCaretInPlace() = runComposeUiTest {

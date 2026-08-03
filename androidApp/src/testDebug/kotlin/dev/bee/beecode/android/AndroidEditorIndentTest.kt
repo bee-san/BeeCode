@@ -12,9 +12,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.test.performTextReplacement
@@ -29,6 +31,7 @@ import dev.bee.beecode.android.ui.QUEUE_LIST_TAG
 import dev.bee.beecode.android.ui.StudyViewModel
 import dev.bee.beecode.app.BeeCodeProfile
 import dev.bee.beecode.app.ProblemCatalogue
+import dev.bee.beecode.design.MobileEditorAction
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -92,6 +95,44 @@ class AndroidEditorIndentTest {
     @After
     fun tearDown() {
         profile.close()
+    }
+
+    @Test
+    fun anOpeningDelimiterAddsItsPairAndKeepsTypingInside() {
+        val editor = openEditorWith("")
+        editor.setCaretToEnd()
+
+        editor.performTextInput("(")
+        compose.waitForIdle()
+        assertEquals("()", editorText())
+
+        editor.performTextInput("value")
+        assertEquals("(value)", editorText())
+    }
+
+    @Test
+    fun fullScreenEditorKeepsTheLiveBuffer() {
+        val editor = openEditorWith("value = 1")
+        editor.setCaretToEnd()
+        editor.performTextInput("x")
+
+        compose.onNodeWithText("Full screen").performScrollTo().performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Exit full screen").assertExists()
+        assertEquals("value = 1x", editorText())
+        compose.onNodeWithContentDescription(MobileEditorAction.UNDO.label).performClick()
+        assertEquals("value = 1", editorText())
+    }
+
+    @Test
+    fun configuredEditingBarShowsOnlySelectedActions() {
+        openEditorWith("value", configure = { viewModel ->
+            viewModel.setMobileEditorActions(listOf(MobileEditorAction.COLON))
+        })
+
+        compose.onNodeWithContentDescription(MobileEditorAction.COLON.label).assertExists()
+        compose.onNodeWithContentDescription(MobileEditorAction.EQUALS.label).assertDoesNotExist()
     }
 
     @Test
@@ -208,10 +249,15 @@ class AndroidEditorIndentTest {
     }
 
     /** Open Two Sum and put [source] in its editor. */
-    private fun openEditorWith(source: String): SemanticsNodeInteraction {
+    private fun openEditorWith(
+        source: String,
+        configure: (StudyViewModel) -> Unit = {},
+    ): SemanticsNodeInteraction {
+        val viewModel = StudyViewModel(profile)
+        configure(viewModel)
         compose.setContent {
             BeeCodeTheme {
-                BeeCodeApp(StudyViewModel(profile))
+                BeeCodeApp(viewModel)
             }
         }
         // Scrolled to rather than assumed on screen: the queue is a lazy list and Two Sum

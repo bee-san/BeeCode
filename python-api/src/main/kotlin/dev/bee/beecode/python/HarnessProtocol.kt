@@ -134,6 +134,16 @@ object HarnessProtocol {
         // truncated if either side had to trim.
         val (output, truncatedHere) = truncateOutput(decoded.output, limits)
         val truncated = truncatedHere || decoded.outputTruncated
+        val diagnostic = try {
+            decoded.diagnostic?.toRunDiagnostic()
+        } catch (e: IllegalArgumentException) {
+            return workerFailure(
+                request = request,
+                durationMillis = durationMillis,
+                runnerId = runnerId,
+                diagnostic = "The harness returned an invalid diagnostic: ${e.message}",
+            )
+        }
 
         return RunResult(
             runId = request.runId,
@@ -154,7 +164,7 @@ object HarnessProtocol {
             durationMillis = durationMillis,
             runnerId = runnerId,
             pythonVersion = decoded.pythonVersion,
-            diagnostic = decoded.diagnostic,
+            diagnostic = diagnostic,
         )
     }
 
@@ -190,7 +200,7 @@ object HarnessProtocol {
         durationMillis = durationMillis,
         runnerId = runnerId,
         pythonVersion = pythonVersion,
-        diagnostic = diagnostic,
+        diagnostic = RunDiagnostic(diagnostic),
     )
 
     /** Build a [RunResult] for a run that exceeded its deadline. */
@@ -209,8 +219,10 @@ object HarnessProtocol {
         durationMillis = durationMillis,
         runnerId = runnerId,
         pythonVersion = pythonVersion,
-        diagnostic = "Your code did not finish within ${request.limits.wallClockMillis} ms " +
-            "and was stopped. This usually means a loop never ends.",
+        diagnostic = RunDiagnostic(
+            "Your code did not finish within ${request.limits.wallClockMillis} ms " +
+                "and was stopped. This usually means a loop never ends.",
+        ),
     )
 
     /** Build a [RunResult] for a learner-cancelled run. */
@@ -258,8 +270,38 @@ private data class HarnessResponse(
     val output: String = "",
     val outputTruncated: Boolean = false,
     val pythonVersion: String = "unknown",
-    val diagnostic: String? = null,
+    val diagnostic: HarnessDiagnostic? = null,
 )
+
+@Serializable
+private data class HarnessDiagnostic(
+    val message: String,
+    val sourceRange: HarnessSourceRange? = null,
+) {
+    fun toRunDiagnostic(): RunDiagnostic = RunDiagnostic(
+        message = message,
+        sourceRange = sourceRange?.let {
+            SourceRange(
+                start = it.start.toSourcePosition(),
+                end = it.end?.toSourcePosition(),
+            )
+        },
+    )
+}
+
+@Serializable
+private data class HarnessSourceRange(
+    val start: HarnessSourcePosition,
+    val end: HarnessSourcePosition? = null,
+)
+
+@Serializable
+private data class HarnessSourcePosition(
+    val line: Int,
+    val column: Int? = null,
+) {
+    fun toSourcePosition(): SourcePosition = SourcePosition(line, column)
+}
 
 @Serializable
 private data class HarnessTestResult(
